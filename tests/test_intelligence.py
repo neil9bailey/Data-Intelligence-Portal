@@ -2,11 +2,13 @@ import json
 
 from sqlmodel import select
 
+from app.audit import compact_snapshot
 from app.intelligence import FetchResult, extract_document_intelligence, parse_feed_items, run_kra_research, run_source_check, source_allowed
 from app.models import (
     Customer,
     ExtractedQualityQuestion,
     ExtractedRequirement,
+    EmailConfiguration,
     KRAFinding,
     NewsFeedSource,
     Opportunity,
@@ -137,3 +139,10 @@ def test_atom_feed_parser_extracts_items():
     assert items[0]["title"] == "Procurement update"
     assert items[0]["link"] == "https://www.gov.uk/example-update"
     assert items[0]["content_hash"]
+
+
+def test_audit_snapshot_redacts_email_password():
+    snapshot = compact_snapshot(EmailConfiguration(smtp_password="super-secret"))
+
+    assert "super-secret" not in snapshot
+    assert "***redacted***" in snapshot

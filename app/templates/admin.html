@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Admin - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Admin Dashboard</h1><p>Email delivery configuration, local outbox testing and delivery audit.</p></div></div>
+<section class="grid two">
+  <div class="panel">
+    <h2>Email Configuration</h2>
+    <form method="post" action="/admin/email">
+      <div class="form-grid">
+        <div class="field"><label>Profile name</label><input name="profile_name" value="{{ email_config.profile_name }}"></div>
+        <div class="field"><label>Delivery mode</label><select name="delivery_mode"><option value="file_outbox" {% if email_config.delivery_mode == 'file_outbox' %}selected{% endif %}>Local file outbox</option><option value="smtp" {% if email_config.delivery_mode == 'smtp' %}selected{% endif %}>SMTP</option></select></div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Sender name</label><input name="sender_name" value="{{ email_config.sender_name }}"></div>
+        <div class="field"><label>Sender email</label><input name="sender_email" value="{{ email_config.sender_email }}"></div>
+      </div>
+      <div class="field"><label>Default recipients</label><textarea name="default_recipients" placeholder="name@example.com; another@example.com">{{ email_config.default_recipients }}</textarea></div>
+      <div class="form-grid">
+        <div class="field"><label>SMTP host</label><input name="smtp_host" value="{{ email_config.smtp_host }}"></div>
+        <div class="field"><label>SMTP port</label><input name="smtp_port" value="{{ email_config.smtp_port }}"></div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>SMTP username</label><input name="smtp_username" value="{{ email_config.smtp_username }}"></div>
+        <div class="field"><label>SMTP password</label><input name="smtp_password" type="password" placeholder="Leave blank to keep existing"></div>
+      </div>
+      <label class="checkline"><input type="checkbox" name="use_tls" value="true" {% if email_config.use_tls %}checked{% endif %}> Use TLS</label>
+      <label class="checkline"><input type="checkbox" name="enabled" value="true" {% if email_config.enabled %}checked{% endif %}> Enable SMTP sending</label>
+      <div class="field"><label>Notes</label><textarea name="notes">{{ email_config.notes }}</textarea></div>
+      <button type="submit">Save email settings</button>
+    </form>
+  </div>
+  <div class="panel">
+    <h2>Send Test Email</h2>
+    <form method="post" action="/admin/email/test">
+      <div class="field"><label>Recipients</label><input name="recipients" value="{{ email_config.default_recipients }}" placeholder="recipient@example.com"></div>
+      <div class="form-grid">
+        <div class="field"><label>Sender name</label><input name="sender_name" value="{{ email_config.sender_name }}"></div>
+        <div class="field"><label>Sender email</label><input name="sender_email" value="{{ email_config.sender_email }}"></div>
+      </div>
+      <div class="field"><label>Subject</label><input name="subject" value="Data Intelligence Portal test email"></div>
+      <div class="field"><label>Message</label><textarea name="message">This is a local MVP email configuration test.</textarea></div>
+      <button type="submit">Send test</button>
+    </form>
+    <p class="hint">Local file outbox writes `.eml` files to `.outbox`. SMTP mode sends only when enabled and configured.</p>
+  </div>
+</section>
+<section class="panel" style="margin-top:18px;">
+  <h2>Email Delivery Log</h2>
+  <div class="table-wrap"><table><thead><tr><th>When</th><th>Subject</th><th>Recipients</th><th>Status</th><th>Outbox</th></tr></thead><tbody>
+    {% for log in email_logs %}
+    <tr><td>{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</td><td>{{ log.subject }}</td><td>{{ log.recipients }}</td><td><span class="badge {{ 'green' if log.status in ['sent','stored'] else 'red' }}">{{ log.status }}</span></td><td>{{ log.outbox_path }}</td></tr>
+    {% else %}<tr><td colspan="5">No email events yet.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endblock %}

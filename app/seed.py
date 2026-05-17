@@ -11,6 +11,7 @@ from app.models import (
     Opportunity,
     OpportunityDocument,
     ExtractedRequirement,
+    EmailConfiguration,
     KRAAgentProfile,
 )
 from app.rule_loader import load_rule_file
@@ -108,6 +109,23 @@ def seed_reference_data(session: Session) -> None:
     seed_platforms(session)
     seed_kra_agents(session)
     seed_news_feeds(session)
+    seed_email_configuration(session)
+
+
+def seed_email_configuration(session: Session) -> None:
+    if session.exec(select(EmailConfiguration)).first():
+        return
+    session.add(
+        EmailConfiguration(
+            profile_name="Default local outbox",
+            delivery_mode="file_outbox",
+            enabled=False,
+            sender_name="Data Intelligence Portal",
+            sender_email="no-reply@local.test",
+            notes="Default safe mode writes email files to .outbox. Configure SMTP when ready.",
+        )
+    )
+    session.commit()
 
 
 def seed_demo_data(session: Session) -> None:

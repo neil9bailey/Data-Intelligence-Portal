@@ -15,6 +15,9 @@ def compact_snapshot(item: Any) -> str:
         data = item.model_dump()
     else:
         data = dict(item)
+    for key in list(data):
+        if any(term in key.lower() for term in ("password", "secret", "token", "api_key")):
+            data[key] = "***redacted***" if data[key] else ""
     return json.dumps(data, default=str, separators=(",", ":"))[:8000]
 
 

@@ -1,0 +1,42 @@
+version: 2026.05.17
+last_reviewed: 2026-05-17
+purpose: Configurable COF-style source-to-inbox operating workflow.
+service_name: Contracted Opportunity Finder workflow
+goal: Scale opportunity monitoring from manual weekly reports to repeatable source ingestion, matching, review, export and email delivery.
+guardrails:
+  human_gate_required: true
+  no_client_delivery_without_review: true
+  no_portal_credentials_in_mvp: true
+  no_automated_portal_submission: true
+  email_delivery_requires_local_configuration: true
+stages:
+  - key: sources
+    name: Five public sources
+    description: Find a Tender, Contracts Finder, Public Contracts Scotland, Sell2Wales and TED provide the primary public data coverage.
+    configuration: app/rules/sources.yml
+  - key: ingestion
+    name: Daily ingestion and OCDS normalisation
+    description: Pull public notices, normalise supported OCDS/eForms payloads, dedupe on OCID or stable notice references, and retain source-change evidence.
+    configuration: app/rules/sources.yml
+  - key: matching
+    name: Client matcher
+    description: Match opportunities to customer watch profiles using aliases, keywords, sectors, regions, CPV codes and value bands.
+    configuration: Customer watch profiles
+  - key: human_gate
+    name: Human review gate
+    description: Approve, reassign or reject before an opportunity is treated as client/report ready.
+    configuration: Review queue
+  - key: outputs
+    name: Branded report and Monday email
+    description: Generate local exports, send configured email summaries and retain a delivery log.
+    configuration: Admin email settings
+  - key: phase_two_portal
+    name: Client portal live feed
+    description: Future client-facing feed with "I'm interested" signals, pipeline tracking and on-demand document retrieval.
+    configuration: Client portal tracker
+outputs:
+  local_download:
+    formats: [markdown, html, json, text]
+  email:
+    default_mode: file_outbox
+    future_mode: Entra ID backed recipient/address-book selection

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Workflow - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Source To Inbox Workflow</h1>
+    <p>COF-style operating model: source ingestion, matching, human gate, branded exports and controlled email delivery.</p>
+  </div>
+</div>
+
+<section class="workflow-map">
+  {% for stage in workflow.stages %}
+  <article class="workflow-card">
+    <span class="eyebrow">{{ stage.key.replace('_', ' ') }}</span>
+    <h2>{{ stage.name }}</h2>
+    <p>{{ stage.description }}</p>
+    <p class="hint">Config: {{ stage.configuration }}</p>
+  </article>
+  {% endfor %}
+</section>
+
+<section class="grid three" style="margin-top:18px;">
+  <div class="panel"><h2>Ingestion</h2><p>Five public sources feed the normalised opportunity catalogue. Source health and change evidence are retained.</p><a class="button secondary" href="/sources">Configure sources</a></div>
+  <div class="panel"><h2>Human Gate</h2><p>Nothing is client/report ready until a reviewer approves, rejects, holds or reassigns it.</p><a class="button secondary" href="/review">Open review queue</a></div>
+  <div class="panel"><h2>Outputs</h2><p>Reports can be downloaded locally or sent through the configured local outbox/SMTP profile.</p><a class="button secondary" href="/admin">Configure email</a></div>
+</section>
+
+<section class="panel" style="margin-top:18px;">
+  <h2>Guardrails</h2>
+  <div class="badges">
+    {% for key, value in workflow.guardrails.items() %}
+    <span class="badge {{ 'green' if value else 'amber' }}">{{ key.replace('_', ' ') }}</span>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

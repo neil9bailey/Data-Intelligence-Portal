@@ -17,6 +17,7 @@ Data Intelligence Portal is a configurable information-gathering workspace for:
 - source-change monitoring and connector health
 - official GOV.UK policy/news feed monitoring
 - executive summaries and exportable intelligence reports
+- COF-style source-to-inbox workflow, review queue, local downloads and controlled email delivery
 - a built-in KRA Knowledge Research Agent for guarded source checks, source-change tracking, customer memory and requirement extraction
 - MCP-style local agent/tool profiles ready for future connector orchestration
 
@@ -141,6 +142,37 @@ KRA can:
 - create opportunity and requirement records
 - extract quality questions and weighting signals from permitted document text
 - generate Markdown reports
+
+## COF Source-To-Inbox Workflow
+
+Pages 2 and 3 of the COF design draft have been mapped into the product as a configurable workflow at `/workflow`.
+
+The workflow covers:
+
+- five public opportunity sources: Find a Tender, Contracts Finder, Public Contracts Scotland, Sell2Wales and TED
+- one ingestion pipeline with OCDS/eForms normalisation and dedupe by OCID or stable notice reference
+- customer matching using watch profiles, aliases, keywords, sectors, regions, CPV codes and value bands
+- a human review gate at `/review` for approve, hold, reject and reassign actions
+- branded report generation with local downloads in Markdown, HTML, JSON and text
+- email delivery through `/admin`, using local `.eml` outbox mode by default or SMTP when configured
+- a phase-2 style `/client-portal` interest tracker for "I'm interested" signals and pipeline follow-up
+
+The MVP keeps the important COF guardrail: nothing should reach a client or recipient without human review.
+
+## Email And Exports
+
+Admin email configuration is available at `/admin`.
+
+Default mode is `file_outbox`, which creates `.eml` files in `.outbox` for safe local testing. SMTP sending can be enabled only after host, port, sender, credentials and recipients are configured.
+
+Report export options:
+
+- Markdown
+- HTML
+- JSON
+- Text
+
+Report emails allow a local sender override and recipient input for now. Future production flow should move recipient selection and sender identity to Entra ID / RBAC.
 
 ## Official Intelligence Feed
 

@@ -21,3 +21,5 @@ Thumbs.db
 docs/*.docx
 docs/*.pdf
 *.log
+.outbox/
+.tmp_pdf_pages/

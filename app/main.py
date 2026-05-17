@@ -10,6 +10,8 @@ from sqlmodel import Session, col, select
 
 from app.audit import compact_snapshot, log_event
 from app.database import engine, get_session, init_db
+from app.email_service import get_email_configuration, send_or_store_email, split_recipients
+from app.export_service import report_export
 from app.form_utils import parse_bool, parse_float, parse_optional_date, parse_optional_int, validation_error_response
 from app.intelligence import (
     extract_document_intelligence,
@@ -23,9 +25,12 @@ from app.models import (
     AuditEvent,
     BusinessUnit,
     BuyerPortalInstance,
+    ClientInterestSignal,
     Customer,
     CustomerWatchProfile,
     DocumentRetrievalTask,
+    EmailConfiguration,
+    EmailDeliveryLog,
     ExtractedQualityQuestion,
     ExtractedRequirement,
     IntelligenceReport,
@@ -41,7 +46,7 @@ from app.models import (
     SourceCheckSnapshot,
 )
 from app.reports import create_report
-from app.rule_loader import rules_version_summary
+from app.rule_loader import load_rule_file, rules_version_summary
 from app.seed import seed_demo_data, seed_reference_data
 from app.settings import BASE_DIR, get_settings
 
@@ -134,6 +139,8 @@ def dashboard_metrics(session: Session) -> dict:
         "pending_findings": len(list(session.exec(select(KRAFinding).where(KRAFinding.human_review_status == "pending")))),
         "source_changes": len(list(session.exec(select(SourceCheckSnapshot).where(SourceCheckSnapshot.change_type == "changed")))),
         "news_items": len(list(session.exec(select(NewsFeedItem)))),
+        "review_queue": len(list(session.exec(select(Opportunity).where(col(Opportunity.status).in_(["new", "pending_review", "matched"]))))),
+        "client_interests": len(list(session.exec(select(ClientInterestSignal)))),
     }
 
 
@@ -167,6 +174,151 @@ def dashboard(request: Request, session: Session = Depends(get_session)):
 def refresh_news(session: Session = Depends(get_session)):
     refresh_news_feeds(session)
     return redirect("/")
+
+
+@app.get("/workflow", response_class=HTMLResponse)
+def workflow(request: Request, session: Session = Depends(get_session)):
+    workflow_rules = load_rule_file("workflow.yml")
+    return templates.TemplateResponse(
+        request,
+        "workflow.html",
+        context(request, workflow=workflow_rules, metrics=dashboard_metrics(session), **reference_context(session)),
+    )
+
+
+@app.get("/review", response_class=HTMLResponse)
+def review_queue(request: Request, session: Session = Depends(get_session)):
+    opportunities = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(200)))
+    return templates.TemplateResponse(
+        request,
+        "review.html",
+        context(request, opportunities=opportunities, **reference_context(session)),
+    )
+
+
+@app.post("/opportunities/{opportunity_id}/review")
+async def update_opportunity_review(opportunity_id: int, request: Request, session: Session = Depends(get_session)):
+    opportunity = session.get(Opportunity, opportunity_id)
+    if not opportunity:
+        return redirect("/review")
+    form = await request.form()
+    errors: list[str] = []
+    action = str(form.get("action") or "").strip()
+    allowed = {"approve": "approved", "reject": "rejected", "reassign": "pending_review", "hold": "pending_review"}
+    if action not in allowed:
+        errors.append("Review action must be approve, reject, reassign or hold.")
+    customer_id = parse_optional_int(form.get("customer_id"), "Customer", errors)
+    business_unit_id = parse_optional_int(form.get("business_unit_id"), "Business unit", errors)
+    if errors:
+        return validation_error_response(errors, "/review")
+    before = compact_snapshot(opportunity)
+    opportunity.status = allowed[action]
+    if action == "reassign":
+        opportunity.customer_id = customer_id
+        opportunity.business_unit_id = business_unit_id
+    opportunity.relevance_rationale = str(form.get("review_notes") or opportunity.relevance_rationale or "")
+    session.add(opportunity)
+    log_event(
+        session,
+        entity_type="Opportunity",
+        entity_id=opportunity.id,
+        action=f"review_{action}",
+        summary=f"Review action {action} for {opportunity.title}",
+        before=before,
+        after=opportunity,
+    )
+    session.commit()
+    return redirect("/review")
+
+
+@app.get("/client-portal", response_class=HTMLResponse)
+def client_portal(request: Request, session: Session = Depends(get_session)):
+    opportunities = list(session.exec(select(Opportunity).where(Opportunity.status == "approved").order_by(col(Opportunity.updated_at).desc()).limit(100)))
+    interests = list(session.exec(select(ClientInterestSignal).order_by(col(ClientInterestSignal.created_at).desc()).limit(100)))
+    return templates.TemplateResponse(
+        request,
+        "client_portal.html",
+        context(request, opportunities=opportunities, interests=interests, **reference_context(session)),
+    )
+
+
+@app.post("/client-portal/interests")
+async def create_interest_signal(request: Request, session: Session = Depends(get_session)):
+    form = await request.form()
+    errors: list[str] = []
+    opportunity_id = parse_optional_int(form.get("opportunity_id"), "Opportunity", errors)
+    customer_id = parse_optional_int(form.get("customer_id"), "Customer", errors)
+    if errors:
+        return validation_error_response(errors, "/client-portal")
+    signal = ClientInterestSignal(
+        opportunity_id=opportunity_id,
+        customer_id=customer_id,
+        contact_name=str(form.get("contact_name") or ""),
+        contact_email=str(form.get("contact_email") or ""),
+        signal=str(form.get("signal") or "interested"),
+        notes=str(form.get("notes") or ""),
+    )
+    save_with_audit(session, signal, "create", "Created client interest signal")
+    return redirect("/client-portal")
+
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin(request: Request, session: Session = Depends(get_session)):
+    email_config = get_email_configuration(session)
+    email_logs = list(session.exec(select(EmailDeliveryLog).order_by(col(EmailDeliveryLog.created_at).desc()).limit(50)))
+    return templates.TemplateResponse(
+        request,
+        "admin.html",
+        context(request, email_config=email_config, email_logs=email_logs),
+    )
+
+
+@app.post("/admin/email")
+async def update_email_configuration(request: Request, session: Session = Depends(get_session)):
+    form = await request.form()
+    errors: list[str] = []
+    config = get_email_configuration(session)
+    smtp_port = parse_optional_int(form.get("smtp_port"), "SMTP port", errors) or 587
+    if errors:
+        return validation_error_response(errors, "/admin")
+    before = compact_snapshot(config)
+    config.profile_name = str(form.get("profile_name") or "Default local profile")
+    config.delivery_mode = str(form.get("delivery_mode") or "file_outbox")
+    config.smtp_host = str(form.get("smtp_host") or "")
+    config.smtp_port = smtp_port
+    config.smtp_username = str(form.get("smtp_username") or "")
+    password = str(form.get("smtp_password") or "")
+    if password:
+        config.smtp_password = password
+    config.use_tls = parse_bool(form.get("use_tls"))
+    config.enabled = parse_bool(form.get("enabled"))
+    config.sender_name = str(form.get("sender_name") or "Data Intelligence Portal")
+    config.sender_email = str(form.get("sender_email") or "no-reply@local.test")
+    config.default_recipients = str(form.get("default_recipients") or "")
+    config.notes = str(form.get("notes") or "")
+    session.add(config)
+    log_event(session, entity_type="EmailConfiguration", entity_id=config.id, action="update", summary="Updated email configuration", before=before, after=config)
+    session.commit()
+    return redirect("/admin")
+
+
+@app.post("/admin/email/test")
+async def send_test_email(request: Request, session: Session = Depends(get_session)):
+    form = await request.form()
+    config = get_email_configuration(session)
+    recipients = split_recipients(str(form.get("recipients") or config.default_recipients))
+    if not recipients:
+        return validation_error_response(["At least one recipient is required for a test email."], "/admin")
+    send_or_store_email(
+        session,
+        config,
+        recipients=recipients,
+        subject=str(form.get("subject") or "Data Intelligence Portal test email"),
+        body=str(form.get("message") or "This is a local MVP email configuration test."),
+        sender_name=str(form.get("sender_name") or config.sender_name),
+        sender_email=str(form.get("sender_email") or config.sender_email),
+    )
+    return redirect("/admin")
 
 
 @app.get("/customers", response_class=HTMLResponse)
@@ -399,9 +551,35 @@ def report_detail(report_id: int, request: Request, format: str | None = None, s
     report = session.get(IntelligenceReport, report_id)
     if not report:
         return redirect("/reports")
-    if format == "md":
-        return Response(report.markdown, media_type="text/markdown", headers={"Content-Disposition": f'attachment; filename="data-intelligence-report-{report_id}.md"'})
-    return templates.TemplateResponse(request, "report_detail.html", context(request, report=report, **reference_context(session)))
+    if format in {"md", "html", "json", "txt"}:
+        payload, media_type, filename = report_export(report, format)
+        return Response(payload, media_type=media_type, headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+    email_config = get_email_configuration(session)
+    return templates.TemplateResponse(request, "report_detail.html", context(request, report=report, email_config=email_config, **reference_context(session)))
+
+
+@app.post("/reports/{report_id}/send-email")
+async def send_report_email(report_id: int, request: Request, session: Session = Depends(get_session)):
+    report = session.get(IntelligenceReport, report_id)
+    if not report:
+        return redirect("/reports")
+    form = await request.form()
+    config = get_email_configuration(session)
+    recipients = split_recipients(str(form.get("recipients") or config.default_recipients))
+    if not recipients:
+        return validation_error_response(["Add at least one recipient before sending the report."], f"/reports/{report_id}")
+    send_or_store_email(
+        session,
+        config,
+        recipients=recipients,
+        subject=str(form.get("subject") or report.report_name),
+        body=str(form.get("message") or "Please find the attached Data Intelligence Portal report for review."),
+        report=report,
+        sender_name=str(form.get("sender_name") or config.sender_name),
+        sender_email=str(form.get("sender_email") or config.sender_email),
+        export_format=str(form.get("export_format") or "md"),
+    )
+    return redirect(f"/reports/{report_id}")
 
 
 @app.get("/audit", response_class=HTMLResponse)

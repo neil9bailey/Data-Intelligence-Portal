@@ -1,6 +1,31 @@
 {% extends "base.html" %}
 {% block title %}Report - {{ app_name }}{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>{{ report.report_name }}</h1><p>{{ report.generated_at.strftime('%Y-%m-%d %H:%M') }}</p></div><a class="button" href="/reports/{{ report.id }}?format=md">Download Markdown</a></div>
-<section class="panel"><pre class="report-body">{{ report.markdown }}</pre></section>
+<div class="page-head">
+  <div><h1>{{ report.report_name }}</h1><p>{{ report.generated_at.strftime('%Y-%m-%d %H:%M') }}</p></div>
+  <div class="actions">
+    <a class="button secondary" href="/reports/{{ report.id }}?format=md">Markdown</a>
+    <a class="button secondary" href="/reports/{{ report.id }}?format=html">HTML</a>
+    <a class="button secondary" href="/reports/{{ report.id }}?format=json">JSON</a>
+    <a class="button" href="/reports/{{ report.id }}?format=txt">Text</a>
+  </div>
+</div>
+<section class="grid two">
+  <div class="panel"><pre class="report-body">{{ report.markdown }}</pre></div>
+  <div class="panel">
+    <h2>Send Report Email</h2>
+    <form method="post" action="/reports/{{ report.id }}/send-email">
+      <div class="field"><label>Recipients</label><input name="recipients" value="{{ email_config.default_recipients }}" placeholder="recipient@example.com; another@example.com"></div>
+      <div class="form-grid">
+        <div class="field"><label>Sender name</label><input name="sender_name" value="{{ email_config.sender_name }}"></div>
+        <div class="field"><label>Sender email</label><input name="sender_email" value="{{ email_config.sender_email }}"></div>
+      </div>
+      <div class="field"><label>Subject</label><input name="subject" value="{{ report.report_name }}"></div>
+      <div class="field"><label>Attachment format</label><select name="export_format"><option value="md">Markdown</option><option value="html">HTML</option><option value="json">JSON</option><option value="txt">Text</option></select></div>
+      <div class="field"><label>Message</label><textarea name="message">Please find the attached Data Intelligence Portal report for review.</textarea></div>
+      <button type="submit">Send / store email</button>
+    </form>
+    <p class="hint">Email uses the Admin configuration. In local outbox mode it creates an `.eml` file instead of sending externally.</p>
+  </div>
+</section>
 {% endblock %}

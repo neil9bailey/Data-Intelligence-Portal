@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Review Queue - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Human Review Gate</h1><p>Approve, hold, reject or reassign opportunities before they become report/client ready.</p></div></div>
+<section class="panel">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Opportunity</th><th>Status</th><th>Assignment</th><th>Review action</th></tr></thead>
+      <tbody>
+        {% for item in opportunities %}
+        <tr>
+          <td><strong>{{ item.title }}</strong><p class="hint">{{ item.buyer_name or "Buyer not detected" }} | {{ item.summary[:180] }}</p></td>
+          <td><span class="badge {{ 'green' if item.status == 'approved' else 'red' if item.status == 'rejected' else 'amber' }}">{{ item.status }}</span></td>
+          <td>{{ customer_map.get(item.customer_id).customer_name if customer_map.get(item.customer_id) else "Unassigned" }}</td>
+          <td>
+            <form method="post" action="/opportunities/{{ item.id }}/review" class="inline-form">
+              <select name="action">
+                <option value="approve">Approve</option>
+                <option value="hold">Hold</option>
+                <option value="reassign">Reassign</option>
+                <option value="reject">Reject</option>
+              </select>
+              <select name="customer_id"><option value="">Customer</option>{% for customer in customers %}<option value="{{ customer.id }}">{{ customer.customer_name }}</option>{% endfor %}</select>
+              <select name="business_unit_id"><option value="">BU</option>{% for unit in business_units %}<option value="{{ unit.id }}">{{ unit.name }}</option>{% endfor %}</select>
+              <input name="review_notes" placeholder="Review note">
+              <button type="submit">Save</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4">No opportunities waiting for review yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

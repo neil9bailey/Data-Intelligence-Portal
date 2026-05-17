@@ -285,6 +285,50 @@ class IntelligenceReport(SQLModel, table=True):
     markdown: str = ""
 
 
+class EmailConfiguration(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    profile_name: str = Field(default="Default local profile", index=True)
+    delivery_mode: str = "file_outbox"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    use_tls: bool = True
+    sender_name: str = "Data Intelligence Portal"
+    sender_email: str = "no-reply@local.test"
+    default_recipients: str = ""
+    enabled: bool = False
+    notes: str = ""
+    updated_at: datetime = Field(default_factory=utc_now)
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class EmailDeliveryLog(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+    report_id: Optional[int] = Field(default=None, foreign_key="intelligencereport.id")
+    delivery_mode: str = "file_outbox"
+    sender: str = ""
+    recipients: str = ""
+    subject: str = ""
+    status: str = "created"
+    attachment_format: str = "md"
+    outbox_path: str = ""
+    error: str = ""
+
+
+class ClientInterestSignal(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    opportunity_id: Optional[int] = Field(default=None, foreign_key="opportunity.id", index=True)
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    contact_name: str = ""
+    contact_email: str = ""
+    signal: str = "interested"
+    notes: str = ""
+    status: str = "new"
+    created_at: datetime = Field(default_factory=utc_now)
+
+
 class AuditEvent(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=utc_now, index=True)
