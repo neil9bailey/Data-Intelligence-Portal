@@ -75,6 +75,7 @@ $updateArgs = @(
     "--id", $appId,
     "--identifier-uris", "api://$appId",
     "--enable-id-token-issuance", "true",
+    "--set", "groupMembershipClaims=SecurityGroup",
     "--web-redirect-uris"
 )
 $updateArgs += $redirectUris

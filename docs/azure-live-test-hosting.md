@@ -32,6 +32,13 @@ Container Apps redirects unauthenticated browser traffic to Entra ID. The platfo
 
 Local Docker remains unchanged: `ENTRA_AUTH_ENABLED=false` by default and `SQLITE_JOURNAL_MODE=DELETE`.
 
+Users must be assigned to one of these Entra security groups before sign-in:
+
+- `Data Intelligence Portal Admin Users`: full portal access including `/admin` and `/audit`
+- `Data Intelligence Portal Standard Users`: normal portal access only
+
+The Entra app registration is configured with `groupMembershipClaims=SecurityGroup` so Container Apps and the FastAPI app receive security-group claims during sign-in.
+
 ## DNS And HTTPS
 
 The generated stack outputs:
