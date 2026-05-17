@@ -19,9 +19,9 @@ Public-sector opportunity intelligence is fragmented:
 
 The result is duplicated effort, late bid awareness, missed requirements, weak account memory and slower strategic decision-making.
 
-## Proposed Solution
+## Current Solution
 
-Create a dedicated Data Intelligence Portal with two coordinated intelligence pipelines.
+Data Intelligence Portal now provides a dedicated workspace with two coordinated intelligence pipelines, a consolidated Admin Control Centre and an Azure live-test deployment path.
 
 ### 1. Official Notice Pipeline
 
@@ -55,7 +55,7 @@ Initial portal families:
 - Jaggaer
 - Delta eSourcing
 
-The MVP should remain manual-assisted:
+The MVP remains manual-assisted by default:
 
 - record portal instance and account status
 - create document retrieval tasks
@@ -65,13 +65,13 @@ The MVP should remain manual-assisted:
 
 No portal credentials should be stored in the MVP.
 
-## Main User Journeys
+## Current User Journeys
 
 1. **Customer Intelligence Setup**
    Capture customers, sectors, business units, aliases, frameworks, buying entities, portal instances and strategic notes.
 
-2. **Source Catalogue Setup**
-   Configure official notice feeds, commercial backup sources, review frequencies, approved domains, data formats and connector status.
+2. **Admin And Source Catalogue Setup**
+   Use the Admin Control Centre to monitor health, then configure official notice feeds, commercial backup sources, review frequencies, approved domains, data formats and connector status.
 
 3. **Opportunity Catalogue**
    View all captured opportunities, matched customers, deadlines, values, stages, relevance scores and source-change signals.
@@ -85,6 +85,9 @@ No portal credentials should be stored in the MVP.
 6. **Reports And Briefings**
    Generate customer briefs, business-unit opportunity reports, requirement trend reports and source-health summaries.
 
+7. **Azure Live-Test Operation**
+   Deploy customer or pilot environments using Bicep and PowerShell scripts, with Container Apps, Entra authentication, Key Vault references and Azure Files snapshot persistence.
+
 ## Guardrails
 
 - Use official/public sources first.
@@ -94,6 +97,7 @@ No portal credentials should be stored in the MVP.
 - Do not automate bid/no-bid, customer contact, portal submission or expression of interest in the MVP.
 - Label AI-extracted requirements as review-required until accepted by a human.
 - Maintain an audit trail of source checks, document captures, extraction decisions and report generation.
+- Keep Admin health checks visible for local runtime, remote live health, Entra, source checks, connector runs, KRA and email.
 
 ## Success Measures
 

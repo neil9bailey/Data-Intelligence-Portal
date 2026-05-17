@@ -1,10 +1,13 @@
-# Azure Live-Test Hosting Plan
+# Azure Live-Test Hosting Notes
+
+For the full reusable deployment process, customer bootstrap script and official Azure references, see [Azure deployment guide](azure-deployment-guide.md).
 
 The Data Intelligence Portal live-test stack is designed to sit alongside existing Vendorlogic/DIIaC Azure services without modifying them.
 
 ## Target
 
 - Hostname: `dip.vendorlogic.io`
+- Current image: `acrdipvltest01.azurecr.io/dip/app:1.0.9-live-test`
 - Azure model: isolated resource group plus Azure Container Apps
 - Auth: Microsoft Entra ID via Azure Container Apps built-in auth
 - Roles: `Data Intelligence Portal Admin Users` and `Data Intelligence Portal Standard Users`
@@ -80,6 +83,7 @@ Expected smoke result:
 
 - `/healthz` returns `200`.
 - `/` is protected and returns a redirect/401/403 when not signed in.
+- `/admin` shows local/remote health, source health, portal connector health, Entra status, email status and KRA runtime for Admin users.
 
 ## Production Gaps To Close Later
 

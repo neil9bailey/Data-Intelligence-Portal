@@ -1,108 +1,73 @@
 # Implementation Epics
 
-## Epic 1 - Product Shell And Core Data Model
+This page records the current MVP delivery state and the next sensible epics.
 
-Build the standalone app foundation.
+## Delivered MVP
 
-Deliverables:
+| Epic | Status | Notes |
+| --- | --- | --- |
+| Product shell and data model | Delivered | FastAPI, Jinja2, SQLModel, SQLite, Docker and pytest baseline. |
+| Business units and customers | Delivered | Customer records, aliases, buying entities, BU links and CRUD controls. |
+| Source catalogue | Delivered | YAML source config, source checks, snapshots and change detection. |
+| Opportunity catalogue | Delivered | Manual and KRA-created opportunities, documents and review workflow. |
+| Portal workbench | Delivered | Platform families, portal instances, access status, account reference, retrieval mode and tasks. |
+| Read-only connectors | Delivered MVP | Public/API-key connector pattern with guardrails and retrieval runs. |
+| Document and requirement intelligence | Delivered MVP | Permitted text extraction into requirements and quality questions. |
+| KRA Knowledge Research Agent | Delivered MVP | Local deterministic agent profiles and controlled source runs. |
+| Reporting and exports | Delivered | Markdown, HTML, JSON, text, local download and email sending. |
+| Admin health dashboard | Delivered | Local/remote health, Entra status, DB status, source/portal/KRA/email health. |
+| Audit log | Delivered MVP | Event log for key user and automation changes. |
+| Azure live-test IaC | Delivered MVP | Container Apps, Entra auth, Key Vault reference, Azure Files and custom domain path. |
 
-- FastAPI/Jinja/HTMX app scaffold
-- Dockerfile and Docker Compose
-- SQLite initialisation
-- customer and business-unit models
-- audit event model
-- base UI shell and navigation
-- pytest baseline
+## Next Delivery Epics
 
-## Epic 2 - Source Catalogue
+### Epic 1 - Production Data Platform
 
-Create configurable public-sector source management.
+- replace SQLite with Azure Database for PostgreSQL
+- add Alembic migrations
+- add backup/restore automation
+- add environment-specific retention policies
 
-Deliverables:
+### Epic 2 - Enterprise Security
 
-- YAML source catalogue
-- source allow-list
-- source status page
-- source check snapshots
-- source change detection
-- official/public/commercial classification
+- harden Entra group and role mapping
+- add customer/environment-specific RBAC
+- add audit export to immutable storage
+- add security logging and alerting
+- document connector approval and secret rotation
 
-## Epic 3 - Opportunity Pipeline
+### Epic 3 - Connector Maturity
 
-Normalise and deduplicate opportunities.
+- build first-class Contracts Finder and Find a Tender connectors
+- add provider-approved API-key connector templates
+- add scheduling for source and connector checks
+- add connector run dashboards and failure queues
 
-Deliverables:
+### Epic 4 - Customer Knowledge Base
 
-- OCDS parser for Find a Tender and Contracts Finder
-- adapter interface for future sources
-- dedupe by OCID/reference/content hash
-- customer/profile matching
-- opportunity catalogue page
-- opportunity status workflow
+- add richer watch-profile editing
+- add customer source packs
+- add requirement trend analytics
+- add customer/account briefing templates
 
-## Epic 4 - Customer Intelligence
+### Epic 5 - Document Governance
 
-Turn customer setup into a reusable account knowledge base.
+- add document storage integration design
+- add classification labels
+- add attachment export policy
+- add SharePoint or object-storage option
 
-Deliverables:
+### Epic 6 - Advisor/Buyer Workflow
 
-- customer profiles
-- aliases and buying entities
-- sector/domain taxonomy
-- customer portal instances
-- notes and account intelligence fields
-- customer brief report
+- add assignment and approval states
+- add comments and review decisions
+- add client-facing report pack curation
+- add notification rules
 
-## Epic 5 - Portal Platform Intelligence
+### Epic 7 - AI/MCP Agent Expansion
 
-Track the "800 portals, four platforms" model.
-
-Deliverables:
-
-- platform catalogue for ProContract, In-Tend, Jaggaer and Delta eSourcing
-- buyer portal instance records
-- account registration status
-- manual retrieval task queue
-- guardrails preventing credential storage
-
-## Epic 6 - Document And Requirement Intelligence
-
-Capture and structure ITT content.
-
-Deliverables:
-
-- opportunity documents
-- retrieval status
-- quality-question extraction
-- weighting extraction
-- requirement theme tagging
-- confidence and human review status
-- clarification and addendum notes
-
-## Epic 7 - Reporting
-
-Generate useful intelligence outputs.
-
-Deliverables:
-
-- customer intelligence brief
-- business-unit opportunity report
-- source-health report
-- requirement trend report
-- document retrieval pack
-- Markdown export
-
-## Epic 8 - Governance And Production Readiness
-
-Prepare controlled use beyond local MVP.
-
-Deliverables:
-
-- SSO design
-- RBAC design
-- secrets management approach
-- immutable audit design
-- backup/restore model
-- retention policy
-- deployment controls
-- connector approval process
+- add approved MCP tool registry
+- add guarded live web/API lookup workers
+- add source-diff summarisation
+- add human-approved autonomous schedules
+- add prompt/version traceability for generated summaries

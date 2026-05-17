@@ -20,10 +20,21 @@ Commercial aggregators such as Tenders Direct can be configured only if the orga
 
 | Platform | Role | MVP Handling |
 | --- | --- | --- |
-| ProContract | Buyer-side portal family | Manual portal instance and retrieval task tracking |
-| In-Tend | Buyer-side portal family | Manual portal instance and retrieval task tracking |
-| Jaggaer | Buyer-side portal family | Manual portal instance and retrieval task tracking |
-| Delta eSourcing | Buyer-side portal family | Manual portal instance and retrieval task tracking |
+| ProContract | Buyer-side portal family | Account-required manual retrieval by default; approved API only if provider grants it |
+| In-Tend | Buyer-side portal family | Account-required manual retrieval by default; approved API only if provider grants it |
+| Jaggaer | Buyer-side portal family | Account-required manual retrieval by default; approved API only if provider grants it |
+| Delta eSourcing | Buyer-side portal family | Account-required manual retrieval by default; approved API only if provider grants it |
+
+## Retrieval Modes
+
+| Mode | Meaning |
+| --- | --- |
+| `account_required_manual` | A named supplier account, browser login or MFA is required; use a human retrieval task. |
+| `public_api_no_key` | Official/public read-only API, such as Contracts Finder or Find a Tender open data. |
+| `api_key_header` | Provider-approved read-only API key sent in a header; store only the secret reference. |
+| `api_key_query` | Provider-approved read-only API key sent as a query parameter; store only the secret reference. |
+| `approved_api` | Provider-approved machine-to-machine route. |
+| `not_available` | No confirmed retrieval route yet. |
 
 ## Guardrails
 
@@ -32,6 +43,8 @@ Commercial aggregators such as Tenders Direct can be configured only if the orga
 - No automated expression of interest or submission.
 - Human approval required before any future portal action.
 - Extracted document intelligence remains pending until reviewed.
+- API keys and portal credentials are not stored in SQLite.
+- Admin health checks surface source, portal and connector issues.
 
 ## Official Reference Links
 

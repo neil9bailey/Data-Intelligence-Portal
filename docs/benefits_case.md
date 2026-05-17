@@ -10,6 +10,8 @@
 - **Reusable market memory**: recurring customer requirements can be compared across frameworks, regions and sectors.
 - **Better document discipline**: retrieval tasks, document status and review status are visible.
 - **Lower operational risk**: guardrails avoid credential storage, unapproved portal automation and unchecked AI conclusions.
+- **Clearer service health**: the Admin Control Centre shows local and remote runtime health, source status, connector issues, KRA settings and email status.
+- **Repeatable customer deployment**: Azure IaC and scripts make it easier to stand up customer pilot environments consistently.
 
 ## User Benefits
 
@@ -45,6 +47,7 @@
 - audit trail of source checks and document capture
 - human review status for extracted intelligence
 - controlled path to future portal automation
+- Admin view of health, auth, email, audit and connector state
 
 ## Example Outputs
 
@@ -54,3 +57,5 @@
 - Portal document retrieval status report
 - Monthly source health and market signal pack
 - Requirement trend report by customer, sector and theme
+- Admin health and connector readiness view
+- Customer-specific Azure deployment pack

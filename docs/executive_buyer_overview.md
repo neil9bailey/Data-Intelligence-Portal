@@ -2,7 +2,7 @@
 
 ## Executive Overview for MD and Buyer Walkthrough
 
-Data Intelligence Portal is a local-first intelligence workspace for organisations that need to track customers, frameworks, procurement portals, public-sector opportunities, documents and emerging requirements in one place.
+Data Intelligence Portal is an intelligence workspace for organisations that need to track customers, frameworks, procurement portals, public-sector opportunities, documents and emerging requirements in one place. It runs locally for MVP use and now has an Azure Container Apps live-test deployment path.
 
 It is designed to help leadership, sales, bid, commercial, strategy and delivery teams move from scattered information to a structured, reviewable knowledge base that can be used to make better decisions, prepare stronger bids and understand customer direction earlier.
 
@@ -124,6 +124,10 @@ The buyer starts on the dashboard. This shows:
 - source changes detected
 
 The purpose is to give a senior user an immediate view of the intelligence estate.
+
+### 1a. Admin Control Centre
+
+Admin users can see local runtime health, remote Azure health, Entra status, database persistence status, source checks, portal connector health, email configuration, KRA runtime and audit links in one place.
 
 ### 2. Customers
 
@@ -324,24 +328,22 @@ Future production use should add:
 
 ---
 
-## Future Azure/Vendorlogic Evolution
+## Azure/Vendorlogic Evolution
 
-The local MVP can evolve into a secure cloud-hosted service using the Vendorlogic Azure environment.
+The local MVP now has a secure Azure live-test path using the Vendorlogic Azure environment. The current live-test uses Azure Container Apps, Microsoft Entra authentication, a dedicated ACR, a dedicated resource group, an existing Key Vault for DIP-specific secrets and Azure Files for SQLite snapshot/outbox persistence.
 
-Likely target architecture:
+Current live-test architecture:
 
-- Azure Container Apps or Azure Container Instances
-- Azure Database for PostgreSQL
-- Entra ID authentication using `vendorlogic.io`
-- role-based access control
-- Azure Key Vault for API keys and connector secrets
-- Azure Storage for controlled document storage
-- scheduled KRA runs
-- MCP connector orchestration
-- managed logging and monitoring
-- immutable audit/event storage
+- Azure Container Apps
+- Microsoft Entra ID authentication using `vendorlogic.io`
+- Admin and Standard user groups
+- Azure Key Vault secret reference for the Entra client secret
+- Azure Files snapshot/outbox persistence
+- dedicated Azure Container Registry
+- managed logging through Log Analytics
+- custom domain and managed certificate for `dip.vendorlogic.io`
 
-This keeps the current product practical for local testing while creating a clear enterprise path.
+Reusable customer deployment scripts can generate customer-specific parameter files and deployment commands. Production should still move to PostgreSQL, stronger RBAC, immutable audit export, backup/restore and formal connector governance.
 
 ---
 
@@ -366,7 +368,7 @@ Useful questions to ask an MD or buyer:
 
 1. Open the dashboard and show the command view.
 2. Show the customer catalogue and explain the shared account memory.
-3. Open sources and explain approved public-source monitoring.
+3. Open Admin, then Sources, and explain approved public-source monitoring and health.
 4. Open portals and explain manual-safe portal tracking.
 5. Open opportunities and show how source signals become structured records.
 6. Open documents and show how extracts become requirement intelligence.
@@ -387,4 +389,4 @@ The built-in KRA Knowledge Research Agent helps monitor approved sources, detect
 
 It improves early opportunity awareness, bid readiness, customer understanding, executive visibility and knowledge retention.
 
-The MVP is deliberately safe and local-first, with no credential storage or automated submissions. It is ready for demonstration and can evolve into an Azure-hosted, Entra ID-secured enterprise platform.
+The MVP is deliberately safe, with no credential storage or automated submissions. It is ready for demonstration locally or in Azure live-test, and has a clear path to a fuller Entra ID-secured enterprise platform.

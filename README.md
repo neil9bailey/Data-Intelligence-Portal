@@ -30,6 +30,7 @@ Data Intelligence Portal is a configurable information-gathering workspace for:
 
 ## Review Artefacts
 
+- [Documentation index](docs/README.md)
 - [Solution plan](docs/solution_plan.md)
 - [Architecture blueprint](docs/architecture_blueprint.md)
 - [Implementation epics](docs/implementation_epics.md)
@@ -37,6 +38,7 @@ Data Intelligence Portal is a configurable information-gathering workspace for:
 - [Source and portal catalogue](docs/source_and_portal_catalogue.md)
 - [Portal platform operating guide](docs/portal-platform-operating-guide.md)
 - [National Highways onboarding guide](docs/national-highways-onboarding-guide.md)
+- [Azure deployment guide](docs/azure-deployment-guide.md)
 - [UI mockup](docs/ui_mockups/data_intelligence_portal_mockup.html)
 
 Open the mockup directly in a browser:
@@ -45,7 +47,7 @@ Open the mockup directly in a browser:
 F:\code\Data-Intelligence-Portal\docs\ui_mockups\data_intelligence_portal_mockup.html
 ```
 
-## Proposed MVP Stack
+## Current MVP Stack
 
 - Python 3.12
 - FastAPI
@@ -291,7 +293,20 @@ Start with:
 .\scripts\azure\show-dns-and-bind-domain.ps1
 ```
 
-See [Azure live-test hosting](docs/azure-live-test-hosting.md) and [infra/azure/README.md](infra/azure/README.md).
+See [Azure deployment guide](docs/azure-deployment-guide.md) and [Azure live-test hosting notes](docs/azure-live-test-hosting.md).
+
+For a new customer environment, generate customer-specific Azure parameters and commands with:
+
+```powershell
+.\scripts\azure\new-customer-deployment.ps1 `
+  -CustomerCode "customer" `
+  -EnvironmentCode "test" `
+  -SubscriptionId "<subscription-id>" `
+  -TenantId "<tenant-id>" `
+  -PublicDomain "dip.customer.example" `
+  -SharedKeyVaultName "<existing-key-vault-name>" `
+  -SharedKeyVaultResourceGroupName "<key-vault-resource-group>"
+```
 
 Production should still move beyond the MVP choices:
 
