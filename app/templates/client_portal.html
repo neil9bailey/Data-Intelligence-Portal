@@ -25,11 +25,35 @@
 </section>
 <section class="panel" style="margin-top:18px;">
   <h2>Pipeline Signals</h2>
-  <div class="table-wrap"><table><thead><tr><th>When</th><th>Opportunity</th><th>Customer</th><th>Signal</th><th>Contact</th></tr></thead><tbody>
+  <div class="table-wrap"><table><thead><tr><th>When</th><th>Opportunity</th><th>Customer</th><th>Signal</th><th>Contact</th><th>Actions</th></tr></thead><tbody>
     {% for signal in interests %}
-    {% set opportunity = opportunities|selectattr('id', 'equalto', signal.opportunity_id)|first %}
-    <tr><td>{{ signal.created_at.strftime('%Y-%m-%d %H:%M') }}</td><td>{{ opportunity.title if opportunity else signal.opportunity_id }}</td><td>{{ customer_map.get(signal.customer_id).customer_name if customer_map.get(signal.customer_id) else "Not linked" }}</td><td><span class="badge green">{{ signal.signal }}</span></td><td>{{ signal.contact_name }} {{ signal.contact_email }}</td></tr>
-    {% else %}<tr><td colspan="5">No interest signals yet.</td></tr>{% endfor %}
+    {% set opportunity = all_opportunities|selectattr('id', 'equalto', signal.opportunity_id)|first %}
+    <tr>
+      <td>{{ signal.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td>{{ opportunity.title if opportunity else signal.opportunity_id }}</td>
+      <td>{{ customer_map.get(signal.customer_id).customer_name if customer_map.get(signal.customer_id) else "Not linked" }}</td>
+      <td><span class="badge green">{{ signal.signal }}</span><p class="hint">{{ signal.status }}</p></td>
+      <td>{{ signal.contact_name }} {{ signal.contact_email }}</td>
+      <td>
+        <div class="record-actions">
+          <form method="post" action="/client-portal/interests/{{ signal.id }}/delete" onsubmit="return confirm('Delete this interest signal?');">
+            <button class="danger compact" type="submit">Delete</button>
+          </form>
+        </div>
+        <details class="edit-drawer compact-drawer">
+          <summary>Edit signal</summary>
+          <form method="post" action="/client-portal/interests/{{ signal.id }}">
+            <div class="field"><label>Opportunity</label><select name="opportunity_id"><option value="">Not linked</option>{% for item in all_opportunities %}<option value="{{ item.id }}" {% if signal.opportunity_id == item.id %}selected{% endif %}>{{ item.title }}</option>{% endfor %}</select></div>
+            <div class="field"><label>Customer</label><select name="customer_id"><option value="">Not linked</option>{% for customer in customers %}<option value="{{ customer.id }}" {% if signal.customer_id == customer.id %}selected{% endif %}>{{ customer.customer_name }}</option>{% endfor %}</select></div>
+            <div class="form-grid"><div class="field"><label>Contact name</label><input name="contact_name" value="{{ signal.contact_name }}"></div><div class="field"><label>Contact email</label><input name="contact_email" value="{{ signal.contact_email }}"></div></div>
+            <div class="form-grid"><div class="field"><label>Signal</label><select name="signal"><option value="interested" {% if signal.signal == 'interested' %}selected{% endif %}>Interested</option><option value="watch" {% if signal.signal == 'watch' %}selected{% endif %}>Watch</option><option value="not_relevant" {% if signal.signal == 'not_relevant' %}selected{% endif %}>Not relevant</option></select></div><div class="field"><label>Status</label><input name="status" value="{{ signal.status }}"></div></div>
+            <div class="field"><label>Notes</label><textarea name="notes">{{ signal.notes }}</textarea></div>
+            <button class="compact" type="submit">Save</button>
+          </form>
+        </details>
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="6">No interest signals yet.</td></tr>{% endfor %}
   </tbody></table></div>
 </section>
 {% endblock %}

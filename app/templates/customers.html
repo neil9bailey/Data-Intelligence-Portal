@@ -8,10 +8,34 @@
     <div class="stack">
       {% for customer in customers %}
       <article class="list-item">
-        <h3>{{ customer.customer_name }}</h3>
+        <div class="list-heading">
+          <h3>{{ customer.customer_name }}</h3>
+          <form method="post" action="/customers/{{ customer.id }}/delete" onsubmit="return confirm('Delete this customer record? Linked records will be unassigned, not deleted.');">
+            <button class="danger compact" type="submit">Delete</button>
+          </form>
+        </div>
         <div class="badges"><span class="badge weak">{{ customer.domain }}</span><span class="badge amber">{{ customer.customer_type }}</span></div>
         <p>{{ customer.strategic_notes }}</p>
         <p class="hint">Aliases: {{ customer.aliases or "None recorded" }}</p>
+        <details class="edit-drawer">
+          <summary>Edit customer</summary>
+          <form method="post" action="/customers/{{ customer.id }}">
+            <div class="field"><label>Name</label><input name="customer_name" value="{{ customer.customer_name }}" required></div>
+            <div class="form-grid">
+              <div class="field"><label>Business unit</label><select name="business_unit_id"><option value="">Not linked</option>{% for unit in business_units %}<option value="{{ unit.id }}" {% if customer.business_unit_id == unit.id %}selected{% endif %}>{{ unit.name }}</option>{% endfor %}</select></div>
+              <div class="field"><label>Region</label><input name="region" value="{{ customer.region }}"></div>
+            </div>
+            <div class="form-grid">
+              <div class="field"><label>Sector</label><input name="sector" value="{{ customer.sector }}"></div>
+              <div class="field"><label>Domain</label><input name="domain" value="{{ customer.domain }}"></div>
+            </div>
+            <div class="field"><label>Customer type</label><input name="customer_type" value="{{ customer.customer_type }}"></div>
+            <div class="field"><label>Aliases</label><textarea name="aliases">{{ customer.aliases }}</textarea></div>
+            <div class="field"><label>Buying entities</label><textarea name="buying_entities">{{ customer.buying_entities }}</textarea></div>
+            <div class="field"><label>Strategic notes</label><textarea name="strategic_notes">{{ customer.strategic_notes }}</textarea></div>
+            <button type="submit">Save changes</button>
+          </form>
+        </details>
       </article>
       {% else %}<p>No customers yet.</p>{% endfor %}
     </div>

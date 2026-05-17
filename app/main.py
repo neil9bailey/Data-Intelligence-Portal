@@ -53,6 +53,7 @@ from app.models import (
     ProcurementPlatform,
     ProcurementSource,
     SourceCheckSnapshot,
+    utc_now,
 )
 from app.reports import create_report
 from app.rule_loader import load_rule_file, rules_version_summary
@@ -129,6 +130,48 @@ def save_with_audit(session: Session, item, action: str, summary: str, before_sn
     return item
 
 
+def update_with_audit(session: Session, item, summary: str, before_snapshot: str):
+    session.add(item)
+    session.flush()
+    log_event(
+        session,
+        entity_type=item.__class__.__name__,
+        entity_id=item.id,
+        action="update",
+        summary=summary,
+        before=before_snapshot,
+        after=item,
+    )
+    session.commit()
+    return item
+
+
+def delete_with_audit(session: Session, item, summary: str):
+    entity_type = item.__class__.__name__
+    entity_id = item.id
+    before = compact_snapshot(item)
+    log_event(session, entity_type=entity_type, entity_id=entity_id, action="delete", summary=summary, before=before)
+    session.delete(item)
+    session.commit()
+
+
+def clear_links(session: Session, model, field_name: str, target_id: int | None) -> None:
+    if target_id is None:
+        return
+    field = getattr(model, field_name)
+    for item in session.exec(select(model).where(field == target_id)):
+        setattr(item, field_name, None)
+        session.add(item)
+
+
+def delete_children(session: Session, model, field_name: str, target_id: int | None) -> None:
+    if target_id is None:
+        return
+    field = getattr(model, field_name)
+    for item in session.exec(select(model).where(field == target_id)):
+        session.delete(item)
+
+
 def reference_context(session: Session) -> dict:
     customers = list(session.exec(select(Customer).order_by(col(Customer.customer_name))))
     units = list(session.exec(select(BusinessUnit).order_by(col(BusinessUnit.name))))
@@ -153,6 +196,70 @@ def reference_context(session: Session) -> dict:
         "agent_map": {item.id: item for item in agents},
         "news_feed_map": {item.id: item for item in news_feeds},
     }
+
+
+@app.get("/business-units", response_class=HTMLResponse)
+def business_units(request: Request, session: Session = Depends(get_session)):
+    return templates.TemplateResponse(request, "business_units.html", context(request, **reference_context(session)))
+
+
+@app.post("/business-units")
+async def create_business_unit(request: Request, session: Session = Depends(get_session)):
+    form = await request.form()
+    errors: list[str] = []
+    name = str(form.get("name") or "").strip()
+    parent_id = parse_optional_int(form.get("parent_id"), "Parent business unit", errors)
+    if not name:
+        errors.append("Business unit name is required.")
+    if errors:
+        return validation_error_response(errors, "/business-units")
+    unit = BusinessUnit(
+        name=name,
+        parent_id=parent_id,
+        description=str(form.get("description") or ""),
+        active=parse_bool(form.get("active")) if form.get("active") is not None else True,
+    )
+    save_with_audit(session, unit, "create", f"Created business unit {unit.name}")
+    return redirect("/business-units")
+
+
+@app.post("/business-units/{unit_id}")
+async def update_business_unit(unit_id: int, request: Request, session: Session = Depends(get_session)):
+    unit = session.get(BusinessUnit, unit_id)
+    if not unit:
+        return redirect("/business-units")
+    form = await request.form()
+    errors: list[str] = []
+    name = str(form.get("name") or "").strip()
+    parent_id = parse_optional_int(form.get("parent_id"), "Parent business unit", errors)
+    if parent_id == unit.id:
+        errors.append("A business unit cannot be its own parent.")
+    if not name:
+        errors.append("Business unit name is required.")
+    if errors:
+        return validation_error_response(errors, "/business-units")
+    before = compact_snapshot(unit)
+    unit.name = name
+    unit.parent_id = parent_id
+    unit.description = str(form.get("description") or "")
+    unit.active = parse_bool(form.get("active"))
+    update_with_audit(session, unit, f"Updated business unit {unit.name}", before)
+    return redirect("/business-units")
+
+
+@app.post("/business-units/{unit_id}/delete")
+def delete_business_unit(unit_id: int, session: Session = Depends(get_session)):
+    unit = session.get(BusinessUnit, unit_id)
+    if not unit:
+        return redirect("/business-units")
+    clear_links(session, BusinessUnit, "parent_id", unit.id)
+    clear_links(session, Customer, "business_unit_id", unit.id)
+    clear_links(session, CustomerWatchProfile, "business_unit_id", unit.id)
+    clear_links(session, BuyerPortalInstance, "business_unit_id", unit.id)
+    clear_links(session, Opportunity, "business_unit_id", unit.id)
+    clear_links(session, IntelligenceReport, "business_unit_id", unit.id)
+    delete_with_audit(session, unit, f"Deleted business unit {unit.name}")
+    return redirect("/business-units")
 
 
 PORTAL_READY_STATUSES = {"active", "registered", "live"}
@@ -399,11 +506,12 @@ async def update_opportunity_review(opportunity_id: int, request: Request, sessi
 @app.get("/client-portal", response_class=HTMLResponse)
 def client_portal(request: Request, session: Session = Depends(get_session)):
     opportunities = list(session.exec(select(Opportunity).where(Opportunity.status == "approved").order_by(col(Opportunity.updated_at).desc()).limit(100)))
+    all_opportunities = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(300)))
     interests = list(session.exec(select(ClientInterestSignal).order_by(col(ClientInterestSignal.created_at).desc()).limit(100)))
     return templates.TemplateResponse(
         request,
         "client_portal.html",
-        context(request, opportunities=opportunities, interests=interests, **reference_context(session)),
+        context(request, opportunities=opportunities, all_opportunities=all_opportunities, interests=interests, **reference_context(session)),
     )
 
 
@@ -424,6 +532,38 @@ async def create_interest_signal(request: Request, session: Session = Depends(ge
         notes=str(form.get("notes") or ""),
     )
     save_with_audit(session, signal, "create", "Created client interest signal")
+    return redirect("/client-portal")
+
+
+@app.post("/client-portal/interests/{signal_id}")
+async def update_interest_signal(signal_id: int, request: Request, session: Session = Depends(get_session)):
+    signal = session.get(ClientInterestSignal, signal_id)
+    if not signal:
+        return redirect("/client-portal")
+    form = await request.form()
+    errors: list[str] = []
+    opportunity_id = parse_optional_int(form.get("opportunity_id"), "Opportunity", errors)
+    customer_id = parse_optional_int(form.get("customer_id"), "Customer", errors)
+    if errors:
+        return validation_error_response(errors, "/client-portal")
+    before = compact_snapshot(signal)
+    signal.opportunity_id = opportunity_id
+    signal.customer_id = customer_id
+    signal.contact_name = str(form.get("contact_name") or "")
+    signal.contact_email = str(form.get("contact_email") or "")
+    signal.signal = str(form.get("signal") or "interested")
+    signal.status = str(form.get("status") or "new")
+    signal.notes = str(form.get("notes") or "")
+    update_with_audit(session, signal, "Updated client interest signal", before)
+    return redirect("/client-portal")
+
+
+@app.post("/client-portal/interests/{signal_id}/delete")
+def delete_interest_signal(signal_id: int, session: Session = Depends(get_session)):
+    signal = session.get(ClientInterestSignal, signal_id)
+    if not signal:
+        return redirect("/client-portal")
+    delete_with_audit(session, signal, "Deleted client interest signal")
     return redirect("/client-portal")
 
 
@@ -517,6 +657,50 @@ async def create_customer(request: Request, session: Session = Depends(get_sessi
     return redirect("/customers")
 
 
+@app.post("/customers/{customer_id}")
+async def update_customer(customer_id: int, request: Request, session: Session = Depends(get_session)):
+    customer = session.get(Customer, customer_id)
+    if not customer:
+        return redirect("/customers")
+    form = await request.form()
+    errors: list[str] = []
+    name = str(form.get("customer_name") or "").strip()
+    if not name:
+        errors.append("Customer name is required.")
+    business_unit_id = parse_optional_int(form.get("business_unit_id"), "Business unit", errors)
+    if errors:
+        return validation_error_response(errors, "/customers")
+    before = compact_snapshot(customer)
+    customer.customer_name = name
+    customer.business_unit_id = business_unit_id
+    customer.sector = str(form.get("sector") or "Public sector")
+    customer.domain = str(form.get("domain") or "")
+    customer.customer_type = str(form.get("customer_type") or "")
+    customer.region = str(form.get("region") or "UK")
+    customer.buying_entities = str(form.get("buying_entities") or "")
+    customer.aliases = str(form.get("aliases") or "")
+    customer.strategic_notes = str(form.get("strategic_notes") or "")
+    customer.portal_notes = str(form.get("portal_notes") or "")
+    update_with_audit(session, customer, f"Updated customer {customer.customer_name}", before)
+    return redirect("/customers")
+
+
+@app.post("/customers/{customer_id}/delete")
+def delete_customer(customer_id: int, session: Session = Depends(get_session)):
+    customer = session.get(Customer, customer_id)
+    if not customer:
+        return redirect("/customers")
+    clear_links(session, CustomerWatchProfile, "customer_id", customer.id)
+    clear_links(session, BuyerPortalInstance, "customer_id", customer.id)
+    clear_links(session, Opportunity, "customer_id", customer.id)
+    clear_links(session, ClientInterestSignal, "customer_id", customer.id)
+    clear_links(session, ExtractedRequirement, "customer_id", customer.id)
+    clear_links(session, KRAResearchRun, "customer_id", customer.id)
+    clear_links(session, KRAFinding, "customer_id", customer.id)
+    delete_with_audit(session, customer, f"Deleted customer {customer.customer_name}")
+    return redirect("/customers")
+
+
 @app.get("/sources", response_class=HTMLResponse)
 def sources(request: Request, session: Session = Depends(get_session)):
     snapshots = list(session.exec(select(SourceCheckSnapshot).order_by(col(SourceCheckSnapshot.checked_at).desc()).limit(100)))
@@ -563,6 +747,53 @@ async def create_source(request: Request, session: Session = Depends(get_session
     return redirect("/sources")
 
 
+@app.post("/sources/{source_id}")
+async def update_source(source_id: int, request: Request, session: Session = Depends(get_session)):
+    source = session.get(ProcurementSource, source_id)
+    if not source:
+        return redirect("/sources")
+    form = await request.form()
+    errors: list[str] = []
+    name = str(form.get("name") or "").strip()
+    query_url = str(form.get("query_url") or "").strip()
+    if not name:
+        errors.append("Source name is required.")
+    if not query_url:
+        errors.append("Query URL is required.")
+    elif not source_allowed(query_url):
+        errors.append("Query URL must be HTTPS and on the approved source allow-list.")
+    if errors:
+        return validation_error_response(errors, "/sources")
+    before = compact_snapshot(source)
+    source.name = name
+    source.source_key = str(form.get("source_key") or source.source_key or "")
+    source.source_family = str(form.get("source_family") or source.source_family or "official_notice")
+    source.source_type = str(form.get("source_type") or "web_page")
+    source.base_url = str(form.get("base_url") or query_url)
+    source.query_url = query_url
+    source.official = parse_bool(form.get("official"))
+    source.active = parse_bool(form.get("active"))
+    source.coverage = str(form.get("coverage") or "")
+    source.data_format = str(form.get("data_format") or "")
+    source.connector_status = str(form.get("connector_status") or source.connector_status or "configured")
+    source.notes = str(form.get("notes") or "")
+    update_with_audit(session, source, f"Updated source {source.name}", before)
+    return redirect("/sources")
+
+
+@app.post("/sources/{source_id}/delete")
+def delete_source(source_id: int, session: Session = Depends(get_session)):
+    source = session.get(ProcurementSource, source_id)
+    if not source:
+        return redirect("/sources")
+    clear_links(session, SourceCheckSnapshot, "source_id", source.id)
+    clear_links(session, Opportunity, "source_id", source.id)
+    clear_links(session, KRAResearchRun, "source_id", source.id)
+    clear_links(session, KRAFinding, "source_id", source.id)
+    delete_with_audit(session, source, f"Deleted source {source.name}")
+    return redirect("/sources")
+
+
 @app.get("/opportunities", response_class=HTMLResponse)
 def opportunities(request: Request, session: Session = Depends(get_session)):
     items = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(200)))
@@ -571,6 +802,101 @@ def opportunities(request: Request, session: Session = Depends(get_session)):
     for doc in documents:
         doc_counts[doc.opportunity_id] = doc_counts.get(doc.opportunity_id, 0) + 1
     return templates.TemplateResponse(request, "opportunities.html", context(request, opportunities=items, doc_counts=doc_counts, **reference_context(session)))
+
+
+@app.post("/opportunities")
+async def create_opportunity(request: Request, session: Session = Depends(get_session)):
+    form = await request.form()
+    errors: list[str] = []
+    title = str(form.get("title") or "").strip()
+    if not title:
+        errors.append("Opportunity title is required.")
+    source_id = parse_optional_int(form.get("source_id"), "Source", errors)
+    customer_id = parse_optional_int(form.get("customer_id"), "Customer", errors)
+    business_unit_id = parse_optional_int(form.get("business_unit_id"), "Business unit", errors)
+    deadline_date = parse_optional_date(form.get("deadline_date"), "Deadline date", errors)
+    value_high = parse_float(form.get("value_high"), "Value high", errors, default=0)
+    relevance_score = parse_float(form.get("relevance_score"), "Relevance score", errors, default=0)
+    if errors:
+        return validation_error_response(errors, "/opportunities")
+    opportunity = Opportunity(
+        title=title,
+        source_id=source_id,
+        customer_id=customer_id,
+        business_unit_id=business_unit_id,
+        buyer_name=str(form.get("buyer_name") or ""),
+        notice_identifier=str(form.get("notice_identifier") or ""),
+        notice_type=str(form.get("notice_type") or ""),
+        procurement_stage=str(form.get("procurement_stage") or ""),
+        deadline_date=deadline_date,
+        value_high=value_high,
+        cpv_codes=str(form.get("cpv_codes") or ""),
+        location=str(form.get("location") or ""),
+        source_url=str(form.get("source_url") or ""),
+        summary=str(form.get("summary") or ""),
+        status=str(form.get("status") or "new"),
+        relevance_score=relevance_score,
+        relevance_rationale=str(form.get("relevance_rationale") or ""),
+    )
+    save_with_audit(session, opportunity, "create", f"Created opportunity {opportunity.title}")
+    return redirect("/opportunities")
+
+
+@app.post("/opportunities/{opportunity_id}")
+async def update_opportunity(opportunity_id: int, request: Request, session: Session = Depends(get_session)):
+    opportunity = session.get(Opportunity, opportunity_id)
+    if not opportunity:
+        return redirect("/opportunities")
+    form = await request.form()
+    errors: list[str] = []
+    title = str(form.get("title") or "").strip()
+    if not title:
+        errors.append("Opportunity title is required.")
+    source_id = parse_optional_int(form.get("source_id"), "Source", errors)
+    customer_id = parse_optional_int(form.get("customer_id"), "Customer", errors)
+    business_unit_id = parse_optional_int(form.get("business_unit_id"), "Business unit", errors)
+    deadline_date = parse_optional_date(form.get("deadline_date"), "Deadline date", errors)
+    value_high = parse_float(form.get("value_high"), "Value high", errors, default=0)
+    relevance_score = parse_float(form.get("relevance_score"), "Relevance score", errors, default=0)
+    if errors:
+        return validation_error_response(errors, "/opportunities")
+    before = compact_snapshot(opportunity)
+    opportunity.title = title
+    opportunity.source_id = source_id
+    opportunity.customer_id = customer_id
+    opportunity.business_unit_id = business_unit_id
+    opportunity.buyer_name = str(form.get("buyer_name") or "")
+    opportunity.notice_identifier = str(form.get("notice_identifier") or "")
+    opportunity.notice_type = str(form.get("notice_type") or "")
+    opportunity.procurement_stage = str(form.get("procurement_stage") or "")
+    opportunity.deadline_date = deadline_date
+    opportunity.value_high = value_high
+    opportunity.cpv_codes = str(form.get("cpv_codes") or "")
+    opportunity.location = str(form.get("location") or "")
+    opportunity.source_url = str(form.get("source_url") or "")
+    opportunity.summary = str(form.get("summary") or "")
+    opportunity.status = str(form.get("status") or "new")
+    opportunity.relevance_score = relevance_score
+    opportunity.relevance_rationale = str(form.get("relevance_rationale") or "")
+    opportunity.updated_at = utc_now()
+    update_with_audit(session, opportunity, f"Updated opportunity {opportunity.title}", before)
+    return redirect("/opportunities")
+
+
+@app.post("/opportunities/{opportunity_id}/delete")
+def delete_opportunity(opportunity_id: int, session: Session = Depends(get_session)):
+    opportunity = session.get(Opportunity, opportunity_id)
+    if not opportunity:
+        return redirect("/opportunities")
+    delete_children(session, ExtractedQualityQuestion, "opportunity_id", opportunity.id)
+    delete_children(session, OpportunityDocument, "opportunity_id", opportunity.id)
+    delete_children(session, DocumentRetrievalTask, "opportunity_id", opportunity.id)
+    clear_links(session, ClientInterestSignal, "opportunity_id", opportunity.id)
+    clear_links(session, ExtractedRequirement, "opportunity_id", opportunity.id)
+    clear_links(session, KRAFinding, "opportunity_id", opportunity.id)
+    clear_links(session, KRAResearchRun, "opportunity_id", opportunity.id)
+    delete_with_audit(session, opportunity, f"Deleted opportunity {opportunity.title}")
+    return redirect("/opportunities")
 
 
 @app.get("/opportunities/{opportunity_id}/documents", response_class=HTMLResponse)
@@ -584,7 +910,15 @@ def opportunity_documents(opportunity_id: int, request: Request, session: Sessio
     return templates.TemplateResponse(
         request,
         "documents.html",
-        context(request, opportunity=opportunity, documents=documents, questions=questions, tasks=tasks, **reference_context(session)),
+        context(
+            request,
+            opportunity=opportunity,
+            documents=documents,
+            questions=questions,
+            tasks=tasks,
+            task_status_options=["requested", "in_progress", "blocked", "review_required", "completed"],
+            **reference_context(session),
+        ),
     )
 
 
@@ -615,6 +949,38 @@ async def create_document(opportunity_id: int, request: Request, session: Sessio
     return redirect(f"/opportunities/{opportunity_id}/documents")
 
 
+@app.post("/opportunities/{opportunity_id}/documents/{document_id}")
+async def update_document(opportunity_id: int, document_id: int, request: Request, session: Session = Depends(get_session)):
+    document = session.get(OpportunityDocument, document_id)
+    if not document or document.opportunity_id != opportunity_id:
+        return redirect(f"/opportunities/{opportunity_id}/documents")
+    form = await request.form()
+    title = str(form.get("title") or "").strip()
+    if not title:
+        return validation_error_response(["Document title is required."], f"/opportunities/{opportunity_id}/documents")
+    before = compact_snapshot(document)
+    document.title = title
+    document.document_type = str(form.get("document_type") or "itt_extract")
+    document.url_or_path = str(form.get("url_or_path") or "")
+    document.retrieval_status = str(form.get("retrieval_status") or "linked")
+    document.human_review_status = str(form.get("human_review_status") or document.human_review_status or "pending")
+    document.platform_name = str(form.get("platform_name") or "")
+    document.content_summary = str(form.get("content_summary") or "")
+    document.notes = str(form.get("notes") or "")
+    update_with_audit(session, document, f"Updated document {document.title}", before)
+    return redirect(f"/opportunities/{opportunity_id}/documents")
+
+
+@app.post("/opportunities/{opportunity_id}/documents/{document_id}/delete")
+def delete_document(opportunity_id: int, document_id: int, session: Session = Depends(get_session)):
+    document = session.get(OpportunityDocument, document_id)
+    if not document or document.opportunity_id != opportunity_id:
+        return redirect(f"/opportunities/{opportunity_id}/documents")
+    delete_children(session, ExtractedQualityQuestion, "document_id", document.id)
+    delete_with_audit(session, document, f"Deleted document {document.title}")
+    return redirect(f"/opportunities/{opportunity_id}/documents")
+
+
 @app.post("/opportunities/{opportunity_id}/tasks")
 async def create_document_task(opportunity_id: int, request: Request, session: Session = Depends(get_session)):
     form = await request.form()
@@ -633,6 +999,45 @@ async def create_document_task(opportunity_id: int, request: Request, session: S
     )
     save_with_audit(session, task, "create", f"Created document retrieval task {task.task_name}")
     return redirect(f"/opportunities/{opportunity_id}/documents")
+
+
+@app.post("/tasks/{task_id}")
+async def update_task(task_id: int, request: Request, session: Session = Depends(get_session)):
+    task = session.get(DocumentRetrievalTask, task_id)
+    if not task:
+        return redirect("/portals")
+    form = await request.form()
+    errors: list[str] = []
+    portal_id = parse_optional_int(form.get("portal_instance_id"), "Portal instance", errors)
+    opportunity_id = parse_optional_int(form.get("opportunity_id"), "Opportunity", errors)
+    due_date = parse_optional_date(form.get("due_date"), "Due date", errors)
+    return_to = str(form.get("return_to") or "/portals")
+    task_name = str(form.get("task_name") or "").strip()
+    if not task_name:
+        errors.append("Task name is required.")
+    if errors:
+        return validation_error_response(errors, return_to)
+    before = compact_snapshot(task)
+    task.task_name = task_name
+    task.opportunity_id = opportunity_id
+    task.portal_instance_id = portal_id
+    task.status = str(form.get("status") or "requested")
+    task.owner = str(form.get("owner") or "local-user")
+    task.due_date = due_date
+    task.notes = str(form.get("notes") or "")
+    update_with_audit(session, task, f"Updated retrieval task {task.task_name}", before)
+    return redirect(return_to)
+
+
+@app.post("/tasks/{task_id}/delete")
+async def delete_task(task_id: int, request: Request, session: Session = Depends(get_session)):
+    task = session.get(DocumentRetrievalTask, task_id)
+    form = await request.form()
+    return_to = str(form.get("return_to") or "/portals")
+    if not task:
+        return redirect(return_to)
+    delete_with_audit(session, task, f"Deleted retrieval task {task.task_name}")
+    return redirect(return_to)
 
 
 @app.get("/portals", response_class=HTMLResponse)
@@ -669,6 +1074,45 @@ async def create_portal(request: Request, session: Session = Depends(get_session
     return redirect("/portals")
 
 
+@app.post("/portals/{portal_id}")
+async def update_portal(portal_id: int, request: Request, session: Session = Depends(get_session)):
+    portal = session.get(BuyerPortalInstance, portal_id)
+    if not portal:
+        return redirect("/portals")
+    form = await request.form()
+    errors: list[str] = []
+    platform_id = parse_optional_int(form.get("platform_id"), "Platform", errors)
+    customer_id = parse_optional_int(form.get("customer_id"), "Customer", errors)
+    business_unit_id = parse_optional_int(form.get("business_unit_id"), "Business unit", errors)
+    name = str(form.get("portal_name") or "").strip()
+    if not name:
+        errors.append("Portal name is required.")
+    if errors:
+        return validation_error_response(errors, "/portals")
+    before = compact_snapshot(portal)
+    portal.portal_name = name
+    portal.platform_id = platform_id
+    portal.customer_id = customer_id
+    portal.business_unit_id = business_unit_id
+    portal.portal_url = str(form.get("portal_url") or "")
+    portal.account_reference = str(form.get("account_reference") or "")
+    portal.access_status = str(form.get("access_status") or "unknown")
+    portal.document_retrieval_mode = str(form.get("document_retrieval_mode") or "manual")
+    portal.notes = str(form.get("notes") or "")
+    update_with_audit(session, portal, f"Updated portal {portal.portal_name}", before)
+    return redirect("/portals")
+
+
+@app.post("/portals/{portal_id}/delete")
+def delete_portal(portal_id: int, session: Session = Depends(get_session)):
+    portal = session.get(BuyerPortalInstance, portal_id)
+    if not portal:
+        return redirect("/portals")
+    clear_links(session, DocumentRetrievalTask, "portal_instance_id", portal.id)
+    delete_with_audit(session, portal, f"Deleted portal {portal.portal_name}")
+    return redirect("/portals")
+
+
 @app.post("/portals/{portal_id}/tasks")
 async def create_portal_task(portal_id: int, request: Request, session: Session = Depends(get_session)):
     portal = session.get(BuyerPortalInstance, portal_id)
@@ -700,7 +1144,143 @@ async def create_portal_task(portal_id: int, request: Request, session: Session 
 def requirements(request: Request, session: Session = Depends(get_session)):
     reqs = list(session.exec(select(ExtractedRequirement).order_by(col(ExtractedRequirement.created_at).desc()).limit(300)))
     questions = list(session.exec(select(ExtractedQualityQuestion).order_by(col(ExtractedQualityQuestion.created_at).desc()).limit(300)))
-    return templates.TemplateResponse(request, "requirements.html", context(request, requirements=reqs, questions=questions, **reference_context(session)))
+    opportunities = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(300)))
+    documents = list(session.exec(select(OpportunityDocument).order_by(col(OpportunityDocument.extracted_at).desc()).limit(300)))
+    return templates.TemplateResponse(
+        request,
+        "requirements.html",
+        context(request, requirements=reqs, questions=questions, opportunities=opportunities, documents=documents, **reference_context(session)),
+    )
+
+
+@app.post("/requirements")
+async def create_requirement(request: Request, session: Session = Depends(get_session)):
+    form = await request.form()
+    errors: list[str] = []
+    customer_id = parse_optional_int(form.get("customer_id"), "Customer", errors)
+    opportunity_id = parse_optional_int(form.get("opportunity_id"), "Opportunity", errors)
+    theme = str(form.get("requirement_theme") or "").strip()
+    text = str(form.get("requirement_text") or "").strip()
+    if not theme or not text:
+        errors.append("Requirement theme and text are required.")
+    if errors:
+        return validation_error_response(errors, "/requirements")
+    requirement = ExtractedRequirement(
+        customer_id=customer_id,
+        opportunity_id=opportunity_id,
+        requirement_theme=theme,
+        requirement_text=text,
+        requirement_source=str(form.get("requirement_source") or ""),
+        confidence=str(form.get("confidence") or "medium"),
+        human_review_status=str(form.get("human_review_status") or "pending"),
+    )
+    save_with_audit(session, requirement, "create", f"Created requirement {requirement.requirement_theme}")
+    return redirect("/requirements")
+
+
+@app.post("/requirements/{requirement_id}")
+async def update_requirement(requirement_id: int, request: Request, session: Session = Depends(get_session)):
+    requirement = session.get(ExtractedRequirement, requirement_id)
+    if not requirement:
+        return redirect("/requirements")
+    form = await request.form()
+    return_to = str(form.get("return_to") or "/requirements")
+    theme = str(form.get("requirement_theme") or "").strip()
+    text = str(form.get("requirement_text") or "").strip()
+    errors: list[str] = []
+    customer_id = parse_optional_int(form.get("customer_id"), "Customer", errors)
+    opportunity_id = parse_optional_int(form.get("opportunity_id"), "Opportunity", errors)
+    if not theme or not text:
+        errors.append("Requirement theme and text are required.")
+    if errors:
+        return validation_error_response(errors, return_to)
+    before = compact_snapshot(requirement)
+    requirement.customer_id = customer_id
+    requirement.opportunity_id = opportunity_id
+    requirement.requirement_theme = theme
+    requirement.requirement_text = text
+    requirement.requirement_source = str(form.get("requirement_source") or "")
+    requirement.confidence = str(form.get("confidence") or "medium")
+    requirement.human_review_status = str(form.get("human_review_status") or "pending")
+    update_with_audit(session, requirement, f"Updated requirement {requirement.requirement_theme}", before)
+    return redirect(return_to)
+
+
+@app.post("/requirements/{requirement_id}/delete")
+async def delete_requirement(requirement_id: int, request: Request, session: Session = Depends(get_session)):
+    requirement = session.get(ExtractedRequirement, requirement_id)
+    form = await request.form()
+    return_to = str(form.get("return_to") or "/requirements")
+    if not requirement:
+        return redirect(return_to)
+    delete_with_audit(session, requirement, f"Deleted requirement {requirement.requirement_theme}")
+    return redirect(return_to)
+
+
+@app.post("/quality-questions")
+async def create_quality_question(request: Request, session: Session = Depends(get_session)):
+    form = await request.form()
+    errors: list[str] = []
+    opportunity_id = parse_optional_int(form.get("opportunity_id"), "Opportunity", errors)
+    document_id = parse_optional_int(form.get("document_id"), "Document", errors)
+    text = str(form.get("question_text") or "").strip()
+    if opportunity_id is None:
+        errors.append("Opportunity is required for a quality question.")
+    if not text:
+        errors.append("Question text is required.")
+    if errors:
+        return validation_error_response(errors, "/requirements")
+    question = ExtractedQualityQuestion(
+        opportunity_id=opportunity_id,
+        document_id=document_id,
+        section_reference=str(form.get("section_reference") or ""),
+        question_text=text,
+        weighting=str(form.get("weighting") or ""),
+        requirement_theme=str(form.get("requirement_theme") or ""),
+        confidence=str(form.get("confidence") or "medium"),
+        human_review_status=str(form.get("human_review_status") or "pending"),
+    )
+    save_with_audit(session, question, "create", "Created quality question")
+    return redirect("/requirements")
+
+
+@app.post("/quality-questions/{question_id}")
+async def update_quality_question(question_id: int, request: Request, session: Session = Depends(get_session)):
+    question = session.get(ExtractedQualityQuestion, question_id)
+    if not question:
+        return redirect("/requirements")
+    form = await request.form()
+    return_to = str(form.get("return_to") or "/requirements")
+    text = str(form.get("question_text") or "").strip()
+    if not text:
+        return validation_error_response(["Question text is required."], return_to)
+    errors: list[str] = []
+    opportunity_id = parse_optional_int(form.get("opportunity_id"), "Opportunity", errors) or question.opportunity_id
+    document_id = parse_optional_int(form.get("document_id"), "Document", errors)
+    if errors:
+        return validation_error_response(errors, return_to)
+    before = compact_snapshot(question)
+    question.opportunity_id = opportunity_id
+    question.document_id = document_id
+    question.section_reference = str(form.get("section_reference") or "")
+    question.question_text = text
+    question.weighting = str(form.get("weighting") or "")
+    question.requirement_theme = str(form.get("requirement_theme") or "")
+    question.confidence = str(form.get("confidence") or "medium")
+    question.human_review_status = str(form.get("human_review_status") or "pending")
+    update_with_audit(session, question, "Updated quality question", before)
+    return redirect(return_to)
+
+
+@app.post("/quality-questions/{question_id}/delete")
+async def delete_quality_question(question_id: int, request: Request, session: Session = Depends(get_session)):
+    question = session.get(ExtractedQualityQuestion, question_id)
+    form = await request.form()
+    return_to = str(form.get("return_to") or "/requirements")
+    if not question:
+        return redirect(return_to)
+    delete_with_audit(session, question, "Deleted quality question")
+    return redirect(return_to)
 
 
 @app.get("/kra", response_class=HTMLResponse)
@@ -740,6 +1320,40 @@ async def create_intelligence_report(request: Request, session: Session = Depend
         return validation_error_response(errors, "/reports")
     report = create_report(session, name, str(form.get("report_type") or "executive_summary"), customer_id, business_unit_id)
     return redirect(f"/reports/{report.id}")
+
+
+@app.post("/reports/{report_id}/update")
+async def update_report(report_id: int, request: Request, session: Session = Depends(get_session)):
+    report = session.get(IntelligenceReport, report_id)
+    if not report:
+        return redirect("/reports")
+    form = await request.form()
+    errors: list[str] = []
+    customer_id = parse_optional_int(form.get("customer_id"), "Customer", errors)
+    business_unit_id = parse_optional_int(form.get("business_unit_id"), "Business unit", errors)
+    name = str(form.get("report_name") or "").strip()
+    if not name:
+        errors.append("Report name is required.")
+    if errors:
+        return validation_error_response(errors, f"/reports/{report_id}")
+    before = compact_snapshot(report)
+    report.report_name = name
+    report.report_type = str(form.get("report_type") or "executive_summary")
+    report.customer_id = customer_id
+    report.business_unit_id = business_unit_id
+    report.markdown = str(form.get("markdown") or report.markdown or "")
+    update_with_audit(session, report, f"Updated report {report.report_name}", before)
+    return redirect(f"/reports/{report.id}")
+
+
+@app.post("/reports/{report_id}/delete")
+def delete_report(report_id: int, session: Session = Depends(get_session)):
+    report = session.get(IntelligenceReport, report_id)
+    if not report:
+        return redirect("/reports")
+    clear_links(session, EmailDeliveryLog, "report_id", report.id)
+    delete_with_audit(session, report, f"Deleted report {report.report_name}")
+    return redirect("/reports")
 
 
 @app.get("/reports/{report_id}", response_class=HTMLResponse)

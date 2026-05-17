@@ -5,7 +5,7 @@
 <section class="panel">
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Opportunity</th><th>Buyer</th><th>Stage</th><th>Deadline</th><th>Source</th><th>Docs</th><th>Status</th></tr></thead>
+      <thead><tr><th>Opportunity</th><th>Buyer</th><th>Stage</th><th>Deadline</th><th>Source</th><th>Docs</th><th>Status</th><th>Actions</th></tr></thead>
       <tbody>
         {% for item in opportunities %}
         {% set source = source_map.get(item.source_id) %}
@@ -17,12 +17,88 @@
           <td>{{ source.name if source else "Manual" }}</td>
           <td><a href="/opportunities/{{ item.id }}/documents">{{ doc_counts.get(item.id, 0) }} docs</a></td>
           <td><span class="badge {{ 'green' if item.status == 'watching' else 'amber' }}">{{ item.status }}</span></td>
+          <td>
+            <div class="record-actions">
+              <form method="post" action="/opportunities/{{ item.id }}/delete" onsubmit="return confirm('Delete this opportunity and its linked documents/tasks? Interest and requirement records will be unassigned.');">
+                <button class="danger compact" type="submit">Delete</button>
+              </form>
+            </div>
+            <details class="edit-drawer compact-drawer">
+              <summary>Edit opportunity</summary>
+              <form method="post" action="/opportunities/{{ item.id }}">
+                <div class="field"><label>Title</label><input name="title" value="{{ item.title }}" required></div>
+                <div class="form-grid">
+                  <div class="field"><label>Source</label><select name="source_id"><option value="">Manual</option>{% for option in sources %}<option value="{{ option.id }}" {% if item.source_id == option.id %}selected{% endif %}>{{ option.name }}</option>{% endfor %}</select></div>
+                  <div class="field"><label>Customer</label><select name="customer_id"><option value="">Unassigned</option>{% for option in customers %}<option value="{{ option.id }}" {% if item.customer_id == option.id %}selected{% endif %}>{{ option.customer_name }}</option>{% endfor %}</select></div>
+                </div>
+                <div class="form-grid">
+                  <div class="field"><label>Business unit</label><select name="business_unit_id"><option value="">Unassigned</option>{% for option in business_units %}<option value="{{ option.id }}" {% if item.business_unit_id == option.id %}selected{% endif %}>{{ option.name }}</option>{% endfor %}</select></div>
+                  <div class="field"><label>Buyer</label><input name="buyer_name" value="{{ item.buyer_name }}"></div>
+                </div>
+                <div class="form-grid">
+                  <div class="field"><label>Notice identifier</label><input name="notice_identifier" value="{{ item.notice_identifier }}"></div>
+                  <div class="field"><label>Notice type</label><input name="notice_type" value="{{ item.notice_type }}"></div>
+                </div>
+                <div class="form-grid">
+                  <div class="field"><label>Procurement stage</label><input name="procurement_stage" value="{{ item.procurement_stage }}"></div>
+                  <div class="field"><label>Deadline</label><input type="date" name="deadline_date" value="{{ item.deadline_date or '' }}"></div>
+                </div>
+                <div class="form-grid">
+                  <div class="field"><label>High value</label><input name="value_high" value="{{ item.value_high }}"></div>
+                  <div class="field"><label>Relevance score</label><input name="relevance_score" value="{{ item.relevance_score }}"></div>
+                </div>
+                <div class="field"><label>CPV codes</label><input name="cpv_codes" value="{{ item.cpv_codes }}"></div>
+                <div class="field"><label>Location</label><input name="location" value="{{ item.location }}"></div>
+                <div class="field"><label>Source URL</label><input name="source_url" value="{{ item.source_url }}"></div>
+                <div class="field"><label>Status</label><input name="status" value="{{ item.status }}"></div>
+                <div class="field"><label>Summary</label><textarea name="summary">{{ item.summary }}</textarea></div>
+                <div class="field"><label>Relevance rationale</label><textarea name="relevance_rationale">{{ item.relevance_rationale }}</textarea></div>
+                <button class="compact" type="submit">Save</button>
+              </form>
+            </details>
+          </td>
         </tr>
         {% else %}
-        <tr><td colspan="7">No opportunities captured yet. Run KRA or add source checks.</td></tr>
+        <tr><td colspan="8">No opportunities captured yet. Run KRA or add source checks.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+</section>
+<section class="panel" style="margin-top:18px;">
+  <div class="panel-title">
+    <h2>Add Manual Opportunity</h2>
+    <span class="badge weak">human reviewed</span>
+  </div>
+  <form method="post" action="/opportunities">
+    <div class="field"><label>Title</label><input name="title" placeholder="Framework, notice or customer requirement name" required></div>
+    <div class="form-grid">
+      <div class="field"><label>Source</label><select name="source_id"><option value="">Manual</option>{% for source in sources %}<option value="{{ source.id }}">{{ source.name }}</option>{% endfor %}</select></div>
+      <div class="field"><label>Customer</label><select name="customer_id"><option value="">Unassigned</option>{% for customer in customers %}<option value="{{ customer.id }}">{{ customer.customer_name }}</option>{% endfor %}</select></div>
+    </div>
+    <div class="form-grid">
+      <div class="field"><label>Business unit</label><select name="business_unit_id"><option value="">Unassigned</option>{% for unit in business_units %}<option value="{{ unit.id }}">{{ unit.name }}</option>{% endfor %}</select></div>
+      <div class="field"><label>Buyer</label><input name="buyer_name"></div>
+    </div>
+    <div class="form-grid">
+      <div class="field"><label>Notice identifier</label><input name="notice_identifier"></div>
+      <div class="field"><label>Notice type</label><input name="notice_type"></div>
+    </div>
+    <div class="form-grid">
+      <div class="field"><label>Procurement stage</label><input name="procurement_stage"></div>
+      <div class="field"><label>Deadline</label><input type="date" name="deadline_date"></div>
+    </div>
+    <div class="form-grid">
+      <div class="field"><label>High value</label><input name="value_high" value="0"></div>
+      <div class="field"><label>Relevance score</label><input name="relevance_score" value="0"></div>
+    </div>
+    <div class="field"><label>CPV codes</label><input name="cpv_codes"></div>
+    <div class="field"><label>Location</label><input name="location"></div>
+    <div class="field"><label>Source URL</label><input name="source_url"></div>
+    <div class="field"><label>Status</label><input name="status" value="new"></div>
+    <div class="field"><label>Summary</label><textarea name="summary"></textarea></div>
+    <div class="field"><label>Relevance rationale</label><textarea name="relevance_rationale"></textarea></div>
+    <button type="submit">Save opportunity</button>
+  </form>
 </section>
 {% endblock %}

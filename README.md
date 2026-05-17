@@ -161,6 +161,22 @@ The workflow covers:
 
 The MVP keeps the important COF guardrail: nothing should reach a client or recipient without human review.
 
+## Data Maintenance
+
+The main operational sections now expose user-managed create, edit and delete controls where live data is entered or curated:
+
+- Business Units
+- Customers
+- Sources
+- Opportunities
+- Portal instances and retrieval tasks
+- Opportunity documents
+- Requirement themes and quality questions
+- Client interest signals
+- Intelligence reports
+
+Delete actions are deliberately conservative: linked records are either unassigned or child records are removed where they only make sense under the deleted parent, and each change is written to the local audit log.
+
 ## Email And Exports
 
 Admin email configuration is available at `/admin`.

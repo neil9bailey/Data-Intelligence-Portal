@@ -5,7 +5,7 @@
 <section class="panel">
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Source</th><th>Coverage</th><th>Format</th><th>Status</th><th>Check</th></tr></thead>
+      <thead><tr><th>Source</th><th>Coverage</th><th>Format</th><th>Status</th><th>Actions</th></tr></thead>
       <tbody>
         {% for source in sources %}
         <tr>
@@ -13,7 +13,25 @@
           <td>{{ source.coverage }}</td>
           <td>{{ source.data_format or source.source_type }}</td>
           <td><span class="badge {{ 'green' if source.active else 'amber' }}">{{ source.connector_status }}</span><p class="hint">{{ source.last_status or "not checked" }}</p></td>
-          <td><form method="post" action="/sources/{{ source.id }}/check"><button type="submit">Check</button></form></td>
+          <td>
+            <div class="record-actions">
+              <form method="post" action="/sources/{{ source.id }}/check"><button class="compact" type="submit">Check</button></form>
+              <form method="post" action="/sources/{{ source.id }}/delete" onsubmit="return confirm('Delete this source? Existing opportunities will keep their data but lose the source link.');"><button class="danger compact" type="submit">Delete</button></form>
+            </div>
+            <details class="edit-drawer compact-drawer">
+              <summary>Edit source</summary>
+              <form method="post" action="/sources/{{ source.id }}">
+                <div class="field"><label>Name</label><input name="name" value="{{ source.name }}" required></div>
+                <div class="field"><label>Query URL</label><input name="query_url" value="{{ source.query_url }}" required></div>
+                <div class="form-grid"><div class="field"><label>Base URL</label><input name="base_url" value="{{ source.base_url }}"></div><div class="field"><label>Type</label><input name="source_type" value="{{ source.source_type }}"></div></div>
+                <div class="form-grid"><div class="field"><label>Official</label><select name="official"><option value="true" {% if source.official %}selected{% endif %}>Yes</option><option value="false" {% if not source.official %}selected{% endif %}>No</option></select></div><div class="field"><label>Active</label><select name="active"><option value="true" {% if source.active %}selected{% endif %}>Yes</option><option value="false" {% if not source.active %}selected{% endif %}>No</option></select></div></div>
+                <div class="field"><label>Coverage</label><input name="coverage" value="{{ source.coverage }}"></div>
+                <div class="field"><label>Status</label><input name="connector_status" value="{{ source.connector_status }}"></div>
+                <div class="field"><label>Notes</label><textarea name="notes">{{ source.notes }}</textarea></div>
+                <button class="compact" type="submit">Save</button>
+              </form>
+            </details>
+          </td>
         </tr>
         {% endfor %}
       </tbody>

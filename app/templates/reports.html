@@ -8,7 +8,12 @@
     <div class="stack">
       {% for report in reports %}
       <article class="list-item">
-        <h3><a href="/reports/{{ report.id }}">{{ report.report_name }}</a></h3>
+        <div class="list-heading">
+          <h3><a href="/reports/{{ report.id }}">{{ report.report_name }}</a></h3>
+          <form method="post" action="/reports/{{ report.id }}/delete" onsubmit="return confirm('Delete this report? Email logs will keep their delivery record but lose the report link.');">
+            <button class="danger compact" type="submit">Delete</button>
+          </form>
+        </div>
         <p class="hint">{{ report.report_type }} | {{ report.generated_at.strftime('%Y-%m-%d %H:%M') }}</p>
         <div class="badges">
           <a class="badge weak" href="/reports/{{ report.id }}?format=md">Markdown</a>
@@ -16,6 +21,20 @@
           <a class="badge weak" href="/reports/{{ report.id }}?format=json">JSON</a>
           <a class="badge weak" href="/reports/{{ report.id }}?format=txt">Text</a>
         </div>
+        <details class="edit-drawer">
+          <summary>Edit report metadata</summary>
+          <form method="post" action="/reports/{{ report.id }}/update">
+            <div class="form-grid">
+              <div class="field"><label>Report name</label><input name="report_name" value="{{ report.report_name }}" required></div>
+              <div class="field"><label>Report type</label><input name="report_type" value="{{ report.report_type }}"></div>
+            </div>
+            <div class="form-grid">
+              <div class="field"><label>Customer</label><select name="customer_id"><option value="">All customers</option>{% for customer in customers %}<option value="{{ customer.id }}" {% if report.customer_id == customer.id %}selected{% endif %}>{{ customer.customer_name }}</option>{% endfor %}</select></div>
+              <div class="field"><label>Business unit</label><select name="business_unit_id"><option value="">All business units</option>{% for unit in business_units %}<option value="{{ unit.id }}" {% if report.business_unit_id == unit.id %}selected{% endif %}>{{ unit.name }}</option>{% endfor %}</select></div>
+            </div>
+            <button type="submit">Save changes</button>
+          </form>
+        </details>
       </article>
       {% else %}<p>No reports generated yet.</p>{% endfor %}
     </div>

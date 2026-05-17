@@ -8,10 +8,30 @@
     <a class="button secondary" href="/reports/{{ report.id }}?format=html">HTML</a>
     <a class="button secondary" href="/reports/{{ report.id }}?format=json">JSON</a>
     <a class="button" href="/reports/{{ report.id }}?format=txt">Text</a>
+    <form method="post" action="/reports/{{ report.id }}/delete" onsubmit="return confirm('Delete this report?');">
+      <button class="danger" type="submit">Delete</button>
+    </form>
   </div>
 </div>
 <section class="grid two">
-  <div class="panel"><pre class="report-body">{{ report.markdown }}</pre></div>
+  <div class="panel">
+    <details class="edit-drawer" style="margin-top:0;">
+      <summary>Edit report</summary>
+      <form method="post" action="/reports/{{ report.id }}/update">
+        <div class="form-grid">
+          <div class="field"><label>Report name</label><input name="report_name" value="{{ report.report_name }}" required></div>
+          <div class="field"><label>Report type</label><input name="report_type" value="{{ report.report_type }}"></div>
+        </div>
+        <div class="form-grid">
+          <div class="field"><label>Customer</label><select name="customer_id"><option value="">All customers</option>{% for customer in customers %}<option value="{{ customer.id }}" {% if report.customer_id == customer.id %}selected{% endif %}>{{ customer.customer_name }}</option>{% endfor %}</select></div>
+          <div class="field"><label>Business unit</label><select name="business_unit_id"><option value="">All business units</option>{% for unit in business_units %}<option value="{{ unit.id }}" {% if report.business_unit_id == unit.id %}selected{% endif %}>{{ unit.name }}</option>{% endfor %}</select></div>
+        </div>
+        <div class="field"><label>Markdown</label><textarea name="markdown" class="large-textarea">{{ report.markdown }}</textarea></div>
+        <button type="submit">Save report</button>
+      </form>
+    </details>
+    <pre class="report-body">{{ report.markdown }}</pre>
+  </div>
   <div class="panel">
     <h2>Send Report Email</h2>
     <form method="post" action="/reports/{{ report.id }}/send-email">

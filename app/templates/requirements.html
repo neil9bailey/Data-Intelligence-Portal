@@ -7,7 +7,33 @@
     <h2>Requirement Themes</h2>
     <div class="stack">
       {% for req in requirements %}
-      <article class="list-item"><h3>{{ req.requirement_theme }}</h3><div class="badges"><span class="badge weak">{{ req.confidence }}</span><span class="badge amber">{{ req.human_review_status }}</span></div><p>{{ req.requirement_text }}</p></article>
+      <article class="list-item">
+        <div class="list-heading">
+          <h3>{{ req.requirement_theme }}</h3>
+          <form method="post" action="/requirements/{{ req.id }}/delete" onsubmit="return confirm('Delete this requirement theme?');">
+            <button class="danger compact" type="submit">Delete</button>
+          </form>
+        </div>
+        <div class="badges"><span class="badge weak">{{ req.confidence }}</span><span class="badge amber">{{ req.human_review_status }}</span></div>
+        <p>{{ req.requirement_text }}</p>
+        <details class="edit-drawer">
+          <summary>Edit requirement</summary>
+          <form method="post" action="/requirements/{{ req.id }}">
+            <div class="form-grid">
+              <div class="field"><label>Customer</label><select name="customer_id"><option value="">Not linked</option>{% for customer in customers %}<option value="{{ customer.id }}" {% if req.customer_id == customer.id %}selected{% endif %}>{{ customer.customer_name }}</option>{% endfor %}</select></div>
+              <div class="field"><label>Opportunity</label><select name="opportunity_id"><option value="">Not linked</option>{% for opportunity in opportunities %}<option value="{{ opportunity.id }}" {% if req.opportunity_id == opportunity.id %}selected{% endif %}>{{ opportunity.title }}</option>{% endfor %}</select></div>
+            </div>
+            <div class="field"><label>Theme</label><input name="requirement_theme" value="{{ req.requirement_theme }}" required></div>
+            <div class="field"><label>Requirement text</label><textarea name="requirement_text" required>{{ req.requirement_text }}</textarea></div>
+            <div class="field"><label>Source</label><input name="requirement_source" value="{{ req.requirement_source }}"></div>
+            <div class="form-grid">
+              <div class="field"><label>Confidence</label><input name="confidence" value="{{ req.confidence }}"></div>
+              <div class="field"><label>Review status</label><input name="human_review_status" value="{{ req.human_review_status }}"></div>
+            </div>
+            <button type="submit">Save changes</button>
+          </form>
+        </details>
+      </article>
       {% else %}<p>No requirements extracted yet.</p>{% endfor %}
     </div>
   </div>
@@ -15,9 +41,77 @@
     <h2>Quality Questions</h2>
     <div class="stack">
       {% for question in questions %}
-      <article class="list-item"><h3>{{ question.requirement_theme }}</h3><div class="badges"><span class="badge weak">{{ question.confidence }}</span>{% if question.weighting %}<span class="badge green">{{ question.weighting }}</span>{% endif %}<span class="badge amber">{{ question.human_review_status }}</span></div><p>{{ question.question_text }}</p></article>
+      <article class="list-item">
+        <div class="list-heading">
+          <h3>{{ question.requirement_theme or "Quality question" }}</h3>
+          <form method="post" action="/quality-questions/{{ question.id }}/delete" onsubmit="return confirm('Delete this quality question?');">
+            <button class="danger compact" type="submit">Delete</button>
+          </form>
+        </div>
+        <div class="badges"><span class="badge weak">{{ question.confidence }}</span>{% if question.weighting %}<span class="badge green">{{ question.weighting }}</span>{% endif %}<span class="badge amber">{{ question.human_review_status }}</span></div>
+        <p>{{ question.question_text }}</p>
+        <details class="edit-drawer">
+          <summary>Edit question</summary>
+          <form method="post" action="/quality-questions/{{ question.id }}">
+            <div class="form-grid">
+              <div class="field"><label>Opportunity</label><select name="opportunity_id"><option value="">Keep linked opportunity</option>{% for opportunity in opportunities %}<option value="{{ opportunity.id }}" {% if question.opportunity_id == opportunity.id %}selected{% endif %}>{{ opportunity.title }}</option>{% endfor %}</select></div>
+              <div class="field"><label>Document</label><select name="document_id"><option value="">Not linked</option>{% for document in documents %}<option value="{{ document.id }}" {% if question.document_id == document.id %}selected{% endif %}>{{ document.title }}</option>{% endfor %}</select></div>
+            </div>
+            <div class="field"><label>Section</label><input name="section_reference" value="{{ question.section_reference }}"></div>
+            <div class="field"><label>Question</label><textarea name="question_text" required>{{ question.question_text }}</textarea></div>
+            <div class="form-grid">
+              <div class="field"><label>Weighting</label><input name="weighting" value="{{ question.weighting }}"></div>
+              <div class="field"><label>Theme</label><input name="requirement_theme" value="{{ question.requirement_theme }}"></div>
+            </div>
+            <div class="form-grid">
+              <div class="field"><label>Confidence</label><input name="confidence" value="{{ question.confidence }}"></div>
+              <div class="field"><label>Review status</label><input name="human_review_status" value="{{ question.human_review_status }}"></div>
+            </div>
+            <button type="submit">Save changes</button>
+          </form>
+        </details>
+      </article>
       {% else %}<p>No quality questions captured yet.</p>{% endfor %}
     </div>
+  </div>
+</section>
+<section class="grid two" style="margin-top:18px;">
+  <div class="panel">
+    <h2>Add Requirement Theme</h2>
+    <form method="post" action="/requirements">
+      <div class="form-grid">
+        <div class="field"><label>Customer</label><select name="customer_id"><option value="">Not linked</option>{% for customer in customers %}<option value="{{ customer.id }}">{{ customer.customer_name }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Opportunity</label><select name="opportunity_id"><option value="">Not linked</option>{% for opportunity in opportunities %}<option value="{{ opportunity.id }}">{{ opportunity.title }}</option>{% endfor %}</select></div>
+      </div>
+      <div class="field"><label>Theme</label><input name="requirement_theme" required></div>
+      <div class="field"><label>Requirement text</label><textarea name="requirement_text" required></textarea></div>
+      <div class="field"><label>Source</label><input name="requirement_source"></div>
+      <div class="form-grid">
+        <div class="field"><label>Confidence</label><input name="confidence" value="medium"></div>
+        <div class="field"><label>Review status</label><input name="human_review_status" value="pending"></div>
+      </div>
+      <button type="submit">Save requirement</button>
+    </form>
+  </div>
+  <div class="panel">
+    <h2>Add Quality Question</h2>
+    <form method="post" action="/quality-questions">
+      <div class="form-grid">
+        <div class="field"><label>Opportunity</label><select name="opportunity_id" required><option value="">Select opportunity</option>{% for opportunity in opportunities %}<option value="{{ opportunity.id }}">{{ opportunity.title }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Document</label><select name="document_id"><option value="">Not linked</option>{% for document in documents %}<option value="{{ document.id }}">{{ document.title }}</option>{% endfor %}</select></div>
+      </div>
+      <div class="field"><label>Section</label><input name="section_reference"></div>
+      <div class="field"><label>Question</label><textarea name="question_text" required></textarea></div>
+      <div class="form-grid">
+        <div class="field"><label>Weighting</label><input name="weighting"></div>
+        <div class="field"><label>Theme</label><input name="requirement_theme"></div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Confidence</label><input name="confidence" value="medium"></div>
+        <div class="field"><label>Review status</label><input name="human_review_status" value="pending"></div>
+      </div>
+      <button type="submit">Save question</button>
+    </form>
   </div>
 </section>
 {% endblock %}

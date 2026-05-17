@@ -3,7 +3,22 @@ from sqlmodel import select
 
 from app.database import get_session
 from app.main import app
-from app.models import BuyerPortalInstance, DocumentRetrievalTask, EmailDeliveryLog, Opportunity
+from app.models import (
+    AuditEvent,
+    BusinessUnit,
+    BuyerPortalInstance,
+    ClientInterestSignal,
+    Customer,
+    DocumentRetrievalTask,
+    EmailDeliveryLog,
+    ExtractedQualityQuestion,
+    ExtractedRequirement,
+    IntelligenceReport,
+    Opportunity,
+    OpportunityDocument,
+    ProcurementPlatform,
+    ProcurementSource,
+)
 from app.reports import create_report
 
 
@@ -23,6 +38,7 @@ def test_route_smoke_pages(seeded_session):
         paths = [
             "/",
             "/workflow",
+            "/business-units",
             "/customers",
             "/sources",
             "/opportunities",
@@ -143,3 +159,302 @@ def test_admin_email_test_route(reference_session):
 
     assert response.status_code == 303
     assert reference_session.exec(select(EmailDeliveryLog)).first() is not None
+
+
+def test_user_managed_records_can_be_updated_and_deleted(seeded_session):
+    client = client_for(seeded_session)
+    platform = seeded_session.exec(select(ProcurementPlatform)).first()
+    existing_customer = seeded_session.exec(select(Customer)).first()
+    try:
+        bu_response = client.post(
+            "/business-units",
+            data={"name": "Test Unit", "description": "Created by route test", "active": "true"},
+            follow_redirects=False,
+        )
+        unit = seeded_session.exec(select(BusinessUnit).where(BusinessUnit.name == "Test Unit")).first()
+        assert bu_response.status_code == 303
+        assert unit is not None
+
+        response = client.post(
+            f"/business-units/{unit.id}",
+            data={"name": "Test Unit Updated", "description": "Updated", "active": "false"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        seeded_session.refresh(unit)
+        assert unit.name == "Test Unit Updated"
+        assert unit.active is False
+
+        response = client.post(
+            "/customers",
+            data={"customer_name": "CRUD Council", "business_unit_id": str(unit.id), "sector": "Public sector", "domain": "highways"},
+            follow_redirects=False,
+        )
+        customer = seeded_session.exec(select(Customer).where(Customer.customer_name == "CRUD Council")).first()
+        assert response.status_code == 303
+        assert customer is not None
+
+        response = client.post(
+            f"/customers/{customer.id}",
+            data={"customer_name": "CRUD Council Updated", "business_unit_id": str(unit.id), "sector": "Local government", "domain": "transport"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        seeded_session.refresh(customer)
+        assert customer.customer_name == "CRUD Council Updated"
+
+        response = client.post(
+            "/sources",
+            data={
+                "name": "CRUD Source",
+                "query_url": "https://www.gov.uk/government/organisations/cabinet-office",
+                "base_url": "https://www.gov.uk",
+                "source_type": "web_page",
+                "coverage": "test coverage",
+            },
+            follow_redirects=False,
+        )
+        source = seeded_session.exec(select(ProcurementSource).where(ProcurementSource.name == "CRUD Source")).first()
+        assert response.status_code == 303
+        assert source is not None
+
+        response = client.post(
+            f"/sources/{source.id}",
+            data={
+                "name": "CRUD Source Updated",
+                "query_url": "https://www.gov.uk/search/all",
+                "base_url": "https://www.gov.uk",
+                "source_type": "web_page",
+                "official": "true",
+                "active": "false",
+                "coverage": "updated",
+                "connector_status": "manual_review",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        seeded_session.refresh(source)
+        assert source.name == "CRUD Source Updated"
+        assert source.active is False
+
+        response = client.post(
+            "/opportunities",
+            data={
+                "title": "CRUD Opportunity",
+                "source_id": str(source.id),
+                "customer_id": str(customer.id),
+                "business_unit_id": str(unit.id),
+                "buyer_name": "CRUD Buyer",
+                "deadline_date": "2026-06-30",
+                "value_high": "1000",
+                "relevance_score": "55",
+                "status": "new",
+            },
+            follow_redirects=False,
+        )
+        opportunity = seeded_session.exec(select(Opportunity).where(Opportunity.title == "CRUD Opportunity")).first()
+        assert response.status_code == 303
+        assert opportunity is not None
+
+        response = client.post(
+            f"/opportunities/{opportunity.id}",
+            data={
+                "title": "CRUD Opportunity Updated",
+                "source_id": str(source.id),
+                "customer_id": str(customer.id),
+                "business_unit_id": str(unit.id),
+                "buyer_name": "CRUD Buyer",
+                "deadline_date": "2026-07-01",
+                "value_high": "2500",
+                "relevance_score": "70",
+                "status": "watching",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        seeded_session.refresh(opportunity)
+        assert opportunity.title == "CRUD Opportunity Updated"
+        assert opportunity.value_high == 2500
+
+        response = client.post(
+            "/portals",
+            data={
+                "portal_name": "CRUD Portal",
+                "platform_id": str(platform.id),
+                "customer_id": str(customer.id),
+                "business_unit_id": str(unit.id),
+                "portal_url": "https://procontract.due-north.com/",
+                "access_status": "registered",
+            },
+            follow_redirects=False,
+        )
+        portal = seeded_session.exec(select(BuyerPortalInstance).where(BuyerPortalInstance.portal_name == "CRUD Portal")).first()
+        assert response.status_code == 303
+        assert portal is not None
+
+        response = client.post(
+            f"/portals/{portal.id}",
+            data={
+                "portal_name": "CRUD Portal Updated",
+                "platform_id": str(platform.id),
+                "customer_id": str(customer.id),
+                "business_unit_id": str(unit.id),
+                "portal_url": "https://procontract.due-north.com/",
+                "account_reference": "ops-team",
+                "access_status": "active",
+                "document_retrieval_mode": "manual",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        seeded_session.refresh(portal)
+        assert portal.portal_name == "CRUD Portal Updated"
+
+        response = client.post(
+            f"/opportunities/{opportunity.id}/documents",
+            data={"title": "CRUD Document", "document_type": "itt_extract", "retrieval_status": "linked"},
+            follow_redirects=False,
+        )
+        document = seeded_session.exec(select(OpportunityDocument).where(OpportunityDocument.title == "CRUD Document")).first()
+        assert response.status_code == 303
+        assert document is not None
+
+        response = client.post(
+            f"/opportunities/{opportunity.id}/documents/{document.id}",
+            data={"title": "CRUD Document Updated", "document_type": "notice", "retrieval_status": "reviewed", "human_review_status": "approved"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        seeded_session.refresh(document)
+        assert document.title == "CRUD Document Updated"
+
+        response = client.post(
+            f"/opportunities/{opportunity.id}/tasks",
+            data={"task_name": "CRUD Retrieval", "portal_instance_id": str(portal.id), "due_date": "2026-06-01"},
+            follow_redirects=False,
+        )
+        task = seeded_session.exec(select(DocumentRetrievalTask).where(DocumentRetrievalTask.task_name == "CRUD Retrieval")).first()
+        assert response.status_code == 303
+        assert task is not None
+
+        response = client.post(
+            f"/tasks/{task.id}",
+            data={
+                "return_to": f"/opportunities/{opportunity.id}/documents",
+                "task_name": "CRUD Retrieval Updated",
+                "portal_instance_id": str(portal.id),
+                "opportunity_id": str(opportunity.id),
+                "status": "completed",
+                "owner": "test-user",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        seeded_session.refresh(task)
+        assert task.task_name == "CRUD Retrieval Updated"
+
+        response = client.post(
+            "/requirements",
+            data={
+                "customer_id": str(customer.id),
+                "opportunity_id": str(opportunity.id),
+                "requirement_theme": "CRUD theme",
+                "requirement_text": "Evidence of secure operational delivery.",
+            },
+            follow_redirects=False,
+        )
+        requirement = seeded_session.exec(select(ExtractedRequirement).where(ExtractedRequirement.requirement_theme == "CRUD theme")).first()
+        assert response.status_code == 303
+        assert requirement is not None
+
+        response = client.post(
+            f"/requirements/{requirement.id}",
+            data={
+                "customer_id": str(customer.id),
+                "opportunity_id": str(opportunity.id),
+                "requirement_theme": "CRUD theme updated",
+                "requirement_text": "Updated requirement text.",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        seeded_session.refresh(requirement)
+        assert requirement.requirement_theme == "CRUD theme updated"
+
+        response = client.post(
+            "/quality-questions",
+            data={
+                "opportunity_id": str(opportunity.id),
+                "document_id": str(document.id),
+                "question_text": "Describe the mobilisation approach.",
+                "requirement_theme": "mobilisation",
+            },
+            follow_redirects=False,
+        )
+        question = seeded_session.exec(select(ExtractedQualityQuestion).where(ExtractedQualityQuestion.requirement_theme == "mobilisation")).first()
+        assert response.status_code == 303
+        assert question is not None
+
+        response = client.post(
+            f"/quality-questions/{question.id}",
+            data={
+                "opportunity_id": str(opportunity.id),
+                "document_id": str(document.id),
+                "question_text": "Describe the updated mobilisation approach.",
+                "requirement_theme": "mobilisation updated",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        seeded_session.refresh(question)
+        assert question.requirement_theme == "mobilisation updated"
+
+        response = client.post(
+            "/client-portal/interests",
+            data={"opportunity_id": str(opportunity.id), "customer_id": str(customer.id), "contact_name": "Bid Lead", "signal": "watch"},
+            follow_redirects=False,
+        )
+        signal = seeded_session.exec(select(ClientInterestSignal).where(ClientInterestSignal.contact_name == "Bid Lead")).first()
+        assert response.status_code == 303
+        assert signal is not None
+
+        response = client.post(
+            f"/client-portal/interests/{signal.id}",
+            data={"opportunity_id": str(opportunity.id), "customer_id": str(customer.id), "contact_name": "Bid Lead Updated", "signal": "interested", "status": "open"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        seeded_session.refresh(signal)
+        assert signal.contact_name == "Bid Lead Updated"
+
+        report = create_report(seeded_session, "CRUD Report", customer_id=customer.id, business_unit_id=unit.id)
+        response = client.post(
+            f"/reports/{report.id}/update",
+            data={"report_name": "CRUD Report Updated", "report_type": "executive_summary", "customer_id": str(customer.id), "business_unit_id": str(unit.id)},
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        seeded_session.refresh(report)
+        assert report.report_name == "CRUD Report Updated"
+
+        for url, model, obj in [
+            (f"/client-portal/interests/{signal.id}/delete", ClientInterestSignal, signal),
+            (f"/quality-questions/{question.id}/delete", ExtractedQualityQuestion, question),
+            (f"/requirements/{requirement.id}/delete", ExtractedRequirement, requirement),
+            (f"/tasks/{task.id}/delete", DocumentRetrievalTask, task),
+            (f"/opportunities/{opportunity.id}/documents/{document.id}/delete", OpportunityDocument, document),
+            (f"/portals/{portal.id}/delete", BuyerPortalInstance, portal),
+            (f"/opportunities/{opportunity.id}/delete", Opportunity, opportunity),
+            (f"/sources/{source.id}/delete", ProcurementSource, source),
+            (f"/reports/{report.id}/delete", IntelligenceReport, report),
+            (f"/customers/{customer.id}/delete", Customer, customer),
+            (f"/business-units/{unit.id}/delete", BusinessUnit, unit),
+        ]:
+            response = client.post(url, data={"return_to": "/requirements"}, follow_redirects=False)
+            assert response.status_code == 303
+            assert seeded_session.get(model, obj.id) is None
+    finally:
+        app.dependency_overrides.clear()
+
+    assert seeded_session.exec(select(AuditEvent).where(AuditEvent.action == "delete")).first() is not None
+    assert existing_customer is not None

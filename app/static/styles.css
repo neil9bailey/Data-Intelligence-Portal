@@ -100,6 +100,8 @@ a:hover { text-decoration: underline; }
 }
 .button.secondary, button.secondary { color: var(--ink); background: #fff; border: 1px solid var(--line); }
 button.compact, .button.compact { min-height: 30px; padding: 0 10px; font-size: 12px; }
+button.danger, .button.danger { color: var(--red); background: var(--red-bg); border: 1px solid #f0a8b4; }
+button.danger:hover, .button.danger:hover { background: #ffd1da; text-decoration: none; }
 .nav {
   max-width: 1480px;
   height: 46px;
@@ -213,6 +215,28 @@ p { margin: 0 0 12px; }
   justify-content: space-between;
   gap: 12px;
 }
+.record-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.record-actions form { margin: 0; }
+.edit-drawer {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.edit-drawer summary {
+  color: var(--plum);
+  cursor: pointer;
+  font-weight: 1000;
+}
+.edit-drawer form { margin-top: 12px; }
+.compact-drawer {
+  min-width: 260px;
+}
 .platform-family { border-left: 5px solid var(--cyan); }
 .portal-grid {
   display: grid;
@@ -285,6 +309,7 @@ input, select, textarea {
   font: inherit;
 }
 textarea { min-height: 92px; resize: vertical; }
+.large-textarea { min-height: 360px; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .inline-form { display: grid; grid-template-columns: 120px 150px 130px minmax(150px, 1fr) auto; gap: 8px; align-items: center; }
 .inline-form input, .inline-form select { min-width: 0; }

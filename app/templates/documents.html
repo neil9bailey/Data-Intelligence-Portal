@@ -7,7 +7,34 @@
     <h2>Documents</h2>
     <div class="stack">
       {% for document in documents %}
-      <article class="list-item"><h3>{{ document.title }}</h3><div class="badges"><span class="badge weak">{{ document.document_type }}</span><span class="badge amber">{{ document.retrieval_status }}</span><span class="badge cyan">{{ document.platform_name or "No platform" }}</span></div><p>{{ document.content_summary or document.notes }}</p></article>
+      <article class="list-item">
+        <div class="list-heading">
+          <h3>{{ document.title }}</h3>
+          <form method="post" action="/opportunities/{{ opportunity.id }}/documents/{{ document.id }}/delete" onsubmit="return confirm('Delete this document record and linked quality questions?');">
+            <button class="danger compact" type="submit">Delete</button>
+          </form>
+        </div>
+        <div class="badges"><span class="badge weak">{{ document.document_type }}</span><span class="badge amber">{{ document.retrieval_status }}</span><span class="badge cyan">{{ document.platform_name or "No platform" }}</span></div>
+        <p>{{ document.content_summary or document.notes }}</p>
+        <details class="edit-drawer">
+          <summary>Edit document</summary>
+          <form method="post" action="/opportunities/{{ opportunity.id }}/documents/{{ document.id }}">
+            <div class="field"><label>Title</label><input name="title" value="{{ document.title }}" required></div>
+            <div class="form-grid">
+              <div class="field"><label>Type</label><input name="document_type" value="{{ document.document_type }}"></div>
+              <div class="field"><label>Status</label><input name="retrieval_status" value="{{ document.retrieval_status }}"></div>
+            </div>
+            <div class="form-grid">
+              <div class="field"><label>Human review</label><input name="human_review_status" value="{{ document.human_review_status }}"></div>
+              <div class="field"><label>Platform</label><input name="platform_name" value="{{ document.platform_name }}"></div>
+            </div>
+            <div class="field"><label>URL or file path</label><input name="url_or_path" value="{{ document.url_or_path }}"></div>
+            <div class="field"><label>Summary</label><textarea name="content_summary">{{ document.content_summary }}</textarea></div>
+            <div class="field"><label>Notes</label><textarea name="notes">{{ document.notes }}</textarea></div>
+            <button type="submit">Save changes</button>
+          </form>
+        </details>
+      </article>
       {% else %}<p>No documents captured yet.</p>{% endfor %}
     </div>
   </div>
@@ -15,7 +42,38 @@
     <h2>Quality Questions</h2>
     <div class="stack">
       {% for question in questions %}
-      <article class="list-item"><h3>{{ question.requirement_theme }}</h3><div class="badges"><span class="badge weak">{{ question.confidence }}</span>{% if question.weighting %}<span class="badge green">{{ question.weighting }}</span>{% endif %}<span class="badge amber">{{ question.human_review_status }}</span></div><p>{{ question.question_text }}</p></article>
+      <article class="list-item">
+        <div class="list-heading">
+          <h3>{{ question.requirement_theme or "Quality question" }}</h3>
+          <form method="post" action="/quality-questions/{{ question.id }}/delete" onsubmit="return confirm('Delete this quality question?');">
+            <input type="hidden" name="return_to" value="/opportunities/{{ opportunity.id }}/documents">
+            <button class="danger compact" type="submit">Delete</button>
+          </form>
+        </div>
+        <div class="badges"><span class="badge weak">{{ question.confidence }}</span>{% if question.weighting %}<span class="badge green">{{ question.weighting }}</span>{% endif %}<span class="badge amber">{{ question.human_review_status }}</span></div>
+        <p>{{ question.question_text }}</p>
+        <details class="edit-drawer">
+          <summary>Edit question</summary>
+          <form method="post" action="/quality-questions/{{ question.id }}">
+            <input type="hidden" name="return_to" value="/opportunities/{{ opportunity.id }}/documents">
+            <input type="hidden" name="opportunity_id" value="{{ opportunity.id }}">
+            <div class="form-grid">
+              <div class="field"><label>Document</label><select name="document_id"><option value="">Not linked</option>{% for document in documents %}<option value="{{ document.id }}" {% if question.document_id == document.id %}selected{% endif %}>{{ document.title }}</option>{% endfor %}</select></div>
+              <div class="field"><label>Section</label><input name="section_reference" value="{{ question.section_reference }}"></div>
+            </div>
+            <div class="field"><label>Question</label><textarea name="question_text" required>{{ question.question_text }}</textarea></div>
+            <div class="form-grid">
+              <div class="field"><label>Weighting</label><input name="weighting" value="{{ question.weighting }}"></div>
+              <div class="field"><label>Theme</label><input name="requirement_theme" value="{{ question.requirement_theme }}"></div>
+            </div>
+            <div class="form-grid">
+              <div class="field"><label>Confidence</label><input name="confidence" value="{{ question.confidence }}"></div>
+              <div class="field"><label>Review status</label><input name="human_review_status" value="{{ question.human_review_status }}"></div>
+            </div>
+            <button type="submit">Save changes</button>
+          </form>
+        </details>
+      </article>
       {% else %}<p>No quality questions extracted yet.</p>{% endfor %}
     </div>
   </div>
@@ -37,7 +95,35 @@
     <h2>Retrieval Tasks</h2>
     <div class="stack">
       {% for task in tasks %}
-      <article class="list-item"><h3>{{ task.task_name }}</h3><p><span class="badge amber">{{ task.status }}</span> {{ task.due_date or "" }}</p><p>{{ task.notes }}</p></article>
+      <article class="list-item">
+        <div class="list-heading">
+          <h3>{{ task.task_name }}</h3>
+          <form method="post" action="/tasks/{{ task.id }}/delete" onsubmit="return confirm('Delete this retrieval task?');">
+            <input type="hidden" name="return_to" value="/opportunities/{{ opportunity.id }}/documents">
+            <button class="danger compact" type="submit">Delete</button>
+          </form>
+        </div>
+        <p><span class="badge amber">{{ task.status }}</span> {{ task.due_date or "" }}</p>
+        <p>{{ task.notes }}</p>
+        <details class="edit-drawer">
+          <summary>Edit task</summary>
+          <form method="post" action="/tasks/{{ task.id }}">
+            <input type="hidden" name="return_to" value="/opportunities/{{ opportunity.id }}/documents">
+            <input type="hidden" name="opportunity_id" value="{{ opportunity.id }}">
+            <div class="field"><label>Task name</label><input name="task_name" value="{{ task.task_name }}" required></div>
+            <div class="form-grid">
+              <div class="field"><label>Portal instance</label><select name="portal_instance_id"><option value="">Not linked</option>{% for portal in portal_instances %}<option value="{{ portal.id }}" {% if task.portal_instance_id == portal.id %}selected{% endif %}>{{ portal.portal_name }}</option>{% endfor %}</select></div>
+              <div class="field"><label>Status</label><select name="status">{% for option in task_status_options %}<option value="{{ option }}" {% if task.status == option %}selected{% endif %}>{{ option | replace('_', ' ') | title }}</option>{% endfor %}</select></div>
+            </div>
+            <div class="form-grid">
+              <div class="field"><label>Owner</label><input name="owner" value="{{ task.owner }}"></div>
+              <div class="field"><label>Due date</label><input type="date" name="due_date" value="{{ task.due_date or '' }}"></div>
+            </div>
+            <div class="field"><label>Notes</label><textarea name="notes">{{ task.notes }}</textarea></div>
+            <button type="submit">Save changes</button>
+          </form>
+        </details>
+      </article>
       {% else %}<p>No retrieval tasks yet.</p>{% endfor %}
     </div>
     <form method="post" action="/opportunities/{{ opportunity.id }}/tasks" style="margin-top:14px;">

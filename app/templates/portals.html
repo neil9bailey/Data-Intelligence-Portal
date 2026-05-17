@@ -98,7 +98,12 @@
           <h3>{{ portal.portal_name }}</h3>
           <p class="hint">{{ customer.customer_name if customer else "No customer linked" }}{% if unit %} - {{ unit.name }}{% endif %}</p>
         </div>
-        <span class="badge {{ item.badge_class }}">{{ portal.access_status | replace('_', ' ') }}</span>
+        <div class="record-actions">
+          <span class="badge {{ item.badge_class }}">{{ portal.access_status | replace('_', ' ') }}</span>
+          <form method="post" action="/portals/{{ portal.id }}/delete" onsubmit="return confirm('Delete this portal instance? Retrieval tasks will be unassigned from it.');">
+            <button class="danger compact" type="submit">Delete</button>
+          </form>
+        </div>
       </div>
       <div class="badges">
         <span class="badge weak">{{ platform.name if platform else "No platform" }}</span>
@@ -110,6 +115,27 @@
       {% endif %}
       <p>{{ item.next_action }}</p>
       {% if portal.notes %}<p class="hint">{{ portal.notes }}</p>{% endif %}
+      <details class="edit-drawer">
+        <summary>Edit portal</summary>
+        <form method="post" action="/portals/{{ portal.id }}">
+          <div class="field"><label>Portal instance name</label><input name="portal_name" value="{{ portal.portal_name }}" required></div>
+          <div class="form-grid">
+            <div class="field"><label>Platform family</label><select name="platform_id"><option value="">Select platform</option>{% for option in platforms %}<option value="{{ option.id }}" {% if portal.platform_id == option.id %}selected{% endif %}>{{ option.name }}</option>{% endfor %}</select></div>
+            <div class="field"><label>Access status</label><select name="access_status">{% for option in portal_status_options %}<option value="{{ option }}" {% if portal.access_status == option %}selected{% endif %}>{{ option | replace('_', ' ') | title }}</option>{% endfor %}</select></div>
+          </div>
+          <div class="form-grid">
+            <div class="field"><label>Customer</label><select name="customer_id"><option value="">Select customer</option>{% for option in customers %}<option value="{{ option.id }}" {% if portal.customer_id == option.id %}selected{% endif %}>{{ option.customer_name }}</option>{% endfor %}</select></div>
+            <div class="field"><label>Business unit</label><select name="business_unit_id"><option value="">Select business unit</option>{% for option in business_units %}<option value="{{ option.id }}" {% if portal.business_unit_id == option.id %}selected{% endif %}>{{ option.name }}</option>{% endfor %}</select></div>
+          </div>
+          <div class="form-grid">
+            <div class="field"><label>Portal URL</label><input name="portal_url" value="{{ portal.portal_url }}"></div>
+            <div class="field"><label>Account reference</label><input name="account_reference" value="{{ portal.account_reference }}"></div>
+          </div>
+          <div class="field"><label>Retrieval mode</label><input name="document_retrieval_mode" value="{{ portal.document_retrieval_mode }}"></div>
+          <div class="field"><label>Operational notes</label><textarea name="notes">{{ portal.notes }}</textarea></div>
+          <button type="submit">Save changes</button>
+        </form>
+      </details>
       <details class="task-drawer">
         <summary>Create retrieval task</summary>
         <form method="post" action="/portals/{{ portal.id }}/tasks">
@@ -140,13 +166,37 @@
       {% for task in open_portal_tasks %}
       {% set portal = portal_map.get(task.portal_instance_id) %}
       <article class="list-item task-row">
-        <h3>{{ task.task_name }}</h3>
+        <div class="list-heading">
+          <h3>{{ task.task_name }}</h3>
+          <form method="post" action="/tasks/{{ task.id }}/delete" onsubmit="return confirm('Delete this retrieval task?');">
+            <input type="hidden" name="return_to" value="/portals">
+            <button class="danger compact" type="submit">Delete</button>
+          </form>
+        </div>
         <div class="badges">
           <span class="badge {{ 'red' if task.status == 'blocked' else 'amber' }}">{{ task.status | replace('_', ' ') }}</span>
           {% if portal %}<span class="badge weak">{{ portal.portal_name }}</span>{% endif %}
           {% if task.due_date %}<span class="badge cyan">due {{ task.due_date }}</span>{% endif %}
         </div>
         <p>{{ task.notes or task.guardrail_summary }}</p>
+        <details class="edit-drawer compact-drawer">
+          <summary>Edit task</summary>
+          <form method="post" action="/tasks/{{ task.id }}">
+            <input type="hidden" name="return_to" value="/portals">
+            <div class="field"><label>Task name</label><input name="task_name" value="{{ task.task_name }}" required></div>
+            <div class="form-grid">
+              <div class="field"><label>Portal instance</label><select name="portal_instance_id"><option value="">Not linked</option>{% for option in portal_instances %}<option value="{{ option.id }}" {% if task.portal_instance_id == option.id %}selected{% endif %}>{{ option.portal_name }}</option>{% endfor %}</select></div>
+              <div class="field"><label>Opportunity</label><select name="opportunity_id"><option value="">Not linked</option>{% for option in opportunities %}<option value="{{ option.id }}" {% if task.opportunity_id == option.id %}selected{% endif %}>{{ option.title }}</option>{% endfor %}</select></div>
+            </div>
+            <div class="form-grid">
+              <div class="field"><label>Status</label><select name="status">{% for option in task_status_options %}<option value="{{ option }}" {% if task.status == option %}selected{% endif %}>{{ option | replace('_', ' ') | title }}</option>{% endfor %}</select></div>
+              <div class="field"><label>Owner</label><input name="owner" value="{{ task.owner }}"></div>
+            </div>
+            <div class="field"><label>Due date</label><input type="date" name="due_date" value="{{ task.due_date or '' }}"></div>
+            <div class="field"><label>Notes</label><textarea name="notes">{{ task.notes }}</textarea></div>
+            <button class="compact" type="submit">Save task</button>
+          </form>
+        </details>
       </article>
       {% else %}
       <p>No open portal retrieval tasks.</p>
