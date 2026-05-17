@@ -58,3 +58,16 @@ def test_healthz():
 
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+
+
+def test_dashboard_uses_clean_setup_homepage(reference_session):
+    client = client_for(reference_session)
+    try:
+        response = client.get("/")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert "Public sector opportunity intelligence, ready to configure." in response.text
+    assert "One customer memory for every source, portal and requirement." not in response.text
+    assert "Official Intelligence Feed" in response.text

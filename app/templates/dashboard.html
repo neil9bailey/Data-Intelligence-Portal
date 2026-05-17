@@ -3,19 +3,29 @@
 <section class="hero">
   <div>
     <span class="eyebrow">Knowledge Research Agent enabled</span>
-    <h1>One customer memory for every source, portal and requirement.</h1>
-    <p>KRA monitors approved public sources, tracks content changes, captures opportunities, structures customer requirements and produces review-ready intelligence for sales, bid, strategy and delivery teams.</p>
+    <h1>Public sector opportunity intelligence, ready to configure.</h1>
+    <p>Start with your customers, source watchlists and portal catalogue. KRA then helps track approved public sources, detect change, structure requirements and produce review-ready intelligence for sales, bid, strategy and delivery teams.</p>
     <div class="actions">
       <a class="button secondary" href="/sources">Review source pipeline</a>
       <a class="button" href="/kra">Run KRA research</a>
     </div>
   </div>
   <aside class="readiness">
-    <h2>Today’s Signals</h2>
-    <div class="signal-row"><span>Opportunities</span><strong>{{ metrics.opportunities }}</strong></div>
-    <div class="signal-row"><span>Documents</span><strong>{{ metrics.documents }}</strong></div>
-    <div class="signal-row"><span>Source changes</span><strong>{{ metrics.source_changes }}</strong></div>
-    <div class="signal-row"><span>KRA findings pending review</span><strong>{{ metrics.pending_findings }}</strong></div>
+    <div class="panel-title">
+      <h2>Official Intelligence Feed</h2>
+      <form method="post" action="/news/refresh"><button class="secondary compact" type="submit">Refresh</button></form>
+    </div>
+    <div class="news-list">
+      {% for item in news_items %}
+      {% set feed = news_feed_map.get(item.feed_source_id) %}
+      <article class="news-item">
+        <a href="{{ item.link }}" target="_blank" rel="noopener">{{ item.title }}</a>
+        <span>{{ feed.publisher if feed else "Official source" }}{% if item.published_at %} | {{ item.published_at.strftime('%Y-%m-%d') }}{% endif %}</span>
+      </article>
+      {% else %}
+      <p>No feed items loaded yet. Refresh to pull the configured GOV.UK feeds, or continue setup offline.</p>
+      {% endfor %}
+    </div>
   </aside>
 </section>
 
@@ -23,8 +33,22 @@
   <div class="metric"><span class="value">{{ metrics.customers }}</span><span class="label">tracked customers</span></div>
   <div class="metric"><span class="value">{{ metrics.active_sources }}</span><span class="label">active public sources</span></div>
   <div class="metric"><span class="value">{{ metrics.platforms }}</span><span class="label">portal platform families</span></div>
-  <div class="metric"><span class="value">{{ metrics.questions }}</span><span class="label">quality questions</span></div>
+  <div class="metric"><span class="value">{{ metrics.news_items }}</span><span class="label">official feed items</span></div>
   <div class="metric"><span class="value">{{ metrics.requirements }}</span><span class="label">requirement themes</span></div>
+</section>
+
+<section class="panel setup-panel" style="margin-top:18px;">
+  <div>
+    <h2>Clean Setup Sequence</h2>
+    <p class="hint">This environment now starts without demo customers, opportunities or extracted information. Use the sequence below to configure the system from a clean baseline.</p>
+  </div>
+  <div class="setup-steps">
+    <a href="/customers">1. Add customers</a>
+    <a href="/sources">2. Confirm sources</a>
+    <a href="/portals">3. Configure portals</a>
+    <a href="/kra">4. Run KRA research</a>
+    <a href="/reports">5. Generate reports</a>
+  </div>
 </section>
 
 <section class="grid two" style="margin-top:18px;">

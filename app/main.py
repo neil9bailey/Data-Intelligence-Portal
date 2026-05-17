@@ -14,6 +14,7 @@ from app.form_utils import parse_bool, parse_float, parse_optional_date, parse_o
 from app.intelligence import (
     extract_document_intelligence,
     kra_runtime_status,
+    refresh_news_feeds,
     run_kra_research,
     run_source_check,
     source_allowed,
@@ -31,6 +32,8 @@ from app.models import (
     KRAAgentProfile,
     KRAFinding,
     KRAResearchRun,
+    NewsFeedItem,
+    NewsFeedSource,
     Opportunity,
     OpportunityDocument,
     ProcurementPlatform,
@@ -39,7 +42,7 @@ from app.models import (
 )
 from app.reports import create_report
 from app.rule_loader import rules_version_summary
-from app.seed import seed_demo_data
+from app.seed import seed_demo_data, seed_reference_data
 from app.settings import BASE_DIR, get_settings
 
 
@@ -47,6 +50,9 @@ from app.settings import BASE_DIR, get_settings
 async def lifespan(app: FastAPI):
     init_db()
     settings = get_settings()
+    if settings.seed_reference_data:
+        with Session(engine) as session:
+            seed_reference_data(session)
     if settings.seed_demo_data:
         with Session(engine) as session:
             seed_demo_data(session)
@@ -96,6 +102,7 @@ def reference_context(session: Session) -> dict:
     platforms = list(session.exec(select(ProcurementPlatform).order_by(col(ProcurementPlatform.name))))
     portals = list(session.exec(select(BuyerPortalInstance).order_by(col(BuyerPortalInstance.portal_name))))
     agents = list(session.exec(select(KRAAgentProfile).order_by(col(KRAAgentProfile.name))))
+    news_feeds = list(session.exec(select(NewsFeedSource).order_by(col(NewsFeedSource.name))))
     return {
         "customers": customers,
         "business_units": units,
@@ -103,12 +110,14 @@ def reference_context(session: Session) -> dict:
         "platforms": platforms,
         "portal_instances": portals,
         "agents": agents,
+        "news_feeds": news_feeds,
         "customer_map": {item.id: item for item in customers},
         "business_unit_map": {item.id: item for item in units},
         "source_map": {item.id: item for item in sources},
         "platform_map": {item.id: item for item in platforms},
         "portal_map": {item.id: item for item in portals},
         "agent_map": {item.id: item for item in agents},
+        "news_feed_map": {item.id: item for item in news_feeds},
     }
 
 
@@ -124,6 +133,7 @@ def dashboard_metrics(session: Session) -> dict:
         "questions": len(list(session.exec(select(ExtractedQualityQuestion)))),
         "pending_findings": len(list(session.exec(select(KRAFinding).where(KRAFinding.human_review_status == "pending")))),
         "source_changes": len(list(session.exec(select(SourceCheckSnapshot).where(SourceCheckSnapshot.change_type == "changed")))),
+        "news_items": len(list(session.exec(select(NewsFeedItem)))),
     }
 
 
@@ -137,11 +147,26 @@ def dashboard(request: Request, session: Session = Depends(get_session)):
     opportunities = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(8)))
     findings = list(session.exec(select(KRAFinding).order_by(col(KRAFinding.created_at).desc()).limit(6)))
     snapshots = list(session.exec(select(SourceCheckSnapshot).order_by(col(SourceCheckSnapshot.checked_at).desc()).limit(5)))
+    news_items = list(session.exec(select(NewsFeedItem).order_by(col(NewsFeedItem.published_at).desc()).limit(6)))
     return templates.TemplateResponse(
         request,
         "dashboard.html",
-        context(request, metrics=dashboard_metrics(session), opportunities=opportunities, findings=findings, snapshots=snapshots, **reference_context(session)),
+        context(
+            request,
+            metrics=dashboard_metrics(session),
+            opportunities=opportunities,
+            findings=findings,
+            snapshots=snapshots,
+            news_items=news_items,
+            **reference_context(session),
+        ),
     )
+
+
+@app.post("/news/refresh")
+def refresh_news(session: Session = Depends(get_session)):
+    refresh_news_feeds(session)
+    return redirect("/")
 
 
 @app.get("/customers", response_class=HTMLResponse)

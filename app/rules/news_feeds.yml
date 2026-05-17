@@ -1,0 +1,44 @@
+version: 2026.05.17
+last_reviewed: 2026-05-17
+purpose: Configurable official/public news and policy feed sources for dashboard intelligence.
+guardrails:
+  no_scraping_of_restricted_portals: true
+  human_review_required: true
+  notes: Feed items are market and policy signals only. They do not replace commercial, legal, procurement or compliance review.
+feeds:
+  - key: government_commercial_agency_updates
+    name: Government Commercial Agency updates
+    publisher: Government Commercial Agency
+    theme: commercial policy and procurement
+    feed_url: https://www.gov.uk/government/organisations/government-commercial-agency.atom
+    official: true
+    active: true
+    refresh_frequency: manual
+    notes: Official GOV.UK organisation Atom feed for Government Commercial Agency updates.
+  - key: government_commercial_agency_guidance
+    name: Government Commercial Agency guidance and regulation
+    publisher: Government Commercial Agency
+    theme: commercial guidance and regulation
+    feed_url: https://www.gov.uk/search/guidance-and-regulation.atom?organisations%5B%5D=government-commercial-agency
+    official: true
+    active: true
+    refresh_frequency: manual
+    notes: GOV.UK Atom search feed for guidance and regulation associated with Government Commercial Agency.
+  - key: crown_commercial_service_archive
+    name: Crown Commercial Service archive updates
+    publisher: Crown Commercial Service
+    theme: commercial policy archive
+    feed_url: https://www.gov.uk/government/organisations/crown-commercial-service.atom
+    official: true
+    active: true
+    refresh_frequency: manual
+    notes: Official GOV.UK legacy organisation feed retained for continuity while older CCS content remains referenced.
+  - key: transport_procurement_search
+    name: UK transport procurement search feed
+    publisher: GOV.UK
+    theme: transport procurement
+    feed_url: https://www.gov.uk/search/all.atom?keywords=transport%20procurement
+    official: true
+    active: false
+    refresh_frequency: manual
+    notes: Broad GOV.UK search feed. Keep inactive until the terms are tuned for the organisation.

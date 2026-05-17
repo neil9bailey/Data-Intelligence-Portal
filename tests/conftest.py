@@ -6,7 +6,7 @@ from sqlmodel import Session, SQLModel, create_engine
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.seed import seed_demo_data
+from app.seed import seed_demo_data, seed_reference_data
 
 
 @pytest.fixture()
@@ -20,4 +20,10 @@ def session():
 @pytest.fixture()
 def seeded_session(session):
     seed_demo_data(session)
+    return session
+
+
+@pytest.fixture()
+def reference_session(session):
+    seed_reference_data(session)
     return session

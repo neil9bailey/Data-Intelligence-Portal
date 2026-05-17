@@ -11,7 +11,8 @@ RULES_DIR = BASE_DIR / "rules"
 class Settings:
     app_name: str = os.getenv("APP_NAME", "Data Intelligence Portal")
     database_url: str = os.getenv("DATABASE_URL", "sqlite:///data/data-intelligence-portal.sqlite")
-    seed_demo_data: bool = os.getenv("SEED_DEMO_DATA", "true").lower() in {"1", "true", "yes", "on"}
+    seed_reference_data: bool = os.getenv("SEED_REFERENCE_DATA", "true").lower() in {"1", "true", "yes", "on"}
+    seed_demo_data: bool = os.getenv("SEED_DEMO_DATA", "false").lower() in {"1", "true", "yes", "on"}
     kra_llm_provider: str = os.getenv("KRA_LLM_PROVIDER", "disabled")
     kra_api_key: str = os.getenv("KRA_API_KEY", "")
     kra_model: str = os.getenv("KRA_MODEL", "")

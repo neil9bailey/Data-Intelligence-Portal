@@ -89,6 +89,35 @@ class SourceCheckSnapshot(SQLModel, table=True):
     notes: str = ""
 
 
+class NewsFeedSource(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)
+    source_key: str = Field(default="", index=True)
+    feed_url: str
+    publisher: str = ""
+    theme: str = ""
+    official: bool = True
+    active: bool = True
+    refresh_frequency: str = "manual"
+    last_checked_at: Optional[datetime] = None
+    last_status: str = ""
+    notes: str = ""
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class NewsFeedItem(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    feed_source_id: Optional[int] = Field(default=None, foreign_key="newsfeedsource.id", index=True)
+    title: str = Field(index=True)
+    link: str = Field(default="", index=True)
+    summary: str = ""
+    published_at: Optional[datetime] = Field(default=None, index=True)
+    content_hash: str = Field(default="", index=True)
+    review_status: str = "new"
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
 class ProcurementPlatform(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True, unique=True)

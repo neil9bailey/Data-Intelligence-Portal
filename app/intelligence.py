@@ -7,6 +7,7 @@ from html import unescape
 import json
 import re
 from urllib.parse import quote_plus, urljoin, urlparse
+from xml.etree import ElementTree
 
 import httpx
 from sqlmodel import Session, col, select
@@ -22,6 +23,8 @@ from app.models import (
     KRAAgentProfile,
     KRAFinding,
     KRAResearchRun,
+    NewsFeedItem,
+    NewsFeedSource,
     Opportunity,
     OpportunityDocument,
     ProcurementSource,
@@ -145,6 +148,120 @@ def fetch_source_url(url: str) -> FetchResult:
         )
     except httpx.HTTPError as exc:
         return FetchResult(False, 0, url, "", error=f"Source check failed: {exc}")
+
+
+def parse_feed_datetime(value: str) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def child_text(element: ElementTree.Element, names: tuple[str, ...]) -> str:
+    for name in names:
+        found = element.find(name)
+        if found is not None and found.text:
+            return textish(found.text)
+    return ""
+
+
+def parse_feed_items(text: str, feed_url: str, limit: int = 8) -> list[dict[str, object]]:
+    if not text.strip():
+        return []
+    root = ElementTree.fromstring(text.encode("utf-8"))
+    if root.tag.endswith("rss"):
+        entries = root.findall("./channel/item")
+        title_names = ("title",)
+        summary_names = ("description",)
+        date_names = ("pubDate",)
+        link_names = ("link",)
+    else:
+        ns = "{http://www.w3.org/2005/Atom}"
+        entries = root.findall(f"{ns}entry")
+        title_names = (f"{ns}title", "title")
+        summary_names = (f"{ns}summary", f"{ns}content", "summary", "content")
+        date_names = (f"{ns}updated", f"{ns}published", "updated", "published")
+        link_names = ()
+
+    items: list[dict[str, object]] = []
+    for entry in entries[:limit]:
+        title = child_text(entry, title_names)
+        summary = strip_html(child_text(entry, summary_names))
+        published_at = parse_feed_datetime(child_text(entry, date_names))
+        link = ""
+        if link_names:
+            link = child_text(entry, link_names)
+        else:
+            for node in entry.findall("{http://www.w3.org/2005/Atom}link") + entry.findall("link"):
+                href = node.attrib.get("href", "")
+                rel = node.attrib.get("rel", "alternate")
+                if href and rel in {"alternate", ""}:
+                    link = href
+                    break
+        link = urljoin(feed_url, link)
+        if title and link:
+            items.append(
+                {
+                    "title": title,
+                    "summary": summary[:700],
+                    "link": link,
+                    "published_at": published_at,
+                    "content_hash": content_hash(f"{title}|{link}|{summary}"),
+                }
+            )
+    return items
+
+
+def refresh_news_feed(session: Session, feed: NewsFeedSource, limit: int = 8) -> int:
+    before = compact_snapshot(feed)
+    fetch = fetch_source_url(feed.feed_url)
+    feed.last_checked_at = datetime.now(UTC)
+    feed.last_status = "ok" if fetch.ok else fetch.error or f"HTTP {fetch.status_code}"
+    created = 0
+    if fetch.ok:
+        try:
+            for item in parse_feed_items(fetch.text, feed.feed_url, limit):
+                existing = session.exec(select(NewsFeedItem).where(NewsFeedItem.link == str(item["link"]))).first()
+                if existing:
+                    existing.title = str(item["title"])
+                    existing.summary = str(item["summary"])
+                    existing.published_at = item["published_at"]  # type: ignore[assignment]
+                    existing.content_hash = str(item["content_hash"])
+                    existing.updated_at = datetime.now(UTC)
+                    session.add(existing)
+                    continue
+                session.add(
+                    NewsFeedItem(
+                        feed_source_id=feed.id,
+                        title=str(item["title"]),
+                        link=str(item["link"]),
+                        summary=str(item["summary"]),
+                        published_at=item["published_at"],  # type: ignore[arg-type]
+                        content_hash=str(item["content_hash"]),
+                    )
+                )
+                created += 1
+        except ElementTree.ParseError as exc:
+            feed.last_status = f"Feed parse failed: {exc}"
+    session.add(feed)
+    log_event(
+        session,
+        entity_type="NewsFeedSource",
+        entity_id=feed.id,
+        action="refresh",
+        summary=f"Refreshed news feed {feed.name}; {created} new item(s)",
+        before=before,
+        after=feed,
+    )
+    session.commit()
+    return created
+
+
+def refresh_news_feeds(session: Session, limit_per_feed: int = 8) -> int:
+    feeds = list(session.exec(select(NewsFeedSource).where(NewsFeedSource.active == True)))  # noqa: E712
+    return sum(refresh_news_feed(session, feed, limit_per_feed) for feed in feeds)
 
 
 def detect_schema(text: str, content_type: str = "") -> str:

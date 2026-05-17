@@ -2,11 +2,13 @@ import json
 
 from sqlmodel import select
 
-from app.intelligence import FetchResult, extract_document_intelligence, run_kra_research, run_source_check, source_allowed
+from app.intelligence import FetchResult, extract_document_intelligence, parse_feed_items, run_kra_research, run_source_check, source_allowed
 from app.models import (
+    Customer,
     ExtractedQualityQuestion,
     ExtractedRequirement,
     KRAFinding,
+    NewsFeedSource,
     Opportunity,
     OpportunityDocument,
     ProcurementSource,
@@ -109,3 +111,29 @@ def test_report_generation_contains_kra_runtime(seeded_session):
     assert report.id is not None
     assert "KRA runtime" in report.markdown
     assert "not a bid/no-bid" in report.markdown
+
+
+def test_reference_seed_keeps_customer_and_content_tables_clean(reference_session):
+    assert list(reference_session.exec(select(Customer))) == []
+    assert list(reference_session.exec(select(Opportunity))) == []
+    assert list(reference_session.exec(select(KRAFinding))) == []
+    assert len(list(reference_session.exec(select(ProcurementSource)))) >= 1
+    assert len(list(reference_session.exec(select(NewsFeedSource)))) >= 1
+
+
+def test_atom_feed_parser_extracts_items():
+    feed = """<?xml version="1.0" encoding="UTF-8"?>
+    <feed xmlns="http://www.w3.org/2005/Atom">
+      <entry>
+        <title>Procurement update</title>
+        <link href="https://www.gov.uk/example-update"/>
+        <updated>2026-05-17T10:30:00Z</updated>
+        <summary>Commercial policy signal for review.</summary>
+      </entry>
+    </feed>"""
+
+    items = parse_feed_items(feed, "https://www.gov.uk/example.atom")
+
+    assert items[0]["title"] == "Procurement update"
+    assert items[0]["link"] == "https://www.gov.uk/example-update"
+    assert items[0]["content_hash"]

@@ -15,6 +15,7 @@ Data Intelligence Portal is a configurable information-gathering workspace for:
 - ITT documents, quality questions, weightings and clarification records
 - requirement themes and customer demand signals
 - source-change monitoring and connector health
+- official GOV.UK policy/news feed monitoring
 - executive summaries and exportable intelligence reports
 - a built-in KRA Knowledge Research Agent for guarded source checks, source-change tracking, customer memory and requirement extraction
 - MCP-style local agent/tool profiles ready for future connector orchestration
@@ -77,6 +78,28 @@ Stop:
 docker compose down
 ```
 
+## Clean Start And Demo Data
+
+The default local run is now a clean operational baseline:
+
+- `SEED_REFERENCE_DATA=true` keeps configurable source definitions, portal platform families, KRA agent profiles and official feed sources available.
+- `SEED_DEMO_DATA=false` prevents demo customers, opportunities, extracted requirements and findings from being created.
+
+To reset local captured content completely:
+
+```powershell
+docker compose down
+Remove-Item .\data\data-intelligence-portal.sqlite
+docker compose up --build
+```
+
+To deliberately load demo customer/opportunity data for a show-and-tell run:
+
+```powershell
+$env:SEED_DEMO_DATA="true"
+docker compose up --build
+```
+
 ## Local API Keys
 
 The MVP works without API keys. Optional future KRA provider settings can be kept in a local `.env` file copied from `.env.example`.
@@ -119,6 +142,14 @@ KRA can:
 - extract quality questions and weighting signals from permitted document text
 - generate Markdown reports
 
+## Official Intelligence Feed
+
+The dashboard includes a configurable official intelligence feed area. Press **Refresh** on the homepage to pull active Atom feeds from `app/rules/news_feeds.yml`.
+
+Default active feeds are GOV.UK/Government Commercial Agency and legacy Crown Commercial Service feeds. A broader transport procurement GOV.UK search feed is included but inactive until the watch terms are tuned.
+
+Feed items are treated as market and policy signals only. They remain subject to human review and do not replace commercial, legal, procurement or compliance review.
+
 Guardrails:
 
 - no portal passwords stored in the MVP
@@ -153,4 +184,4 @@ The plan references official/public procurement routes checked on 2026-05-17:
 
 ## Recommended Next Step
 
-Approve the product scope and UI direction, then build the MVP app in this repo using the architecture and epics described in `docs/`.
+Configure the first live customers, tune source/watch keywords, refresh the official feed, then run KRA against approved public sources.

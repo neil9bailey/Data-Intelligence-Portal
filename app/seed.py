@@ -4,6 +4,7 @@ from app.models import (
     BusinessUnit,
     Customer,
     CustomerWatchProfile,
+    NewsFeedSource,
     ProcurementPlatform,
     ProcurementSource,
     BuyerPortalInstance,
@@ -63,6 +64,27 @@ def seed_platforms(session: Session) -> None:
     session.commit()
 
 
+def seed_news_feeds(session: Session) -> None:
+    existing = {feed.source_key or feed.name for feed in session.exec(select(NewsFeedSource))}
+    for item in load_rule_file("news_feeds.yml").get("feeds") or []:
+        if item["key"] in existing or item["name"] in existing:
+            continue
+        session.add(
+            NewsFeedSource(
+                source_key=item["key"],
+                name=item["name"],
+                feed_url=item["feed_url"],
+                publisher=item.get("publisher", ""),
+                theme=item.get("theme", ""),
+                official=bool(item.get("official", True)),
+                active=bool(item.get("active", True)),
+                refresh_frequency=item.get("refresh_frequency", "manual"),
+                notes=item.get("notes", ""),
+            )
+        )
+    session.commit()
+
+
 def seed_kra_agents(session: Session) -> None:
     existing = {agent.name for agent in session.exec(select(KRAAgentProfile))}
     for item in load_rule_file("kra_agents.yml").get("agents") or []:
@@ -81,10 +103,15 @@ def seed_kra_agents(session: Session) -> None:
     session.commit()
 
 
-def seed_demo_data(session: Session) -> None:
+def seed_reference_data(session: Session) -> None:
     seed_sources(session)
     seed_platforms(session)
     seed_kra_agents(session)
+    seed_news_feeds(session)
+
+
+def seed_demo_data(session: Session) -> None:
+    seed_reference_data(session)
     if session.exec(select(Customer)).first():
         return
     transport = BusinessUnit(name="Transport", description="Transport-sector account and opportunity intelligence.")

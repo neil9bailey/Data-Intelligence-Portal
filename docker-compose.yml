@@ -6,7 +6,8 @@ services:
     environment:
       - APP_NAME=${APP_NAME:-Data Intelligence Portal}
       - DATABASE_URL=${DATABASE_URL:-sqlite:///data/data-intelligence-portal.sqlite}
-      - SEED_DEMO_DATA=${SEED_DEMO_DATA:-true}
+      - SEED_REFERENCE_DATA=${SEED_REFERENCE_DATA:-true}
+      - SEED_DEMO_DATA=${SEED_DEMO_DATA:-false}
       - KRA_LLM_PROVIDER=${KRA_LLM_PROVIDER:-disabled}
       - KRA_API_KEY=${KRA_API_KEY:-}
       - KRA_MODEL=${KRA_MODEL:-}
