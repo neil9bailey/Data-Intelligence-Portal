@@ -1,0 +1,15 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8091:8080"
+    environment:
+      - APP_NAME=${APP_NAME:-Data Intelligence Portal}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///data/data-intelligence-portal.sqlite}
+      - SEED_DEMO_DATA=${SEED_DEMO_DATA:-true}
+      - KRA_LLM_PROVIDER=${KRA_LLM_PROVIDER:-disabled}
+      - KRA_API_KEY=${KRA_API_KEY:-}
+      - KRA_MODEL=${KRA_MODEL:-}
+      - KRA_MCP_MODE=${KRA_MCP_MODE:-local_registry}
+    volumes:
+      - ./data:/app/data

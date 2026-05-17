@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Opportunities - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Opportunity Catalogue</h1><p>Matched public-sector opportunities, source references, relevance and document status.</p></div></div>
+<section class="panel">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Opportunity</th><th>Buyer</th><th>Stage</th><th>Deadline</th><th>Source</th><th>Docs</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for item in opportunities %}
+        {% set source = source_map.get(item.source_id) %}
+        <tr>
+          <td><strong>{{ item.title }}</strong><p class="hint">{{ item.summary[:220] }}</p>{% if item.source_url %}<a href="{{ item.source_url }}">source</a>{% endif %}</td>
+          <td>{{ item.buyer_name or "Not detected" }}</td>
+          <td>{{ item.procurement_stage or item.notice_type or "Not detected" }}</td>
+          <td>{{ item.deadline_date or "Not detected" }}</td>
+          <td>{{ source.name if source else "Manual" }}</td>
+          <td><a href="/opportunities/{{ item.id }}/documents">{{ doc_counts.get(item.id, 0) }} docs</a></td>
+          <td><span class="badge {{ 'green' if item.status == 'watching' else 'amber' }}">{{ item.status }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7">No opportunities captured yet. Run KRA or add source checks.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

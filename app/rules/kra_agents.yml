@@ -1,0 +1,49 @@
+version: 2026.05.17
+purpose: MCP-style KRA agent and local tool registry for research orchestration.
+mcp_toolkits:
+  official_source_fetcher:
+    description: Fetch approved HTTPS official/public source pages and APIs.
+    guardrails: approved-domain allow-list, no authenticated portal action
+  source_change_monitor:
+    description: Hash content, detect schema/content changes and record snapshots.
+    guardrails: read-only, audit every check
+  customer_memory_curator:
+    description: Relate findings to customers, aliases, sectors and business units.
+    guardrails: human review required before strategic decisions
+  document_requirement_extractor:
+    description: Extract quality questions, weightings and requirement themes from permitted text.
+    guardrails: no restricted document upload in MVP, human review required
+  briefing_writer:
+    description: Generate Markdown briefings from reviewed data.
+    guardrails: no bid/no-bid recommendation, no legal or compliance advice
+agents:
+  - name: Official Source Scout
+    role: Checks official/public sources, records source changes, and surfaces new opportunity signals.
+    mcp_toolkit: official_source_fetcher, source_change_monitor
+    allowed_actions: fetch approved sources; hash content; parse public notices; log findings
+    guardrails: HTTPS approved domains only; no portal login; no customer contact
+    active: true
+  - name: Customer Memory Curator
+    role: Maps source findings to customers, aliases, business units and recurring demand themes.
+    mcp_toolkit: customer_memory_curator
+    allowed_actions: match terms; create review findings; update knowledge base prompts
+    guardrails: findings remain pending until human review
+    active: true
+  - name: Portal Document Scout
+    role: Creates manual retrieval tasks for buyer portal documents and tracks portal status.
+    mcp_toolkit: document_requirement_extractor
+    allowed_actions: create retrieval task; record portal metadata; extract from provided text
+    guardrails: no credentials stored; no automated login or expression of interest
+    active: true
+  - name: Requirement Analyst
+    role: Extracts requirement themes, quality questions and weightings from opportunity/document text.
+    mcp_toolkit: document_requirement_extractor
+    allowed_actions: classify themes; detect weightings; create pending review requirements
+    guardrails: deterministic local extraction first; AI assistance optional and review-required
+    active: true
+  - name: Briefing Writer
+    role: Produces customer, business-unit and source-health summaries from reviewed intelligence.
+    mcp_toolkit: briefing_writer
+    allowed_actions: generate Markdown summaries; list assumptions and review gaps
+    guardrails: no bid/no-bid, legal, procurement or compliance conclusions
+    active: true

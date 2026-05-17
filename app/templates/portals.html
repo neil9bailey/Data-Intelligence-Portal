@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Portals - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Portal Platforms</h1><p>Buyer-side portal families and customer portal instances. No credentials are stored in the MVP.</p></div></div>
+<section class="grid two">
+  <div class="panel">
+    <h2>Platform Families</h2>
+    <div class="stack">
+      {% for platform in platforms %}
+      <article class="list-item"><h3>{{ platform.name }}</h3><div class="badges"><span class="badge weak">{{ platform.connector_status }}</span>{% if platform.human_approval_required %}<span class="badge amber">human approval</span>{% endif %}</div><p>{{ platform.supported_actions }}</p><p class="hint">{{ platform.platform_domains }}</p></article>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Buyer Portal Instances</h2>
+    <div class="stack">
+      {% for portal in portal_instances %}
+      {% set platform = platform_map.get(portal.platform_id) %}
+      <article class="list-item"><h3>{{ portal.portal_name }}</h3><div class="badges"><span class="badge weak">{{ platform.name if platform else "No platform" }}</span><span class="badge amber">{{ portal.access_status }}</span></div><p>{{ portal.notes }}</p>{% if portal.portal_url %}<a href="{{ portal.portal_url }}">portal</a>{% endif %}</article>
+      {% else %}<p>No portal instances yet.</p>{% endfor %}
+    </div>
+  </div>
+</section>
+<section class="panel" style="margin-top:18px;">
+  <h2>Add Portal Instance</h2>
+  <form method="post" action="/portals">
+    <div class="form-grid"><div class="field"><label>Name</label><input name="portal_name" required></div><div class="field"><label>Platform</label><select name="platform_id"><option value="">Not linked</option>{% for platform in platforms %}<option value="{{ platform.id }}">{{ platform.name }}</option>{% endfor %}</select></div></div>
+    <div class="form-grid"><div class="field"><label>Customer</label><select name="customer_id"><option value="">Not linked</option>{% for customer in customers %}<option value="{{ customer.id }}">{{ customer.customer_name }}</option>{% endfor %}</select></div><div class="field"><label>Business unit</label><select name="business_unit_id"><option value="">Not linked</option>{% for unit in business_units %}<option value="{{ unit.id }}">{{ unit.name }}</option>{% endfor %}</select></div></div>
+    <div class="field"><label>Portal URL</label><input name="portal_url"></div>
+    <div class="field"><label>Access status</label><input name="access_status" value="unknown"></div>
+    <div class="field"><label>Notes</label><textarea name="notes"></textarea></div>
+    <button type="submit">Save portal</button>
+  </form>
+</section>
+{% endblock %}

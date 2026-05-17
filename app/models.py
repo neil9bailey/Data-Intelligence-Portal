@@ -1,0 +1,268 @@
+from __future__ import annotations
+
+from datetime import UTC, date, datetime
+from typing import Optional
+
+from sqlmodel import Field, SQLModel
+
+
+def utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+class BusinessUnit(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)
+    parent_id: Optional[int] = Field(default=None, foreign_key="businessunit.id")
+    description: str = ""
+    active: bool = True
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class Customer(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    customer_name: str = Field(index=True)
+    business_unit_id: Optional[int] = Field(default=None, foreign_key="businessunit.id")
+    sector: str = "Public sector"
+    domain: str = "transport"
+    customer_type: str = "public body"
+    region: str = "UK"
+    buying_entities: str = ""
+    aliases: str = ""
+    strategic_notes: str = ""
+    portal_notes: str = ""
+    active: bool = True
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class CustomerWatchProfile(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    profile_name: str = Field(index=True)
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    business_unit_id: Optional[int] = Field(default=None, foreign_key="businessunit.id")
+    buyer_aliases: str = ""
+    keywords: str = ""
+    cpv_codes: str = ""
+    domains: str = ""
+    minimum_value: float = 0
+    active: bool = True
+    review_notes: str = ""
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class ProcurementSource(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True)
+    source_key: str = Field(default="", index=True)
+    source_family: str = "official_notice"
+    source_type: str = "ocds_api"
+    base_url: str
+    query_url: str
+    official: bool = True
+    active: bool = True
+    coverage: str = ""
+    auth_model: str = "none"
+    data_format: str = ""
+    dedupe_strategy: str = "ocid_or_reference"
+    review_frequency: str = "manual"
+    change_tracking_enabled: bool = True
+    requires_human_approval: bool = False
+    connector_status: str = "configured"
+    last_checked_at: Optional[datetime] = None
+    last_status: str = ""
+    notes: str = ""
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class SourceCheckSnapshot(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    source_id: Optional[int] = Field(default=None, foreign_key="procurementsource.id", index=True)
+    checked_at: datetime = Field(default_factory=utc_now, index=True)
+    query_url: str = ""
+    ok: bool = False
+    status_code: int = 0
+    content_hash: str = Field(default="", index=True)
+    previous_hash: str = ""
+    change_type: str = "unknown"
+    detected_schema: str = ""
+    connector_status: str = ""
+    notes: str = ""
+
+
+class ProcurementPlatform(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)
+    platform_type: str = "buyer_portal"
+    login_model: str = "supplier_account"
+    supported_actions: str = ""
+    requires_credentials: bool = True
+    human_approval_required: bool = True
+    active: bool = True
+    connector_status: str = "manual_assisted"
+    platform_domains: str = ""
+    notes: str = ""
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class BuyerPortalInstance(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    portal_name: str = Field(index=True)
+    platform_id: Optional[int] = Field(default=None, foreign_key="procurementplatform.id")
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    business_unit_id: Optional[int] = Field(default=None, foreign_key="businessunit.id")
+    portal_url: str = ""
+    account_reference: str = ""
+    access_status: str = "unknown"
+    document_retrieval_mode: str = "manual"
+    notes: str = ""
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class Opportunity(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    source_id: Optional[int] = Field(default=None, foreign_key="procurementsource.id")
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    business_unit_id: Optional[int] = Field(default=None, foreign_key="businessunit.id")
+    title: str = Field(index=True)
+    buyer_name: str = ""
+    notice_identifier: str = Field(default="", index=True)
+    ocid: str = ""
+    notice_type: str = ""
+    procurement_stage: str = ""
+    published_date: Optional[date] = None
+    deadline_date: Optional[date] = None
+    value_low: float = 0
+    value_high: float = 0
+    currency: str = "GBP"
+    cpv_codes: str = ""
+    location: str = ""
+    source_url: str = ""
+    summary: str = ""
+    status: str = "new"
+    relevance_score: float = 0
+    relevance_rationale: str = ""
+    content_hash: str = Field(default="", index=True)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class OpportunityDocument(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    opportunity_id: int = Field(foreign_key="opportunity.id")
+    title: str
+    document_type: str = "notice"
+    url_or_path: str = ""
+    source_hash: str = ""
+    retrieval_status: str = "linked"
+    human_review_status: str = "pending"
+    platform_name: str = ""
+    content_summary: str = ""
+    extracted_at: datetime = Field(default_factory=utc_now)
+    notes: str = ""
+
+
+class DocumentRetrievalTask(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    opportunity_id: Optional[int] = Field(default=None, foreign_key="opportunity.id", index=True)
+    portal_instance_id: Optional[int] = Field(default=None, foreign_key="buyerportalinstance.id")
+    task_name: str = "Manual portal document retrieval"
+    status: str = "requested"
+    owner: str = "local-user"
+    due_date: Optional[date] = None
+    guardrail_summary: str = "Manual retrieval only. No credentials are stored and no portal action is automated."
+    notes: str = ""
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class ExtractedRequirement(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    opportunity_id: Optional[int] = Field(default=None, foreign_key="opportunity.id", index=True)
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    requirement_theme: str = Field(index=True)
+    requirement_text: str
+    requirement_source: str = ""
+    confidence: str = "medium"
+    human_review_status: str = "pending"
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class ExtractedQualityQuestion(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    opportunity_id: int = Field(foreign_key="opportunity.id", index=True)
+    document_id: Optional[int] = Field(default=None, foreign_key="opportunitydocument.id")
+    section_reference: str = ""
+    question_text: str
+    weighting: str = ""
+    requirement_theme: str = ""
+    confidence: str = "medium"
+    human_review_status: str = "pending"
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class KRAAgentProfile(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)
+    role: str
+    mcp_toolkit: str = ""
+    allowed_actions: str = ""
+    guardrails: str = ""
+    active: bool = True
+    notes: str = ""
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class KRAResearchRun(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    agent_profile_id: Optional[int] = Field(default=None, foreign_key="kraagentprofile.id")
+    source_id: Optional[int] = Field(default=None, foreign_key="procurementsource.id")
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    opportunity_id: Optional[int] = Field(default=None, foreign_key="opportunity.id")
+    run_type: str = "manual"
+    status: str = "started"
+    query: str = ""
+    started_at: datetime = Field(default_factory=utc_now)
+    finished_at: Optional[datetime] = None
+    sources_checked: int = 0
+    findings_created: int = 0
+    guardrail_summary: str = ""
+    error_summary: str = ""
+
+
+class KRAFinding(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    run_id: Optional[int] = Field(default=None, foreign_key="kraresearchrun.id", index=True)
+    source_id: Optional[int] = Field(default=None, foreign_key="procurementsource.id")
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    opportunity_id: Optional[int] = Field(default=None, foreign_key="opportunity.id")
+    finding_type: str = "source_observation"
+    title: str
+    summary: str = ""
+    source_url: str = ""
+    content_hash: str = ""
+    confidence: str = "medium"
+    change_status: str = "new"
+    human_review_status: str = "pending"
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class IntelligenceReport(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    report_name: str = Field(index=True)
+    report_type: str = "executive_summary"
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    business_unit_id: Optional[int] = Field(default=None, foreign_key="businessunit.id")
+    generated_at: datetime = Field(default_factory=utc_now)
+    generated_by: str = "local-user"
+    markdown: str = ""
+
+
+class AuditEvent(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+    actor: str = "local-user"
+    entity_type: str = Field(index=True)
+    entity_id: Optional[int] = Field(default=None, index=True)
+    action: str = Field(index=True)
+    summary: str = ""
+    before_json: str = ""
+    after_json: str = ""

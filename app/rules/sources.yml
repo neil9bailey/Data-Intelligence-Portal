@@ -1,0 +1,96 @@
+version: 2026.05.17
+last_reviewed: 2026-05-17
+purpose: Configurable source catalogue for public-sector opportunity and customer intelligence.
+guardrails:
+  approved_domains:
+    - www.gov.uk
+    - gov.uk
+    - www.find-tender.service.gov.uk
+    - find-tender.service.gov.uk
+    - www.contractsfinder.service.gov.uk
+    - contractsfinder.service.gov.uk
+    - api.publiccontractsscotland.gov.uk
+    - www.publiccontractsscotland.gov.uk
+    - publiccontractsscotland.gov.uk
+    - www.sell2wales.gov.wales
+    - sell2wales.gov.wales
+    - ted.europa.eu
+    - docs.ted.europa.eu
+    - op.europa.eu
+source_types:
+  - ocds_api
+  - eforms_api
+  - bulk_ocds
+  - web_page
+  - commercial_aggregator
+sources:
+  - key: find_a_tender
+    name: Find a Tender OCDS release package API
+    source_family: official_notice
+    source_type: ocds_api
+    base_url: https://www.find-tender.service.gov.uk
+    query_url: https://www.find-tender.service.gov.uk/api/1.0/ocdsReleasePackages?limit=50
+    official: true
+    active: true
+    coverage: UK above-threshold public and utilities procurement notices
+    auth_model: none
+    data_format: REST OCDS JSON
+    dedupe_strategy: ocid_release_or_notice_reference
+    connector_status: live_mvp
+    notes: Official UK high-value public procurement notice source.
+  - key: contracts_finder
+    name: Contracts Finder OCDS search API
+    source_family: official_notice
+    source_type: ocds_api
+    base_url: https://www.contractsfinder.service.gov.uk
+    query_url: https://www.contractsfinder.service.gov.uk/Published/Notices/OCDS/Search?limit=50
+    official: true
+    active: true
+    coverage: UK below-threshold, future, live, early engagement and award notices
+    auth_model: public reads
+    data_format: REST OCDS JSON
+    dedupe_strategy: ocid_or_notice_id
+    connector_status: live_mvp
+    notes: Official Contracts Finder opportunity source.
+  - key: public_contracts_scotland
+    name: Public Contracts Scotland OCDS API
+    source_family: official_notice
+    source_type: ocds_api
+    base_url: https://api.publiccontractsscotland.gov.uk
+    query_url: https://api.publiccontractsscotland.gov.uk/v1/Notices
+    official: true
+    active: false
+    coverage: Scotland public-sector procurement notices
+    auth_model: none
+    data_format: REST OCDS JSON
+    dedupe_strategy: ocid_or_notice_reference
+    connector_status: configured_pending_live_validation
+    notes: Activate after validating query parameters for the required watch profile.
+  - key: sell2wales
+    name: Sell2Wales public procurement source
+    source_family: official_notice
+    source_type: bulk_ocds
+    base_url: https://www.sell2wales.gov.wales
+    query_url: https://www.sell2wales.gov.wales/search/search_mainpage.aspx
+    official: true
+    active: false
+    coverage: Wales public-sector procurement notices
+    auth_model: none for browsing; connector validation required
+    data_format: Web/bulk/OCDS route to confirm
+    dedupe_strategy: notice_reference_or_content_hash
+    connector_status: configuration_review_required
+    notes: Configurable source; leave inactive until endpoint behaviour is confirmed.
+  - key: ted_eforms
+    name: TED eForms notice data
+    source_family: official_notice
+    source_type: eforms_api
+    base_url: https://ted.europa.eu
+    query_url: https://ted.europa.eu/api/v3/notices/search
+    official: true
+    active: false
+    coverage: EU and Ireland procurement notices where relevant
+    auth_model: public reads
+    data_format: REST/eForms XML
+    dedupe_strategy: notice_id_or_publication_reference
+    connector_status: configured_pending_eforms_normaliser
+    notes: Included for EU/Ireland horizon scanning.

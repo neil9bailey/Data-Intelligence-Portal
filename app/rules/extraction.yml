@@ -1,0 +1,58 @@
+version: 2026.05.17
+themes:
+  cyber security:
+    - cyber
+    - security
+    - secure
+    - accreditation
+  operational resilience:
+    - resilience
+    - availability
+    - failover
+    - continuity
+    - 24/7
+  data and analytics:
+    - data
+    - analytics
+    - reporting
+    - dashboard
+    - prediction
+  legacy integration:
+    - legacy
+    - integration
+    - interface
+    - interoperability
+  service management:
+    - service management
+    - itil
+    - service desk
+    - incident
+    - sla
+  operational technology:
+    - scada
+    - operational technology
+    - telemetry
+    - roadside
+  real-time operation:
+    - real-time
+    - real time
+    - latency
+    - live data
+  asset management:
+    - asset management
+    - maintenance
+    - lifecycle
+  social value:
+    - social value
+    - sustainability
+    - carbon
+    - community
+quality_question_markers:
+  - quality question
+  - q1
+  - q2
+  - question
+  - describe
+weighting_patterns:
+  - "\\d{1,3}\\s?%"
+  - "\\d{1,3}\\s?marks?"

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Requirements - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Requirement Knowledge Base</h1><p>Human-review requirement themes, extracted quality questions and weighting signals.</p></div></div>
+<section class="grid two">
+  <div class="panel">
+    <h2>Requirement Themes</h2>
+    <div class="stack">
+      {% for req in requirements %}
+      <article class="list-item"><h3>{{ req.requirement_theme }}</h3><div class="badges"><span class="badge weak">{{ req.confidence }}</span><span class="badge amber">{{ req.human_review_status }}</span></div><p>{{ req.requirement_text }}</p></article>
+      {% else %}<p>No requirements extracted yet.</p>{% endfor %}
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Quality Questions</h2>
+    <div class="stack">
+      {% for question in questions %}
+      <article class="list-item"><h3>{{ question.requirement_theme }}</h3><div class="badges"><span class="badge weak">{{ question.confidence }}</span>{% if question.weighting %}<span class="badge green">{{ question.weighting }}</span>{% endif %}<span class="badge amber">{{ question.human_review_status }}</span></div><p>{{ question.question_text }}</p></article>
+      {% else %}<p>No quality questions captured yet.</p>{% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

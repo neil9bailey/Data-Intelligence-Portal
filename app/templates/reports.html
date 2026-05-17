@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Reports - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Reports</h1><p>Generate Markdown briefings from customer, source, portal, opportunity and KRA intelligence.</p></div></div>
+<section class="grid two">
+  <div class="panel">
+    <h2>Generated Reports</h2>
+    <div class="stack">
+      {% for report in reports %}
+      <article class="list-item"><h3><a href="/reports/{{ report.id }}">{{ report.report_name }}</a></h3><p class="hint">{{ report.report_type }} | {{ report.generated_at.strftime('%Y-%m-%d %H:%M') }}</p><a href="/reports/{{ report.id }}?format=md">Download Markdown</a></article>
+      {% else %}<p>No reports generated yet.</p>{% endfor %}
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Create Report</h2>
+    <form method="post" action="/reports">
+      <div class="field"><label>Report name</label><input name="report_name" value="Data intelligence executive summary"></div>
+      <div class="field"><label>Report type</label><input name="report_type" value="executive_summary"></div>
+      <div class="field"><label>Customer</label><select name="customer_id"><option value="">All customers</option>{% for customer in customers %}<option value="{{ customer.id }}">{{ customer.customer_name }}</option>{% endfor %}</select></div>
+      <div class="field"><label>Business unit</label><select name="business_unit_id"><option value="">All business units</option>{% for unit in business_units %}<option value="{{ unit.id }}">{{ unit.name }}</option>{% endfor %}</select></div>
+      <button type="submit">Generate report</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

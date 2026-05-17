@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}KRA - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>KRA Knowledge Research Agent</h1><p>MCP-style local agents for source research, change tracking, customer memory, document extraction and briefing generation.</p></div>
+</div>
+<section class="grid two">
+  <div class="panel">
+    <h2>Run KRA Research</h2>
+    <p class="hint">Runs are read-only against approved public HTTPS sources. Portal login, customer contact and submissions are not automated.</p>
+    <form method="post" action="/kra/run">
+      <div class="field"><label>Agent</label><select name="agent_profile_id"><option value="">Default active agent</option>{% for agent in agents %}<option value="{{ agent.id }}">{{ agent.name }}</option>{% endfor %}</select></div>
+      <div class="field"><label>Source</label><select name="source_id"><option value="">All active sources</option>{% for source in sources %}<option value="{{ source.id }}">{{ source.name }}</option>{% endfor %}</select></div>
+      <div class="field"><label>Customer</label><select name="customer_id"><option value="">All customers</option>{% for customer in customers %}<option value="{{ customer.id }}">{{ customer.customer_name }}</option>{% endfor %}</select></div>
+      <div class="field"><label>Research query</label><textarea name="query" placeholder="highways cyber resilience operational technology"></textarea></div>
+      <button type="submit">Run guarded KRA</button>
+    </form>
+  </div>
+  <div class="panel">
+    <h2>Agent Profiles</h2>
+    <div class="stack">
+      {% for agent in agents %}
+      <article class="list-item"><h3>{{ agent.name }}</h3><div class="badges"><span class="badge weak">{{ agent.mcp_toolkit }}</span><span class="badge {{ 'green' if agent.active else 'amber' }}">{{ 'active' if agent.active else 'inactive' }}</span></div><p>{{ agent.role }}</p><p class="hint">{{ agent.guardrails }}</p></article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+<section class="grid two" style="margin-top:18px;">
+  <div class="panel">
+    <h2>Research Runs</h2>
+    <div class="table-wrap"><table><thead><tr><th>Started</th><th>Status</th><th>Sources</th><th>Findings</th></tr></thead><tbody>{% for run in runs %}<tr><td>{{ run.started_at.strftime('%Y-%m-%d %H:%M') }}</td><td><span class="badge green">{{ run.status }}</span></td><td>{{ run.sources_checked }}</td><td>{{ run.findings_created }}</td></tr>{% else %}<tr><td colspan="4">No KRA runs yet.</td></tr>{% endfor %}</tbody></table></div>
+  </div>
+  <div class="panel">
+    <h2>Findings</h2>
+    <div class="stack">
+      {% for finding in findings %}
+      <article class="list-item"><h3>{{ finding.title }}</h3><div class="badges"><span class="badge weak">{{ finding.finding_type }}</span><span class="badge amber">{{ finding.change_status }}</span><span class="badge">{{ finding.confidence }}</span></div><p>{{ finding.summary }}</p></article>
+      {% else %}<p>No findings yet.</p>{% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

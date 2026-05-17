@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Documents - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Opportunity Documents</h1><p>{{ opportunity.title }}</p></div><a class="button secondary" href="/opportunities">Back to opportunities</a></div>
+<section class="grid two">
+  <div class="panel">
+    <h2>Documents</h2>
+    <div class="stack">
+      {% for document in documents %}
+      <article class="list-item"><h3>{{ document.title }}</h3><div class="badges"><span class="badge weak">{{ document.document_type }}</span><span class="badge amber">{{ document.retrieval_status }}</span><span class="badge cyan">{{ document.platform_name or "No platform" }}</span></div><p>{{ document.content_summary or document.notes }}</p></article>
+      {% else %}<p>No documents captured yet.</p>{% endfor %}
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Quality Questions</h2>
+    <div class="stack">
+      {% for question in questions %}
+      <article class="list-item"><h3>{{ question.requirement_theme }}</h3><div class="badges"><span class="badge weak">{{ question.confidence }}</span>{% if question.weighting %}<span class="badge green">{{ question.weighting }}</span>{% endif %}<span class="badge amber">{{ question.human_review_status }}</span></div><p>{{ question.question_text }}</p></article>
+      {% else %}<p>No quality questions extracted yet.</p>{% endfor %}
+    </div>
+  </div>
+</section>
+<section class="grid two" style="margin-top:18px;">
+  <div class="panel">
+    <h2>Add Document / Extract</h2>
+    <form method="post" action="/opportunities/{{ opportunity.id }}/documents">
+      <div class="field"><label>Title</label><input name="title" required></div>
+      <div class="form-grid"><div class="field"><label>Type</label><input name="document_type" value="itt_extract"></div><div class="field"><label>Status</label><input name="retrieval_status" value="review_required"></div></div>
+      <div class="field"><label>URL or file path</label><input name="url_or_path"></div>
+      <div class="field"><label>Platform</label><input name="platform_name"></div>
+      <div class="field"><label>Summary</label><textarea name="content_summary"></textarea></div>
+      <div class="field"><label>Permitted text for extraction</label><textarea name="document_text" placeholder="Paste permitted quality question or requirement text."></textarea></div>
+      <button type="submit">Save and extract</button>
+    </form>
+  </div>
+  <div class="panel">
+    <h2>Retrieval Tasks</h2>
+    <div class="stack">
+      {% for task in tasks %}
+      <article class="list-item"><h3>{{ task.task_name }}</h3><p><span class="badge amber">{{ task.status }}</span> {{ task.due_date or "" }}</p><p>{{ task.notes }}</p></article>
+      {% else %}<p>No retrieval tasks yet.</p>{% endfor %}
+    </div>
+    <form method="post" action="/opportunities/{{ opportunity.id }}/tasks" style="margin-top:14px;">
+      <div class="field"><label>Task name</label><input name="task_name" value="Manual portal document retrieval"></div>
+      <div class="field"><label>Portal instance</label><select name="portal_instance_id"><option value="">Not linked</option>{% for portal in portal_instances %}<option value="{{ portal.id }}">{{ portal.portal_name }}</option>{% endfor %}</select></div>
+      <div class="field"><label>Due date</label><input type="date" name="due_date"></div>
+      <div class="field"><label>Notes</label><textarea name="notes"></textarea></div>
+      <button type="submit">Create task</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

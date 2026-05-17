@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Report - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{{ report.report_name }}</h1><p>{{ report.generated_at.strftime('%Y-%m-%d %H:%M') }}</p></div><a class="button" href="/reports/{{ report.id }}?format=md">Download Markdown</a></div>
+<section class="panel"><pre class="report-body">{{ report.markdown }}</pre></section>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Sources - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Source Catalogue</h1><p>Official/public source configuration, connector health and content-change snapshots.</p></div></div>
+<section class="panel">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Source</th><th>Coverage</th><th>Format</th><th>Status</th><th>Check</th></tr></thead>
+      <tbody>
+        {% for source in sources %}
+        <tr>
+          <td><strong>{{ source.name }}</strong><p class="hint">{{ source.query_url }}</p></td>
+          <td>{{ source.coverage }}</td>
+          <td>{{ source.data_format or source.source_type }}</td>
+          <td><span class="badge {{ 'green' if source.active else 'amber' }}">{{ source.connector_status }}</span><p class="hint">{{ source.last_status or "not checked" }}</p></td>
+          <td><form method="post" action="/sources/{{ source.id }}/check"><button type="submit">Check</button></form></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+<section class="grid two" style="margin-top:18px;">
+  <div class="panel">
+    <h2>Source Changes</h2>
+    <div class="stack">
+      {% for snapshot in snapshots %}
+      {% set source = source_map.get(snapshot.source_id) %}
+      <article class="list-item"><h3>{{ source.name if source else "Source" }}</h3><p><span class="badge {{ 'red' if snapshot.change_type == 'failed' else 'amber' if snapshot.change_type == 'changed' else 'green' }}">{{ snapshot.change_type }}</span> {{ snapshot.detected_schema }} | {{ snapshot.status_code or snapshot.notes }}</p></article>
+      {% else %}<p>No snapshots yet.</p>{% endfor %}
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Add Source</h2>
+    <form method="post" action="/sources">
+      <div class="field"><label>Name</label><input name="name" required></div>
+      <div class="field"><label>Query URL</label><input name="query_url" required></div>
+      <div class="form-grid"><div class="field"><label>Base URL</label><input name="base_url"></div><div class="field"><label>Type</label><input name="source_type" value="web_page"></div></div>
+      <div class="field"><label>Coverage</label><input name="coverage"></div>
+      <div class="field"><label>Notes</label><textarea name="notes"></textarea></div>
+      <button type="submit">Save source</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <div>
+    <span class="eyebrow">Knowledge Research Agent enabled</span>
+    <h1>One customer memory for every source, portal and requirement.</h1>
+    <p>KRA monitors approved public sources, tracks content changes, captures opportunities, structures customer requirements and produces review-ready intelligence for sales, bid, strategy and delivery teams.</p>
+    <div class="actions">
+      <a class="button secondary" href="/sources">Review source pipeline</a>
+      <a class="button" href="/kra">Run KRA research</a>
+    </div>
+  </div>
+  <aside class="readiness">
+    <h2>Today’s Signals</h2>
+    <div class="signal-row"><span>Opportunities</span><strong>{{ metrics.opportunities }}</strong></div>
+    <div class="signal-row"><span>Documents</span><strong>{{ metrics.documents }}</strong></div>
+    <div class="signal-row"><span>Source changes</span><strong>{{ metrics.source_changes }}</strong></div>
+    <div class="signal-row"><span>KRA findings pending review</span><strong>{{ metrics.pending_findings }}</strong></div>
+  </aside>
+</section>
+
+<section class="grid metrics">
+  <div class="metric"><span class="value">{{ metrics.customers }}</span><span class="label">tracked customers</span></div>
+  <div class="metric"><span class="value">{{ metrics.active_sources }}</span><span class="label">active public sources</span></div>
+  <div class="metric"><span class="value">{{ metrics.platforms }}</span><span class="label">portal platform families</span></div>
+  <div class="metric"><span class="value">{{ metrics.questions }}</span><span class="label">quality questions</span></div>
+  <div class="metric"><span class="value">{{ metrics.requirements }}</span><span class="label">requirement themes</span></div>
+</section>
+
+<section class="grid two" style="margin-top:18px;">
+  <div class="panel">
+    <h2>Recent Opportunities</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Opportunity</th><th>Buyer</th><th>Status</th><th>Relevance</th></tr></thead>
+        <tbody>
+          {% for item in opportunities %}
+          <tr>
+            <td><strong>{{ item.title }}</strong><p class="hint">{{ item.summary[:180] }}</p></td>
+            <td>{{ item.buyer_name or "Not detected" }}</td>
+            <td><span class="badge {{ 'green' if item.status == 'watching' else 'amber' }}">{{ item.status }}</span></td>
+            <td>{{ item.relevance_score|round(0) }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">No opportunities captured yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>KRA Findings</h2>
+    <div class="stack">
+      {% for finding in findings %}
+      <article class="list-item">
+        <h3>{{ finding.title }}</h3>
+        <div class="badges"><span class="badge weak">{{ finding.finding_type }}</span><span class="badge amber">{{ finding.human_review_status }}</span></div>
+        <p>{{ finding.summary }}</p>
+      </article>
+      {% else %}
+      <p>No KRA findings yet. Run a KRA source check to begin.</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="panel" style="margin-top:18px;">
+  <h2>Latest Source Checks</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Source</th><th>Change</th><th>Schema</th><th>Status</th><th>Checked</th></tr></thead>
+      <tbody>
+        {% for snapshot in snapshots %}
+        {% set source = source_map.get(snapshot.source_id) %}
+        <tr>
+          <td>{{ source.name if source else snapshot.source_id }}</td>
+          <td><span class="badge {{ 'red' if snapshot.change_type == 'failed' else 'amber' if snapshot.change_type == 'changed' else 'green' }}">{{ snapshot.change_type }}</span></td>
+          <td>{{ snapshot.detected_schema }}</td>
+          <td>{{ snapshot.status_code or snapshot.notes }}</td>
+          <td>{{ snapshot.checked_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5">No source checks yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

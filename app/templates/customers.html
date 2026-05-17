@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Customers - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Customers</h1><p>Account memory, aliases, buying entities and customer watch context.</p></div></div>
+<section class="grid two">
+  <div class="panel">
+    <h2>Tracked Customers</h2>
+    <div class="stack">
+      {% for customer in customers %}
+      <article class="list-item">
+        <h3>{{ customer.customer_name }}</h3>
+        <div class="badges"><span class="badge weak">{{ customer.domain }}</span><span class="badge amber">{{ customer.customer_type }}</span></div>
+        <p>{{ customer.strategic_notes }}</p>
+        <p class="hint">Aliases: {{ customer.aliases or "None recorded" }}</p>
+      </article>
+      {% else %}<p>No customers yet.</p>{% endfor %}
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Add Customer</h2>
+    <form method="post" action="/customers">
+      <div class="field"><label>Name</label><input name="customer_name" required></div>
+      <div class="form-grid">
+        <div class="field"><label>Business unit</label><select name="business_unit_id"><option value="">Not linked</option>{% for unit in business_units %}<option value="{{ unit.id }}">{{ unit.name }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Region</label><input name="region" value="UK"></div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Sector</label><input name="sector" value="Public sector"></div>
+        <div class="field"><label>Domain</label><input name="domain" placeholder="highways, rail, health, local government"></div>
+      </div>
+      <div class="field"><label>Customer type</label><input name="customer_type" placeholder="transport authority, local authority, public body"></div>
+      <div class="field"><label>Aliases</label><textarea name="aliases"></textarea></div>
+      <div class="field"><label>Buying entities</label><textarea name="buying_entities"></textarea></div>
+      <div class="field"><label>Strategic notes</label><textarea name="strategic_notes"></textarea></div>
+      <button type="submit">Save customer</button>
+    </form>
+  </div>
+</section>
+{% endblock %}
