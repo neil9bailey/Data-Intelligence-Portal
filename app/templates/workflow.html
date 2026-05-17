@@ -3,30 +3,85 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <h1>Source To Inbox Workflow</h1>
-    <p>COF-style operating model: source ingestion, matching, human gate, branded exports and controlled email delivery.</p>
+    <h1>Live Operating Workflow</h1>
+    <p>A practical view of how source monitoring, portal retrieval, human review and report delivery move information through the platform.</p>
   </div>
 </div>
 
-<section class="workflow-map">
-  {% for stage in workflow.stages %}
+<section class="grid metrics">
+  <div class="metric"><span class="value">{{ metrics.active_sources }}</span><span class="label">active public sources</span></div>
+  <div class="metric"><span class="value">{{ portal_metrics.portal_instances }}</span><span class="label">buyer portals configured</span></div>
+  <div class="metric"><span class="value">{{ portal_metrics.automated_connectors }}</span><span class="label">enabled read-only connectors</span></div>
+  <div class="metric"><span class="value">{{ metrics.review_queue }}</span><span class="label">items awaiting review</span></div>
+  <div class="metric"><span class="value">{{ metrics.requirements }}</span><span class="label">requirement themes captured</span></div>
+</section>
+
+<section class="workflow-map" style="margin-top:18px;">
   <article class="workflow-card">
-    <span class="eyebrow">{{ stage.key.replace('_', ' ') }}</span>
-    <h2>{{ stage.name }}</h2>
-    <p>{{ stage.description }}</p>
-    <p class="hint">Config: {{ stage.configuration }}</p>
+    <span class="eyebrow">1. Sources</span>
+    <h2>Monitor public notices</h2>
+    <p>Public/open sources create the first view of opportunities without needing portal credentials.</p>
+    <a class="button secondary compact" href="/admin">Source health</a>
   </article>
-  {% endfor %}
+  <article class="workflow-card">
+    <span class="eyebrow">2. Customers</span>
+    <h2>Match to account memory</h2>
+    <p>Customer aliases, business units and buying entities keep opportunities aligned to the right team.</p>
+    <a class="button secondary compact" href="/customers">Customers</a>
+  </article>
+  <article class="workflow-card">
+    <span class="eyebrow">3. Portals</span>
+    <h2>Resolve access path</h2>
+    <p>Assume supplier account access is required unless an approved read-only API route is configured.</p>
+    <a class="button secondary compact" href="/portals">Portal workbench</a>
+  </article>
+  <article class="workflow-card">
+    <span class="eyebrow">4. Review</span>
+    <h2>Human decision gate</h2>
+    <p>Approve, hold, reject or reassign before information is treated as report-ready.</p>
+    <a class="button secondary compact" href="/review">Review queue</a>
+  </article>
+  <article class="workflow-card">
+    <span class="eyebrow">5. Reports</span>
+    <h2>Run retrieval and export</h2>
+    <p>Enabled read-only connectors run before report generation, then packs can be downloaded or emailed.</p>
+    <a class="button secondary compact" href="/reports">Reports</a>
+  </article>
+  <article class="workflow-card">
+    <span class="eyebrow">6. Admin</span>
+    <h2>Operate and monitor</h2>
+    <p>Admin owns health, email, source checks, retrieval failures, audit and connector configuration.</p>
+    <a class="button secondary compact" href="/admin">Admin dashboard</a>
+  </article>
 </section>
 
 <section class="grid three" style="margin-top:18px;">
-  <div class="panel"><h2>Ingestion</h2><p>Five public sources feed the normalised opportunity catalogue. Source health and change evidence are retained.</p><a class="button secondary" href="/sources">Configure sources</a></div>
-  <div class="panel"><h2>Human Gate</h2><p>Nothing is client/report ready until a reviewer approves, rejects, holds or reassigns it.</p><a class="button secondary" href="/review">Open review queue</a></div>
-  <div class="panel"><h2>Outputs</h2><p>Reports can be downloaded locally or sent through the configured local outbox/SMTP profile.</p><a class="button secondary" href="/admin">Configure email</a></div>
+  <div class="panel"><h2>Portal Rule</h2><p>Delta, In-Tend, JAGGAER and ProContract are treated as account-required for full tender pack retrieval by default. DIP stores account references and status only, never passwords.</p></div>
+  <div class="panel"><h2>Automation Rule</h2><p>Automated retrieval is read-only and only runs against approved public/API endpoints. Anything requiring login/MFA becomes a human retrieval task.</p></div>
+  <div class="panel"><h2>Output Rule</h2><p>Reports can run enabled connectors first, but retrieved information remains pending human review until accepted by the team.</p></div>
+</section>
+
+<section class="grid two" style="margin-top:18px;">
+  <div class="panel">
+    <h2>Latest Opportunities</h2>
+    <div class="stack">
+      {% for item in recent_opportunities %}
+      <article class="list-item"><h3>{{ item.title }}</h3><p class="hint">{{ item.buyer_name or "Buyer not detected" }} | {{ item.status }} | {{ item.deadline_date or "no deadline" }}</p></article>
+      {% else %}<p>No opportunities captured yet.</p>{% endfor %}
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Latest Retrieval Runs</h2>
+    <div class="stack">
+      {% for run in recent_retrieval_runs %}
+      <article class="list-item"><h3>Connector {{ run.connector_id or "not linked" }}</h3><p><span class="badge {{ 'green' if run.status == 'completed' else 'amber' if run.status == 'blocked' else 'red' }}">{{ run.status }}</span> {{ run.error_summary or run.guardrail_summary }}</p></article>
+      {% else %}<p>No automated retrieval runs yet.</p>{% endfor %}
+    </div>
+  </div>
 </section>
 
 <section class="panel" style="margin-top:18px;">
-  <h2>Guardrails</h2>
+  <h2>Configured Guardrails</h2>
   <div class="badges">
     {% for key, value in workflow.guardrails.items() %}
     <span class="badge {{ 'green' if value else 'amber' }}">{{ key.replace('_', ' ') }}</span>

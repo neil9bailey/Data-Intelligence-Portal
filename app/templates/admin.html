@@ -1,7 +1,102 @@
 {% extends "base.html" %}
 {% block title %}Admin - {{ app_name }}{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Admin Dashboard</h1><p>Email delivery configuration, local outbox testing and delivery audit.</p></div></div>
+<div class="page-head">
+  <div>
+    <h1>Admin Control Centre</h1>
+    <p>Operational health, source checks, connector status, email configuration, audit and controlled setup tasks.</p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/audit">Audit</a>
+    <a class="button" href="/kra">Run KRA</a>
+  </div>
+</div>
+
+<section class="grid metrics">
+  <div class="metric"><span class="value">{{ health.sources_health.active }}</span><span class="label">active public sources</span></div>
+  <div class="metric"><span class="value">{{ health.portal_health.enabled_connectors }}</span><span class="label">enabled retrieval connectors</span></div>
+  <div class="metric"><span class="value">{{ health.portal_health.open_tasks }}</span><span class="label">open portal retrieval tasks</span></div>
+  <div class="metric"><span class="value">{{ health.sources_health.failures + health.portal_health.connector_failures }}</span><span class="label">current warnings</span></div>
+  <div class="metric"><span class="value">{{ health.email.last_status }}</span><span class="label">latest email status</span></div>
+</section>
+
+<section class="grid three" style="margin-top:18px;">
+  <div class="panel">
+    <div class="panel-title"><h2>Local Runtime</h2><span class="badge green">ok</span></div>
+    <p><strong>{{ health.deployment.label }}</strong></p>
+    <p class="hint">{{ health.database.url }}</p>
+    <div class="badges">
+      <span class="badge {{ 'green' if health.database.sqlite.exists else 'amber' }}">SQLite {{ 'present' if health.database.sqlite.exists else 'pending' }}</span>
+      <span class="badge {{ 'green' if health.database.persistent_copy.exists else 'amber' }}">persistent copy {{ 'present' if health.database.persistent_copy.exists else 'not configured' }}</span>
+    </div>
+    <p class="hint">DB: {{ health.database.sqlite.path }} {{ health.database.sqlite.size }}</p>
+  </div>
+  <div class="panel">
+    <div class="panel-title"><h2>Remote Live Health</h2><span class="badge {{ 'green' if health.deployment.remote.ok else 'red' }}">{{ health.deployment.remote.status }}</span></div>
+    <p>{{ health.deployment.public_domain }}</p>
+    <p class="hint">{{ health.deployment.remote_url }}</p>
+    <p class="hint">{{ health.deployment.remote.detail }}</p>
+  </div>
+  <div class="panel">
+    <div class="panel-title"><h2>Auth And Access</h2><span class="badge {{ 'green' if health.auth.entra_enabled else 'amber' }}">{{ 'Entra enabled' if health.auth.entra_enabled else 'local mode' }}</span></div>
+    <p>{{ health.auth.user }}</p>
+    <div class="badges">
+      <span class="badge weak">{{ health.auth.role }}</span>
+      <span class="badge {{ 'green' if health.auth.admin_group_configured else 'amber' }}">admin group</span>
+      <span class="badge {{ 'green' if health.auth.standard_group_configured else 'amber' }}">standard group</span>
+    </div>
+  </div>
+</section>
+
+<section class="grid three" style="margin-top:18px;">
+  <div class="panel">
+    <h2>Admin Setup</h2>
+    <div class="setup-steps">
+      <a href="/sources">Sources</a>
+      <a href="/portals">Portals / connectors</a>
+      <a href="/business-units">Business units</a>
+      <a href="/kra">KRA agents</a>
+      <a href="/audit">Audit</a>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Portal Retrieval Health</h2>
+    <p><strong>{{ health.portal_health.account_required }}</strong> portal records assume supplier account access is required unless an approved read-only API connector is enabled.</p>
+    <div class="badges">
+      <span class="badge green">{{ health.portal_health.enabled_connectors }} enabled</span>
+      <span class="badge {{ 'red' if health.portal_health.connector_failures else 'green' }}">{{ health.portal_health.connector_failures }} connector warnings</span>
+      <span class="badge amber">{{ health.portal_health.open_tasks }} manual tasks</span>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>KRA Runtime</h2>
+    <p>{{ health.kra.provider }} | {{ health.kra.model }}</p>
+    <div class="badges">
+      <span class="badge weak">{{ health.kra.mcp_mode }}</span>
+      <span class="badge {{ 'green' if health.kra.api_key_configured else 'amber' }}">API key {{ 'configured' if health.kra.api_key_configured else 'not configured' }}</span>
+    </div>
+  </div>
+</section>
+
+<section class="grid two" style="margin-top:18px;">
+  <div class="panel">
+    <h2>Latest Source Checks</h2>
+    <div class="table-wrap"><table><thead><tr><th>When</th><th>Source</th><th>Status</th><th>Schema</th></tr></thead><tbody>
+      {% for snapshot in health.recent_source_snapshots %}
+      <tr><td>{{ snapshot.checked_at.strftime('%Y-%m-%d %H:%M') }}</td><td>{{ source_map.get(snapshot.source_id).name if source_map.get(snapshot.source_id) else snapshot.source_id }}</td><td><span class="badge {{ 'red' if snapshot.change_type == 'failed' else 'amber' if snapshot.change_type == 'changed' else 'green' }}">{{ snapshot.change_type }}</span></td><td>{{ snapshot.detected_schema }}</td></tr>
+      {% else %}<tr><td colspan="4">No source checks yet.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </div>
+  <div class="panel">
+    <h2>Latest Retrieval Runs</h2>
+    <div class="table-wrap"><table><thead><tr><th>When</th><th>Connector</th><th>Status</th><th>HTTP</th></tr></thead><tbody>
+      {% for run in health.recent_retrieval_runs %}
+      <tr><td>{{ run.started_at.strftime('%Y-%m-%d %H:%M') }}</td><td>{{ portal_connector_map.get(run.connector_id).connector_name if portal_connector_map.get(run.connector_id) else run.connector_id }}</td><td><span class="badge {{ 'green' if run.status == 'completed' else 'amber' if run.status == 'blocked' else 'red' }}">{{ run.status }}</span></td><td>{{ run.http_status or "" }}</td></tr>
+      {% else %}<tr><td colspan="4">No retrieval runs yet.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </div>
+</section>
+
 <section class="grid two">
   <div class="panel">
     <h2>Email Configuration</h2>

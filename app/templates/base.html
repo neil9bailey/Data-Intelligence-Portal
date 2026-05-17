@@ -20,7 +20,7 @@
         </div>
         <div class="actions">
           <a class="button secondary" href="/reports">Reports</a>
-          <a class="button" href="/kra">Run KRA</a>
+          <a class="button" href="/admin">Admin</a>
         </div>
       </div>
       <nav class="nav">
@@ -28,16 +28,13 @@
         <a class="{{ 'active' if request.url.path.startswith('/workflow') else '' }}" href="/workflow">Workflow</a>
         <a class="{{ 'active' if request.url.path.startswith('/business-units') else '' }}" href="/business-units">Business Units</a>
         <a class="{{ 'active' if request.url.path.startswith('/customers') else '' }}" href="/customers">Customers</a>
-        <a class="{{ 'active' if request.url.path.startswith('/sources') else '' }}" href="/sources">Sources</a>
         <a class="{{ 'active' if request.url.path.startswith('/portals') else '' }}" href="/portals">Portals</a>
         <a class="{{ 'active' if request.url.path.startswith('/opportunities') else '' }}" href="/opportunities">Opportunities</a>
         <a class="{{ 'active' if request.url.path.startswith('/review') else '' }}" href="/review">Review Queue</a>
         <a class="{{ 'active' if request.url.path.startswith('/client-portal') else '' }}" href="/client-portal">Client Feed</a>
         <a class="{{ 'active' if request.url.path.startswith('/requirements') else '' }}" href="/requirements">Requirements</a>
-        <a class="{{ 'active' if request.url.path.startswith('/kra') else '' }}" href="/kra">KRA</a>
         <a class="{{ 'active' if request.url.path.startswith('/reports') else '' }}" href="/reports">Reports</a>
-        <a class="{{ 'active' if request.url.path.startswith('/admin') else '' }}" href="/admin">Admin</a>
-        <a class="{{ 'active' if request.url.path.startswith('/audit') else '' }}" href="/audit">Audit</a>
+        <a class="{{ 'active' if request.url.path.startswith('/admin') or request.url.path.startswith('/sources') or request.url.path.startswith('/kra') or request.url.path.startswith('/audit') else '' }}" href="/admin">Admin</a>
       </nav>
     </header>
     <main class="container">{% block content %}{% endblock %}</main>

@@ -11,15 +11,15 @@
 
 <section class="portal-command">
   <div>
-    <span class="eyebrow">Read-only retrieval intelligence</span>
-    <h2>Make approved portal data available before the bid clock starts.</h2>
-    <p>Use this page to record buyer portals, configure approved read-only API connectors, track retrieval status and push retrieved information into reports for human review.</p>
+    <span class="eyebrow">Portal activation workflow</span>
+    <h2>Turn buyer portals into a managed retrieval service.</h2>
+    <p>Record the supplier account owner, portal URL, retrieval mode and any approved read-only connector route. The MVP never stores passwords and treats login/MFA steps as human-controlled work.</p>
   </div>
   <ol class="activation-steps">
-    <li><strong>1. Link</strong><span>Create one portal instance per buyer/customer and platform family.</span></li>
-    <li><strong>2. Approve</strong><span>Record whether automated retrieval is permitted and read-only.</span></li>
-    <li><strong>3. Connect</strong><span>Use API key references only where the provider supports it.</span></li>
-    <li><strong>4. Report</strong><span>Run retrieval before generating end-user intelligence packs.</span></li>
+    <li><strong>1. Register</strong><span>Create one portal instance per buyer/customer and confirm the internal account owner.</span></li>
+    <li><strong>2. Classify</strong><span>Choose account-required manual retrieval unless a provider-approved API exists.</span></li>
+    <li><strong>3. Connect</strong><span>Reference API-key environment variables only where the provider supports them.</span></li>
+    <li><strong>4. Review</strong><span>Retrieved information stays pending review before report use.</span></li>
   </ol>
 </section>
 
@@ -64,7 +64,7 @@
       <h2>Add Portal Instance</h2>
       <span class="badge weak">no passwords</span>
     </div>
-    <p class="hint">Create one record for each buyer/customer portal you need to monitor. Use the status to show whether the team can retrieve documents today.</p>
+    <p class="hint">Create one record for each buyer/customer portal you need to monitor. Capture who owns access, how retrieval is allowed, and what a user should do next.</p>
     <form method="post" action="/portals">
       <div class="field"><label>Portal instance name</label><input name="portal_name" placeholder="National Highways - ProContract" required></div>
       <div class="form-grid">
@@ -75,7 +75,11 @@
         <div class="field"><label>Customer</label><select name="customer_id"><option value="">Select customer</option>{% for customer in customers %}<option value="{{ customer.id }}">{{ customer.customer_name }}</option>{% endfor %}</select></div>
         <div class="field"><label>Business unit</label><select name="business_unit_id"><option value="">Select business unit</option>{% for unit in business_units %}<option value="{{ unit.id }}">{{ unit.name }}</option>{% endfor %}</select></div>
       </div>
-      <div class="field"><label>Portal URL</label><input name="portal_url" placeholder="https://..."></div>
+      <div class="form-grid">
+        <div class="field"><label>Portal URL</label><input name="portal_url" placeholder="https://..."></div>
+        <div class="field"><label>Account reference</label><input name="account_reference" placeholder="e.g. bid-team shared account owner, not a password"></div>
+      </div>
+      <div class="field"><label>Retrieval mode</label><select name="document_retrieval_mode">{% for option in retrieval_mode_options %}<option value="{{ option }}">{{ option | replace('_', ' ') | title }}</option>{% endfor %}</select></div>
       <div class="field"><label>Operational notes</label><textarea name="notes" placeholder="Registration owner, MFA owner, account status, known framework area, document retrieval hints."></textarea></div>
       <button type="submit">Save portal instance</button>
     </form>
@@ -114,11 +118,13 @@
         {% if portal.portal_url %}<a class="badge cyan" href="{{ portal.portal_url }}" target="_blank" rel="noreferrer">open portal</a>{% else %}<span class="badge red">missing URL</span>{% endif %}
         {% if item.open_tasks %}<span class="badge amber">{{ item.open_tasks | length }} open task</span>{% endif %}
         {% if item.connectors %}<span class="badge green">{{ item.connectors | length }} connector</span>{% else %}<span class="badge weak">no connector</span>{% endif %}
+        <span class="badge weak">{{ portal.document_retrieval_mode | replace('_', ' ') }}</span>
       </div>
       {% if item.missing_items %}
       <p class="warning-text">Missing: {{ item.missing_items | join(", ") }}.</p>
       {% endif %}
       <p>{{ item.next_action }}</p>
+      {% if portal.account_reference %}<p class="hint">Account reference: {{ portal.account_reference }}</p>{% endif %}
       {% if portal.notes %}<p class="hint">{{ portal.notes }}</p>{% endif %}
       {% if item.connectors %}
       <div class="connector-list">
@@ -146,7 +152,7 @@
             <div class="field"><label>Portal URL</label><input name="portal_url" value="{{ portal.portal_url }}"></div>
             <div class="field"><label>Account reference</label><input name="account_reference" value="{{ portal.account_reference }}"></div>
           </div>
-          <div class="field"><label>Retrieval mode</label><input name="document_retrieval_mode" value="{{ portal.document_retrieval_mode }}"></div>
+          <div class="field"><label>Retrieval mode</label><select name="document_retrieval_mode">{% for option in retrieval_mode_options %}<option value="{{ option }}" {% if portal.document_retrieval_mode == option %}selected{% endif %}>{{ option | replace('_', ' ') | title }}</option>{% endfor %}</select></div>
           <div class="field"><label>Operational notes</label><textarea name="notes">{{ portal.notes }}</textarea></div>
           <button type="submit">Save changes</button>
         </form>

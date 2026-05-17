@@ -49,7 +49,7 @@ param managedCertificateName string = ''
 param imageRepositoryPrefix string = 'dip'
 
 @description('Container image tag.')
-param imageTag string = '1.0.8-live-test'
+param imageTag string = '1.0.9-live-test'
 
 @allowed([
   'DELETE'
@@ -277,6 +277,18 @@ resource portalApp 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
             {
               name: 'DIP_OUTBOX_DIR'
               value: '/app/data/outbox'
+            }
+            {
+              name: 'DIP_PUBLIC_DOMAIN'
+              value: publicDomain
+            }
+            {
+              name: 'DIP_REMOTE_HEALTH_URL'
+              value: 'https://${publicDomain}/healthz'
+            }
+            {
+              name: 'DIP_DEPLOYMENT_LABEL'
+              value: 'azure-live-test'
             }
             {
               name: 'SEED_REFERENCE_DATA'

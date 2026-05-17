@@ -119,12 +119,32 @@ Supported placeholders:
 - `KRA_API_KEY`
 - `KRA_MODEL`
 - `KRA_MCP_MODE`
+- `DIP_PUBLIC_DOMAIN`
+- `DIP_REMOTE_HEALTH_URL`
+- `DIP_DEPLOYMENT_LABEL`
 
 Current KRA mode is deterministic/local by default. API-key-backed AI enhancement can be added behind the same review controls.
 
+## Admin Control Centre
+
+Admin and configuration tasks are consolidated under `/admin`.
+
+The Admin Control Centre shows:
+
+- local runtime/database persistence status
+- remote `/healthz` status for the configured public domain
+- Entra/local auth status and group configuration signals
+- public-source and portal connector health
+- latest source checks and retrieval runs
+- KRA runtime configuration
+- email profile, local outbox/SMTP test sending and delivery logs
+- links to source configuration, portal setup, KRA runs and audit events
+
+Local Docker uses `DIP_DEPLOYMENT_LABEL=local-docker` by default. Azure live-test should set `DIP_DEPLOYMENT_LABEL=azure-live-test`, `DIP_PUBLIC_DOMAIN=dip.vendorlogic.io` and `DIP_REMOTE_HEALTH_URL=https://dip.vendorlogic.io/healthz`.
+
 ## KRA Knowledge Research Agent
 
-KRA is available at `/kra`.
+KRA is operated from the Admin Control Centre and remains directly available at `/kra`.
 
 It provides local MCP-style agent profiles:
 
@@ -168,6 +188,21 @@ Use `/portals` to add a connector, link it to a buyer portal and optionally link
 
 Reports can automatically run enabled read-only retrieval connectors before generation, so end-user briefing packs can include the latest retrieved information where provider permissions and guardrails allow it.
 
+## Portal Activation Workflow
+
+The portal workflow assumes that Delta eSourcing, In-Tend, JAGGAER and ProContract generally require a buyer/supplier portal account for full tender pack retrieval unless the provider has approved a read-only API/public endpoint.
+
+For each buyer portal instance, capture:
+
+- customer and business unit
+- platform family and portal URL
+- access status, including registration, blocked, expired and MFA-owner states
+- account reference or internal account owner notes, never passwords
+- retrieval mode, such as account-required manual, approved API or API-key header/query
+- operational notes and manual retrieval tasks
+
+The optimal workflow is to configure portal access before an opportunity lands, run approved read-only connectors where available, and use manual human retrieval tasks where login/MFA is required.
+
 ## COF Source-To-Inbox Workflow
 
 Pages 2 and 3 of the COF design draft have been mapped into the product as a configurable workflow at `/workflow`.
@@ -190,7 +225,7 @@ The main operational sections now expose user-managed create, edit and delete co
 
 - Business Units
 - Customers
-- Sources
+- Sources, managed through Admin
 - Opportunities
 - Portal instances and retrieval tasks
 - Opportunity documents

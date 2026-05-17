@@ -142,7 +142,7 @@ class BuyerPortalInstance(SQLModel, table=True):
     portal_url: str = ""
     account_reference: str = ""
     access_status: str = "unknown"
-    document_retrieval_mode: str = "manual"
+    document_retrieval_mode: str = "account_required_manual"
     notes: str = ""
     created_at: datetime = Field(default_factory=utc_now)
 

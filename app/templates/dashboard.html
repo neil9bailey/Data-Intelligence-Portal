@@ -2,12 +2,12 @@
 {% block content %}
 <section class="hero">
   <div>
-    <span class="eyebrow">Knowledge Research Agent enabled</span>
-    <h1>Public sector opportunity intelligence, ready to configure.</h1>
-    <p>Start with your customers, source watchlists and portal catalogue. KRA then helps track approved public sources, detect change, structure requirements and produce review-ready intelligence for sales, bid, strategy and delivery teams.</p>
+    <span class="eyebrow">Command View</span>
+    <h1>Live opportunity command view</h1>
+    <p>Track the current customer and framework pipeline, clear portal/account blockers, review source changes, and generate report packs when the intelligence is ready for human review.</p>
     <div class="actions">
-      <a class="button secondary" href="/sources">Review source pipeline</a>
-      <a class="button" href="/kra">Run KRA research</a>
+      <a class="button secondary" href="/review">Open review queue</a>
+      <a class="button" href="/reports">Generate report pack</a>
     </div>
   </div>
   <aside class="readiness">
@@ -32,7 +32,7 @@
 <section class="grid metrics">
   <div class="metric"><span class="value">{{ metrics.customers }}</span><span class="label">tracked customers</span></div>
   <div class="metric"><span class="value">{{ metrics.active_sources }}</span><span class="label">active public sources</span></div>
-  <div class="metric"><span class="value">{{ metrics.platforms }}</span><span class="label">portal platform families</span></div>
+  <div class="metric"><span class="value">{{ metrics.enabled_portal_connectors }}</span><span class="label">enabled retrieval connectors</span></div>
   <div class="metric"><span class="value">{{ metrics.news_items }}</span><span class="label">official feed items</span></div>
   <div class="metric"><span class="value">{{ metrics.requirements }}</span><span class="label">requirement themes</span></div>
 </section>
@@ -40,12 +40,12 @@
 <section class="panel setup-panel" style="margin-top:18px;">
   <div>
     <h2>Clean Setup Sequence</h2>
-    <p class="hint">This environment now starts without demo customers, opportunities or extracted information. Use the sequence below to configure the system from a clean baseline.</p>
+    <p class="hint">Create the account structure, confirm portal account ownership, run only approved read-only retrieval, then export reviewed reports.</p>
   </div>
   <div class="setup-steps">
     <a href="/business-units">1. Set business units</a>
     <a href="/customers">2. Add customers</a>
-    <a href="/sources">3. Confirm sources</a>
+    <a href="/portals">3. Set portal access</a>
     <a href="/review">4. Human gate</a>
     <a href="/reports">5. Export / email</a>
   </div>

@@ -86,8 +86,8 @@ def test_portal_workbench_guidance_and_task_creation(seeded_session):
         app.dependency_overrides.clear()
 
     assert page.status_code == 200
-    assert "Read-only retrieval intelligence" in page.text
-    assert "Make approved portal data available before the bid clock starts." in page.text
+    assert "Portal activation workflow" in page.text
+    assert "Turn buyer portals into a managed retrieval service." in page.text
     assert response.status_code == 303
     task = seeded_session.exec(select(DocumentRetrievalTask).where(DocumentRetrievalTask.task_name == "Retrieve ITT pack")).first()
     assert task is not None
@@ -124,7 +124,7 @@ def test_dashboard_uses_clean_setup_homepage(reference_session):
         app.dependency_overrides.clear()
 
     assert response.status_code == 200
-    assert "Public sector opportunity intelligence, ready to configure." in response.text
+    assert "Live opportunity command view" in response.text
     assert "One customer memory for every source, portal and requirement." not in response.text
     assert "Official Intelligence Feed" in response.text
 

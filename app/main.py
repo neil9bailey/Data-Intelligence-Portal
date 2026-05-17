@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
+import httpx
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -17,6 +19,8 @@ from app.database import (
     init_db,
     restore_sqlite_persistent_copy,
     retry_sqlite_locked,
+    sqlite_db_path,
+    sqlite_persistent_copy_path,
     sqlite_startup_lock,
 )
 from app.email_service import get_email_configuration, send_or_store_email, split_recipients
@@ -298,6 +302,7 @@ def status_badge_class(status: str) -> str:
 
 def portal_next_action(portal: BuyerPortalInstance, platform: ProcurementPlatform | None, open_task_count: int) -> str:
     status = normalise_status(portal.access_status)
+    mode = normalise_status(portal.document_retrieval_mode)
     if not portal.customer_id:
         return "Link the portal instance to the buyer/customer so captured intelligence can be reused."
     if not portal.platform_id or platform is None:
@@ -307,7 +312,7 @@ def portal_next_action(portal: BuyerPortalInstance, platform: ProcurementPlatfor
     if status in {"", "unknown"}:
         return "Confirm whether the supplier account is registered, blocked or needs access requested."
     if status in {"registration_required", "not_registered"}:
-        return "Assign an owner to complete supplier registration outside the app."
+        return "Assign a central supplier account owner to complete registration outside the app; store only the account reference here."
     if status == "access_requested":
         return "Track the access request and add due-date notes until the portal is usable."
     if status == "pending_mfa_owner":
@@ -316,6 +321,8 @@ def portal_next_action(portal: BuyerPortalInstance, platform: ProcurementPlatfor
         return "Escalate portal access before relying on it for bid document retrieval."
     if open_task_count:
         return "Complete the open manual document retrieval task, then paste permitted text into the opportunity documents screen."
+    if mode in {"approved_api", "api_key_header", "api_key_query"}:
+        return "Run the approved read-only connector before generating reports."
     return "Ready for manual-assisted document retrieval when a matching opportunity appears."
 
 
@@ -411,6 +418,14 @@ def portal_workbench_context(session: Session) -> dict:
             "blocked",
             "expired",
         ],
+        "retrieval_mode_options": [
+            "account_required_manual",
+            "approved_api",
+            "public_api_no_key",
+            "api_key_header",
+            "api_key_query",
+            "not_available",
+        ],
         "connector_method_options": ["manual_assisted", "public_api_no_key", "api_key_header", "api_key_query", "oauth_client_credentials"],
         "connector_auth_options": ["none", "api_key_header", "api_key_query"],
         "task_status_options": ["requested", "in_progress", "blocked", "review_required", "completed"],
@@ -437,9 +452,104 @@ def dashboard_metrics(session: Session) -> dict:
     }
 
 
+def file_status(path: Path | None) -> dict:
+    if path is None:
+        return {"path": "not configured", "exists": False, "size": ""}
+    exists = path.exists()
+    size = f"{path.stat().st_size / 1024:.1f} KB" if exists and path.is_file() else ""
+    return {"path": str(path), "exists": exists, "size": size}
+
+
+def remote_health_check(url: str) -> dict:
+    if not url:
+        return {"status": "not configured", "ok": False, "detail": ""}
+    try:
+        with httpx.Client(timeout=2.5, follow_redirects=False) as client:
+            response = client.get(url)
+        return {
+            "status": str(response.status_code),
+            "ok": response.status_code == 200,
+            "detail": response.text[:160],
+        }
+    except httpx.HTTPError as exc:
+        return {"status": "unreachable", "ok": False, "detail": str(exc)[:160]}
+
+
+def health_dashboard_context(session: Session, request: Request) -> dict:
+    settings = get_settings()
+    db_count = len(list(session.exec(select(BusinessUnit)))) + len(list(session.exec(select(Customer))))
+    sources = list(session.exec(select(ProcurementSource)))
+    source_snapshots = list(session.exec(select(SourceCheckSnapshot).order_by(col(SourceCheckSnapshot.checked_at).desc()).limit(20)))
+    connectors = list(session.exec(select(PortalInformationConnector)))
+    retrieval_runs = list(session.exec(select(PortalRetrievalRun).order_by(col(PortalRetrievalRun.started_at).desc()).limit(20)))
+    portals = list(session.exec(select(BuyerPortalInstance)))
+    tasks = list(session.exec(select(DocumentRetrievalTask)))
+    email_config = get_email_configuration(session)
+    email_logs = list(session.exec(select(EmailDeliveryLog).order_by(col(EmailDeliveryLog.created_at).desc()).limit(10)))
+    current_user = get_current_user(request)
+    source_failures = [item for item in source_snapshots if item.change_type == "failed" or not item.ok]
+    connector_failures = [item for item in retrieval_runs if item.status in {"failed", "blocked"}]
+    account_required = sum(
+        1
+        for portal in portals
+        if normalise_status(portal.document_retrieval_mode)
+        in {"", "manual", "manual_assisted", "account_required_manual", "not_available"}
+    )
+    return {
+        "deployment": {
+            "label": settings.deployment_label,
+            "public_domain": settings.public_domain,
+            "remote_url": settings.remote_health_url,
+            "remote": remote_health_check(settings.remote_health_url),
+        },
+        "database": {
+            "status": "ok" if db_count >= 0 else "warning",
+            "url": settings.database_url.split("@")[-1] if "@" in settings.database_url else settings.database_url,
+            "sqlite": file_status(sqlite_db_path()),
+            "persistent_copy": file_status(sqlite_persistent_copy_path()),
+        },
+        "email": {
+            "mode": email_config.delivery_mode,
+            "enabled": email_config.enabled,
+            "sender": email_config.sender_email,
+            "outbox": file_status(Path(settings.outbox_dir)),
+            "last_status": email_logs[0].status if email_logs else "not used",
+        },
+        "auth": {
+            "entra_enabled": settings.entra_auth_enabled,
+            "role": current_user.role,
+            "user": current_user.username,
+            "admin_group_configured": bool(settings.entra_admin_group_id),
+            "standard_group_configured": bool(settings.entra_standard_group_id),
+        },
+        "sources_health": {
+            "total": len(sources),
+            "active": sum(1 for item in sources if item.active),
+            "failures": len(source_failures),
+            "last_checked": source_snapshots[0].checked_at if source_snapshots else None,
+        },
+        "portal_health": {
+            "portals": len(portals),
+            "account_required": account_required,
+            "enabled_connectors": sum(1 for item in connectors if item.enabled),
+            "connector_failures": len(connector_failures),
+            "open_tasks": sum(1 for item in tasks if normalise_status(item.status) in TASK_OPEN_STATUSES),
+        },
+        "kra": kra_runtime_status(),
+        "recent_retrieval_runs": retrieval_runs[:8],
+        "recent_source_snapshots": source_snapshots[:8],
+        "recent_email_logs": email_logs,
+    }
+
+
 @app.get("/healthz")
 def healthz():
     return {"status": "ok", "app": get_settings().app_name}
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return Response(status_code=204)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -472,10 +582,20 @@ def refresh_news(session: Session = Depends(get_session)):
 @app.get("/workflow", response_class=HTMLResponse)
 def workflow(request: Request, session: Session = Depends(get_session)):
     workflow_rules = load_rule_file("workflow.yml")
+    opportunities = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(5)))
+    recent_runs = list(session.exec(select(PortalRetrievalRun).order_by(col(PortalRetrievalRun.started_at).desc()).limit(5)))
     return templates.TemplateResponse(
         request,
         "workflow.html",
-        context(request, workflow=workflow_rules, metrics=dashboard_metrics(session), **reference_context(session)),
+        context(
+            request,
+            workflow=workflow_rules,
+            metrics=dashboard_metrics(session),
+            portal_metrics=portal_workbench_context(session)["portal_metrics"],
+            recent_opportunities=opportunities,
+            recent_retrieval_runs=recent_runs,
+            **reference_context(session),
+        ),
     )
 
 
@@ -595,7 +715,13 @@ def admin(request: Request, session: Session = Depends(get_session), _user=Depen
     return templates.TemplateResponse(
         request,
         "admin.html",
-        context(request, email_config=email_config, email_logs=email_logs),
+        context(
+            request,
+            email_config=email_config,
+            email_logs=email_logs,
+            health=health_dashboard_context(session, request),
+            **reference_context(session),
+        ),
     )
 
 
@@ -1090,7 +1216,9 @@ async def create_portal(request: Request, session: Session = Depends(get_session
         customer_id=customer_id,
         business_unit_id=business_unit_id,
         portal_url=str(form.get("portal_url") or ""),
+        account_reference=str(form.get("account_reference") or ""),
         access_status=str(form.get("access_status") or "unknown"),
+        document_retrieval_mode=str(form.get("document_retrieval_mode") or "account_required_manual"),
         notes=str(form.get("notes") or ""),
     )
     save_with_audit(session, portal, "create", f"Created portal {portal.portal_name}")
@@ -1120,7 +1248,7 @@ async def update_portal(portal_id: int, request: Request, session: Session = Dep
     portal.portal_url = str(form.get("portal_url") or "")
     portal.account_reference = str(form.get("account_reference") or "")
     portal.access_status = str(form.get("access_status") or "unknown")
-    portal.document_retrieval_mode = str(form.get("document_retrieval_mode") or "manual")
+    portal.document_retrieval_mode = str(form.get("document_retrieval_mode") or "account_required_manual")
     portal.notes = str(form.get("notes") or "")
     update_with_audit(session, portal, f"Updated portal {portal.portal_name}", before)
     return redirect("/portals")

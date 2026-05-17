@@ -30,6 +30,9 @@ class Settings:
         self.entra_admin_group_name: str = os.getenv("ENTRA_ADMIN_GROUP_NAME", "Data Intelligence Portal Admin Users")
         self.entra_standard_group_name: str = os.getenv("ENTRA_STANDARD_GROUP_NAME", "Data Intelligence Portal Standard Users")
         self.outbox_dir: str = os.getenv("DIP_OUTBOX_DIR", str(ROOT_DIR / ".outbox"))
+        self.public_domain: str = os.getenv("DIP_PUBLIC_DOMAIN", "dip.vendorlogic.io")
+        self.remote_health_url: str = os.getenv("DIP_REMOTE_HEALTH_URL", "https://dip.vendorlogic.io/healthz")
+        self.deployment_label: str = os.getenv("DIP_DEPLOYMENT_LABEL", "local")
 
 
 @lru_cache
