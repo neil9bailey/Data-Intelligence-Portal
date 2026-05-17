@@ -46,6 +46,7 @@
       <div class="field"><label>Report type</label><input name="report_type" value="executive_summary"></div>
       <div class="field"><label>Customer</label><select name="customer_id"><option value="">All customers</option>{% for customer in customers %}<option value="{{ customer.id }}">{{ customer.customer_name }}</option>{% endfor %}</select></div>
       <div class="field"><label>Business unit</label><select name="business_unit_id"><option value="">All business units</option>{% for unit in business_units %}<option value="{{ unit.id }}">{{ unit.name }}</option>{% endfor %}</select></div>
+      <label class="checkline"><input type="checkbox" name="auto_retrieve" value="true" checked> Run enabled read-only retrieval connectors before report generation</label>
       <button type="submit">Generate report</button>
     </form>
   </div>

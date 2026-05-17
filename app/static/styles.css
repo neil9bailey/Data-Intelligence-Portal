@@ -238,6 +238,27 @@ p { margin: 0 0 12px; }
   min-width: 260px;
 }
 .platform-family { border-left: 5px solid var(--cyan); }
+.connector-row { border-left: 5px solid #54a044; }
+.connector-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+.connector-pill {
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 12px;
+}
+.connector-pill span { color: var(--ink); font-weight: 900; }
+.connector-pill strong { color: var(--green); font-size: 11px; text-transform: uppercase; }
 .portal-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

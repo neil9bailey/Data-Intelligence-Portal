@@ -13,6 +13,8 @@ from app.models import (
     KRAFinding,
     Opportunity,
     OpportunityDocument,
+    PortalInformationConnector,
+    PortalRetrievalRun,
     ProcurementSource,
     SourceCheckSnapshot,
 )
@@ -40,6 +42,8 @@ def generate_intelligence_report_markdown(
         documents = list(session.exec(select(OpportunityDocument).where(OpportunityDocument.opportunity_id.in_(opportunity_ids))))
         questions = list(session.exec(select(ExtractedQualityQuestion).where(ExtractedQualityQuestion.opportunity_id.in_(opportunity_ids))))
     sources = list(session.exec(select(ProcurementSource).order_by(col(ProcurementSource.name))))
+    connectors = list(session.exec(select(PortalInformationConnector).order_by(col(PortalInformationConnector.connector_name))))
+    retrieval_runs = list(session.exec(select(PortalRetrievalRun).order_by(col(PortalRetrievalRun.started_at).desc()).limit(10)))
     snapshots = list(session.exec(select(SourceCheckSnapshot).order_by(col(SourceCheckSnapshot.checked_at).desc()).limit(10)))
     findings = list(session.exec(select(KRAFinding).order_by(col(KRAFinding.created_at).desc()).limit(20)))
     customer = session.get(Customer, customer_id) if customer_id else None
@@ -62,6 +66,20 @@ def generate_intelligence_report_markdown(
         f"- {item.title}: {item.document_type}; {item.retrieval_status}; {item.platform_name or 'no platform'}"
         for item in documents
     ] or ["- No documents captured."]
+    connector_lines = [
+        (
+            f"- {item.connector_name}: {item.integration_method}; auth {item.auth_type}; "
+            f"{'enabled' if item.enabled else 'disabled'}; last status {item.last_status}"
+        )
+        for item in connectors
+    ] or ["- No portal retrieval connectors configured."]
+    retrieval_lines = [
+        (
+            f"- {item.started_at.date()} connector {item.connector_id}: {item.status}; HTTP {item.http_status or 'n/a'}; "
+            f"documents {item.documents_created}; findings {item.findings_created}; {item.error_summary or 'read-only retrieval'}"
+        )
+        for item in retrieval_runs
+    ] or ["- No automated retrieval runs recorded."]
     question_lines = [
         f"- {item.requirement_theme}: {item.question_text[:220]} weighting {item.weighting or 'not detected'} ({item.human_review_status})"
         for item in questions
@@ -100,6 +118,15 @@ This report consolidates customer, source, portal, opportunity, document and req
 
 ## Documents And Retrieval
 {chr(10).join(document_lines)}
+
+## Automated Portal Retrieval
+
+Read-only retrieval connectors are used only where an approved public/API route exists. API keys are referenced by secret name or environment variable and are not written into reports.
+
+{chr(10).join(connector_lines)}
+
+### Latest Retrieval Runs
+{chr(10).join(retrieval_lines)}
 
 ## Requirement Themes
 {chr(10).join(requirement_lines)}

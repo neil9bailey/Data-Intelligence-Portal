@@ -147,6 +147,44 @@ class BuyerPortalInstance(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utc_now)
 
 
+class PortalInformationConnector(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    connector_name: str = Field(index=True)
+    portal_instance_id: Optional[int] = Field(default=None, foreign_key="buyerportalinstance.id", index=True)
+    integration_method: str = "manual_assisted"
+    endpoint_url: str = ""
+    auth_type: str = "none"
+    api_key_secret_name: str = ""
+    api_key_header_name: str = "X-API-Key"
+    api_key_query_name: str = "api_key"
+    default_opportunity_id: Optional[int] = Field(default=None, foreign_key="opportunity.id")
+    enabled: bool = False
+    read_only: bool = True
+    allowed_operations: str = "retrieve_metadata; retrieve_documents; detect_changes"
+    last_checked_at: Optional[datetime] = None
+    last_status: str = "not_checked"
+    last_http_status: int = 0
+    notes: str = ""
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class PortalRetrievalRun(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    connector_id: Optional[int] = Field(default=None, foreign_key="portalinformationconnector.id", index=True)
+    portal_instance_id: Optional[int] = Field(default=None, foreign_key="buyerportalinstance.id")
+    opportunity_id: Optional[int] = Field(default=None, foreign_key="opportunity.id")
+    started_at: datetime = Field(default_factory=utc_now, index=True)
+    finished_at: Optional[datetime] = None
+    status: str = "started"
+    http_status: int = 0
+    content_hash: str = Field(default="", index=True)
+    items_found: int = 0
+    documents_created: int = 0
+    findings_created: int = 0
+    error_summary: str = ""
+    guardrail_summary: str = "Read-only information retrieval only. No portal login, expressions of interest or submissions are automated."
+
+
 class Opportunity(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     source_id: Optional[int] = Field(default=None, foreign_key="procurementsource.id")

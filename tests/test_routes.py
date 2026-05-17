@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import select
 
 from app.database import get_session
+from app.intelligence import FetchResult
 from app.main import app
 from app.models import (
     AuditEvent,
@@ -14,11 +15,15 @@ from app.models import (
     ExtractedQualityQuestion,
     ExtractedRequirement,
     IntelligenceReport,
+    KRAFinding,
     Opportunity,
     OpportunityDocument,
+    PortalInformationConnector,
+    PortalRetrievalRun,
     ProcurementPlatform,
     ProcurementSource,
 )
+from app.portal_connectors import run_portal_connector
 from app.reports import create_report
 
 
@@ -81,8 +86,8 @@ def test_portal_workbench_guidance_and_task_creation(seeded_session):
         app.dependency_overrides.clear()
 
     assert page.status_code == 200
-    assert "Manual-assisted portal intelligence" in page.text
-    assert "Make the buyer portals operational before the bid clock starts." in page.text
+    assert "Read-only retrieval intelligence" in page.text
+    assert "Make approved portal data available before the bid clock starts." in page.text
     assert response.status_code == 303
     task = seeded_session.exec(select(DocumentRetrievalTask).where(DocumentRetrievalTask.task_name == "Retrieve ITT pack")).first()
     assert task is not None
@@ -159,6 +164,54 @@ def test_admin_email_test_route(reference_session):
 
     assert response.status_code == 303
     assert reference_session.exec(select(EmailDeliveryLog)).first() is not None
+
+
+def test_read_only_portal_connector_retrieves_document_for_reports(seeded_session):
+    portal = seeded_session.exec(select(BuyerPortalInstance)).first()
+    opportunity = seeded_session.exec(select(Opportunity)).first()
+    client = client_for(seeded_session)
+    try:
+        response = client.post(
+            "/portal-connectors",
+            data={
+                "connector_name": "Route connector",
+                "portal_instance_id": str(portal.id),
+                "default_opportunity_id": str(opportunity.id),
+                "integration_method": "public_api_no_key",
+                "auth_type": "none",
+                "endpoint_url": "https://procontract.due-north.com/api/notices",
+                "enabled": "true",
+                "notes": "Read-only test connector.",
+            },
+            follow_redirects=False,
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 303
+    connector = seeded_session.exec(select(PortalInformationConnector).where(PortalInformationConnector.connector_name == "Route connector")).first()
+    assert connector is not None
+
+    def fake_fetcher(item):
+        assert item.id == connector.id
+        return FetchResult(
+            True,
+            200,
+            item.endpoint_url,
+            "Question 1: Describe your resilient operational technology service. Weighting 20%",
+            "text/plain",
+        )
+
+    run = run_portal_connector(seeded_session, connector.id, fetcher=fake_fetcher)
+    assert run.status == "completed"
+    assert run.documents_created == 1
+    assert seeded_session.exec(select(PortalRetrievalRun)).first() is not None
+    assert seeded_session.exec(select(OpportunityDocument).where(OpportunityDocument.document_type == "automated_retrieval")).first() is not None
+    assert seeded_session.exec(select(KRAFinding).where(KRAFinding.finding_type == "portal_retrieval")).first() is None
+
+    report = create_report(seeded_session, "Connector report")
+    assert "Automated Portal Retrieval" in report.markdown
+    assert "Route connector" in report.markdown
 
 
 def test_user_managed_records_can_be_updated_and_deleted(seeded_session):

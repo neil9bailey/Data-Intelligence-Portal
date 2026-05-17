@@ -145,6 +145,29 @@ KRA can:
 - extract quality questions and weighting signals from permitted document text
 - generate Markdown reports
 
+## Read-Only Portal Retrieval Connectors
+
+The Portal Workbench supports approved automated information retrieval where a portal or source provider offers a permitted API/public endpoint.
+
+Connector principles:
+
+- retrieval only; no expressions of interest, portal submissions, messages or customer contact automation
+- read-only by design
+- endpoint host must be on an approved source domain or the configured portal/platform domain
+- API keys are referenced by environment variable / Key Vault secret name only
+- secret values are not stored in SQLite, displayed in the UI or written into reports
+- retrieved information is marked pending human review before onward use
+
+Supported MVP auth modes:
+
+- no key / public API
+- API key in header
+- API key in query string
+
+Use `/portals` to add a connector, link it to a buyer portal and optionally link it to a default opportunity. When linked to an opportunity, a successful retrieval creates or updates an opportunity document and runs requirement extraction. When not linked to an opportunity, the retrieval creates a KRA finding for review.
+
+Reports can automatically run enabled read-only retrieval connectors before generation, so end-user briefing packs can include the latest retrieved information where provider permissions and guardrails allow it.
+
 ## COF Source-To-Inbox Workflow
 
 Pages 2 and 3 of the COF design draft have been mapped into the product as a configurable workflow at `/workflow`.

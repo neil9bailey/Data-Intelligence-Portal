@@ -50,11 +50,14 @@ from app.models import (
     NewsFeedSource,
     Opportunity,
     OpportunityDocument,
+    PortalInformationConnector,
+    PortalRetrievalRun,
     ProcurementPlatform,
     ProcurementSource,
     SourceCheckSnapshot,
     utc_now,
 )
+from app.portal_connectors import run_enabled_portal_connectors, run_portal_connector
 from app.reports import create_report
 from app.rule_loader import load_rule_file, rules_version_summary
 from app.seed import seed_demo_data, seed_reference_data
@@ -178,6 +181,7 @@ def reference_context(session: Session) -> dict:
     sources = list(session.exec(select(ProcurementSource).order_by(col(ProcurementSource.name))))
     platforms = list(session.exec(select(ProcurementPlatform).order_by(col(ProcurementPlatform.name))))
     portals = list(session.exec(select(BuyerPortalInstance).order_by(col(BuyerPortalInstance.portal_name))))
+    connectors = list(session.exec(select(PortalInformationConnector).order_by(col(PortalInformationConnector.connector_name))))
     agents = list(session.exec(select(KRAAgentProfile).order_by(col(KRAAgentProfile.name))))
     news_feeds = list(session.exec(select(NewsFeedSource).order_by(col(NewsFeedSource.name))))
     return {
@@ -186,6 +190,7 @@ def reference_context(session: Session) -> dict:
         "sources": sources,
         "platforms": platforms,
         "portal_instances": portals,
+        "portal_connectors": connectors,
         "agents": agents,
         "news_feeds": news_feeds,
         "customer_map": {item.id: item for item in customers},
@@ -193,6 +198,7 @@ def reference_context(session: Session) -> dict:
         "source_map": {item.id: item for item in sources},
         "platform_map": {item.id: item for item in platforms},
         "portal_map": {item.id: item for item in portals},
+        "portal_connector_map": {item.id: item for item in connectors},
         "agent_map": {item.id: item for item in agents},
         "news_feed_map": {item.id: item for item in news_feeds},
     }
@@ -316,6 +322,8 @@ def portal_next_action(portal: BuyerPortalInstance, platform: ProcurementPlatfor
 def portal_workbench_context(session: Session) -> dict:
     platforms = list(session.exec(select(ProcurementPlatform).order_by(col(ProcurementPlatform.name))))
     portals = list(session.exec(select(BuyerPortalInstance).order_by(col(BuyerPortalInstance.portal_name))))
+    connectors = list(session.exec(select(PortalInformationConnector).order_by(col(PortalInformationConnector.connector_name))))
+    retrieval_runs = list(session.exec(select(PortalRetrievalRun).order_by(col(PortalRetrievalRun.started_at).desc()).limit(80)))
     tasks = list(session.exec(select(DocumentRetrievalTask).order_by(col(DocumentRetrievalTask.created_at).desc())))
     opportunities = list(session.exec(select(Opportunity).order_by(col(Opportunity.created_at).desc()).limit(100)))
 
@@ -324,12 +332,17 @@ def portal_workbench_context(session: Session) -> dict:
     for task in tasks:
         if task.portal_instance_id:
             portal_task_map.setdefault(task.portal_instance_id, []).append(task)
+    portal_connector_map: dict[int, list[PortalInformationConnector]] = {}
+    for connector in connectors:
+        if connector.portal_instance_id:
+            portal_connector_map.setdefault(connector.portal_instance_id, []).append(connector)
 
     readiness_items = []
     for portal in portals:
         platform = platform_map.get(portal.platform_id)
         portal_tasks = portal_task_map.get(portal.id or 0, [])
         open_tasks = [task for task in portal_tasks if normalise_status(task.status) in TASK_OPEN_STATUSES]
+        portal_connectors = portal_connector_map.get(portal.id or 0, [])
         status = normalise_status(portal.access_status)
         missing_items = []
         if not portal.customer_id:
@@ -346,6 +359,7 @@ def portal_workbench_context(session: Session) -> dict:
                 "platform": platform,
                 "tasks": portal_tasks,
                 "open_tasks": open_tasks,
+                "connectors": portal_connectors,
                 "missing_items": missing_items,
                 "next_action": portal_next_action(portal, platform, len(open_tasks)),
                 "badge_class": status_badge_class(portal.access_status),
@@ -372,10 +386,12 @@ def portal_workbench_context(session: Session) -> dict:
     metrics = {
         "platforms": len(platforms),
         "portal_instances": len(portals),
+        "automated_connectors": sum(1 for connector in connectors if connector.enabled),
         "ready_portals": sum(1 for item in readiness_items if item["ready"]),
         "needs_action": sum(1 for item in readiness_items if item["needs_action"]),
         "open_tasks": len(open_tasks),
         "missing_urls": sum(1 for portal in portals if not portal.portal_url),
+        "retrieval_runs": len(retrieval_runs),
     }
     return {
         "portal_metrics": metrics,
@@ -383,6 +399,7 @@ def portal_workbench_context(session: Session) -> dict:
         "portal_readiness_items": readiness_items,
         "portal_tasks": tasks[:80],
         "open_portal_tasks": open_tasks[:80],
+        "retrieval_runs": retrieval_runs,
         "opportunities": opportunities,
         "portal_status_options": [
             "unknown",
@@ -394,6 +411,8 @@ def portal_workbench_context(session: Session) -> dict:
             "blocked",
             "expired",
         ],
+        "connector_method_options": ["manual_assisted", "public_api_no_key", "api_key_header", "api_key_query", "oauth_client_credentials"],
+        "connector_auth_options": ["none", "api_key_header", "api_key_query"],
         "task_status_options": ["requested", "in_progress", "blocked", "review_required", "completed"],
     }
 
@@ -404,6 +423,8 @@ def dashboard_metrics(session: Session) -> dict:
         "sources": len(list(session.exec(select(ProcurementSource)))),
         "active_sources": len(list(session.exec(select(ProcurementSource).where(ProcurementSource.active == True)))),  # noqa: E712
         "platforms": len(list(session.exec(select(ProcurementPlatform)))),
+        "portal_connectors": len(list(session.exec(select(PortalInformationConnector)))),
+        "enabled_portal_connectors": len(list(session.exec(select(PortalInformationConnector).where(PortalInformationConnector.enabled == True)))),  # noqa: E712
         "opportunities": len(list(session.exec(select(Opportunity)))),
         "documents": len(list(session.exec(select(OpportunityDocument)))),
         "requirements": len(list(session.exec(select(ExtractedRequirement)))),
@@ -891,6 +912,8 @@ def delete_opportunity(opportunity_id: int, session: Session = Depends(get_sessi
     delete_children(session, ExtractedQualityQuestion, "opportunity_id", opportunity.id)
     delete_children(session, OpportunityDocument, "opportunity_id", opportunity.id)
     delete_children(session, DocumentRetrievalTask, "opportunity_id", opportunity.id)
+    clear_links(session, PortalInformationConnector, "default_opportunity_id", opportunity.id)
+    clear_links(session, PortalRetrievalRun, "opportunity_id", opportunity.id)
     clear_links(session, ClientInterestSignal, "opportunity_id", opportunity.id)
     clear_links(session, ExtractedRequirement, "opportunity_id", opportunity.id)
     clear_links(session, KRAFinding, "opportunity_id", opportunity.id)
@@ -1109,7 +1132,106 @@ def delete_portal(portal_id: int, session: Session = Depends(get_session)):
     if not portal:
         return redirect("/portals")
     clear_links(session, DocumentRetrievalTask, "portal_instance_id", portal.id)
+    clear_links(session, PortalInformationConnector, "portal_instance_id", portal.id)
+    clear_links(session, PortalRetrievalRun, "portal_instance_id", portal.id)
     delete_with_audit(session, portal, f"Deleted portal {portal.portal_name}")
+    return redirect("/portals")
+
+
+@app.post("/portal-connectors")
+async def create_portal_connector(request: Request, session: Session = Depends(get_session)):
+    form = await request.form()
+    errors: list[str] = []
+    name = str(form.get("connector_name") or "").strip()
+    portal_id = parse_optional_int(form.get("portal_instance_id"), "Portal instance", errors)
+    opportunity_id = parse_optional_int(form.get("default_opportunity_id"), "Default opportunity", errors)
+    integration_method = str(form.get("integration_method") or "manual_assisted")
+    auth_type = str(form.get("auth_type") or "none")
+    endpoint_url = str(form.get("endpoint_url") or "").strip()
+    if not name:
+        errors.append("Connector name is required.")
+    if integration_method != "manual_assisted" and not endpoint_url:
+        errors.append("Endpoint URL is required for automated retrieval connectors.")
+    if errors:
+        return validation_error_response(errors, "/portals")
+    connector = PortalInformationConnector(
+        connector_name=name,
+        portal_instance_id=portal_id,
+        integration_method=integration_method,
+        endpoint_url=endpoint_url,
+        auth_type=auth_type,
+        api_key_secret_name=str(form.get("api_key_secret_name") or ""),
+        api_key_header_name=str(form.get("api_key_header_name") or "X-API-Key"),
+        api_key_query_name=str(form.get("api_key_query_name") or "api_key"),
+        default_opportunity_id=opportunity_id,
+        enabled=parse_bool(form.get("enabled")),
+        read_only=True,
+        allowed_operations=str(form.get("allowed_operations") or "retrieve_metadata; retrieve_documents; detect_changes"),
+        notes=str(form.get("notes") or ""),
+    )
+    save_with_audit(session, connector, "create", f"Created portal retrieval connector {connector.connector_name}")
+    return redirect("/portals")
+
+
+@app.post("/portal-connectors/{connector_id}")
+async def update_portal_connector(connector_id: int, request: Request, session: Session = Depends(get_session)):
+    connector = session.get(PortalInformationConnector, connector_id)
+    if not connector:
+        return redirect("/portals")
+    form = await request.form()
+    errors: list[str] = []
+    name = str(form.get("connector_name") or "").strip()
+    portal_id = parse_optional_int(form.get("portal_instance_id"), "Portal instance", errors)
+    opportunity_id = parse_optional_int(form.get("default_opportunity_id"), "Default opportunity", errors)
+    integration_method = str(form.get("integration_method") or "manual_assisted")
+    auth_type = str(form.get("auth_type") or "none")
+    endpoint_url = str(form.get("endpoint_url") or "").strip()
+    if not name:
+        errors.append("Connector name is required.")
+    if integration_method != "manual_assisted" and not endpoint_url:
+        errors.append("Endpoint URL is required for automated retrieval connectors.")
+    if errors:
+        return validation_error_response(errors, "/portals")
+    before = compact_snapshot(connector)
+    connector.connector_name = name
+    connector.portal_instance_id = portal_id
+    connector.integration_method = integration_method
+    connector.endpoint_url = endpoint_url
+    connector.auth_type = auth_type
+    connector.api_key_secret_name = str(form.get("api_key_secret_name") or "")
+    connector.api_key_header_name = str(form.get("api_key_header_name") or "X-API-Key")
+    connector.api_key_query_name = str(form.get("api_key_query_name") or "api_key")
+    connector.default_opportunity_id = opportunity_id
+    connector.enabled = parse_bool(form.get("enabled"))
+    connector.read_only = True
+    connector.allowed_operations = str(form.get("allowed_operations") or "retrieve_metadata; retrieve_documents; detect_changes")
+    connector.notes = str(form.get("notes") or "")
+    update_with_audit(session, connector, f"Updated portal retrieval connector {connector.connector_name}", before)
+    return redirect("/portals")
+
+
+@app.post("/portal-connectors/{connector_id}/delete")
+def delete_portal_connector(connector_id: int, session: Session = Depends(get_session)):
+    connector = session.get(PortalInformationConnector, connector_id)
+    if not connector:
+        return redirect("/portals")
+    clear_links(session, PortalRetrievalRun, "connector_id", connector.id)
+    delete_with_audit(session, connector, f"Deleted portal retrieval connector {connector.connector_name}")
+    return redirect("/portals")
+
+
+@app.post("/portal-connectors/{connector_id}/run")
+def run_single_portal_connector(connector_id: int, session: Session = Depends(get_session)):
+    try:
+        run_portal_connector(session, connector_id)
+    except ValueError as exc:
+        return validation_error_response([str(exc)], "/portals")
+    return redirect("/portals")
+
+
+@app.post("/portal-connectors/run-all")
+def run_all_portal_connectors(session: Session = Depends(get_session)):
+    run_enabled_portal_connectors(session)
     return redirect("/portals")
 
 
@@ -1318,6 +1440,8 @@ async def create_intelligence_report(request: Request, session: Session = Depend
     name = str(form.get("report_name") or "Data intelligence summary").strip()
     if errors:
         return validation_error_response(errors, "/reports")
+    if parse_bool(form.get("auto_retrieve")):
+        run_enabled_portal_connectors(session, customer_id=customer_id, business_unit_id=business_unit_id)
     report = create_report(session, name, str(form.get("report_type") or "executive_summary"), customer_id, business_unit_id)
     return redirect(f"/reports/{report.id}")
 

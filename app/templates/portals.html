@@ -11,21 +11,22 @@
 
 <section class="portal-command">
   <div>
-    <span class="eyebrow">Manual-assisted portal intelligence</span>
-    <h2>Make the buyer portals operational before the bid clock starts.</h2>
-    <p>Use this page to record where each customer publishes documents, whether the supplier account is usable, who owns retrieval, and what still needs human action.</p>
+    <span class="eyebrow">Read-only retrieval intelligence</span>
+    <h2>Make approved portal data available before the bid clock starts.</h2>
+    <p>Use this page to record buyer portals, configure approved read-only API connectors, track retrieval status and push retrieved information into reports for human review.</p>
   </div>
   <ol class="activation-steps">
     <li><strong>1. Link</strong><span>Create one portal instance per buyer/customer and platform family.</span></li>
-    <li><strong>2. Verify</strong><span>Record registration, MFA owner, blocked or expired access status.</span></li>
-    <li><strong>3. Retrieve</strong><span>Create manual document tasks for each portal opportunity.</span></li>
-    <li><strong>4. Extract</strong><span>Paste permitted ITT text into opportunity documents for KRA extraction.</span></li>
+    <li><strong>2. Approve</strong><span>Record whether automated retrieval is permitted and read-only.</span></li>
+    <li><strong>3. Connect</strong><span>Use API key references only where the provider supports it.</span></li>
+    <li><strong>4. Report</strong><span>Run retrieval before generating end-user intelligence packs.</span></li>
   </ol>
 </section>
 
 <section class="grid metrics portal-metrics">
   <div class="metric"><span class="value">{{ portal_metrics.platforms }}</span><span class="label">platform families configured</span></div>
   <div class="metric"><span class="value">{{ portal_metrics.portal_instances }}</span><span class="label">buyer portal instances</span></div>
+  <div class="metric"><span class="value">{{ portal_metrics.automated_connectors }}</span><span class="label">enabled retrieval connectors</span></div>
   <div class="metric"><span class="value">{{ portal_metrics.ready_portals }}</span><span class="label">registered / active portals</span></div>
   <div class="metric"><span class="value">{{ portal_metrics.needs_action }}</span><span class="label">portals needing action</span></div>
   <div class="metric"><span class="value">{{ portal_metrics.open_tasks }}</span><span class="label">open retrieval tasks</span></div>
@@ -84,7 +85,10 @@
 <section class="panel" style="margin-top:18px;">
   <div class="panel-title">
     <h2>Buyer Portal Readiness</h2>
-    <span class="badge cyan">{{ portal_metrics.missing_urls }} missing URL</span>
+    <div class="record-actions">
+      <form method="post" action="/portal-connectors/run-all"><button class="compact" type="submit">Run enabled retrieval</button></form>
+      <span class="badge cyan">{{ portal_metrics.missing_urls }} missing URL</span>
+    </div>
   </div>
   <div class="portal-grid">
     {% for item in portal_readiness_items %}
@@ -109,12 +113,23 @@
         <span class="badge weak">{{ platform.name if platform else "No platform" }}</span>
         {% if portal.portal_url %}<a class="badge cyan" href="{{ portal.portal_url }}" target="_blank" rel="noreferrer">open portal</a>{% else %}<span class="badge red">missing URL</span>{% endif %}
         {% if item.open_tasks %}<span class="badge amber">{{ item.open_tasks | length }} open task</span>{% endif %}
+        {% if item.connectors %}<span class="badge green">{{ item.connectors | length }} connector</span>{% else %}<span class="badge weak">no connector</span>{% endif %}
       </div>
       {% if item.missing_items %}
       <p class="warning-text">Missing: {{ item.missing_items | join(", ") }}.</p>
       {% endif %}
       <p>{{ item.next_action }}</p>
       {% if portal.notes %}<p class="hint">{{ portal.notes }}</p>{% endif %}
+      {% if item.connectors %}
+      <div class="connector-list">
+        {% for connector in item.connectors %}
+        <div class="connector-pill">
+          <span>{{ connector.connector_name }}</span>
+          <strong>{{ connector.last_status }}</strong>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
       <details class="edit-drawer">
         <summary>Edit portal</summary>
         <form method="post" action="/portals/{{ portal.id }}">
@@ -156,6 +171,122 @@
     {% else %}
     <p>No buyer portal instances yet. Add the first customer portal instance above.</p>
     {% endfor %}
+  </div>
+</section>
+
+<section class="grid two" style="margin-top:18px;">
+  <div class="panel">
+    <div class="panel-title">
+      <h2>Automated Information Retrieval</h2>
+      <span class="badge green">read-only</span>
+    </div>
+    <div class="stack">
+      {% for connector in portal_connectors %}
+      {% set portal = portal_map.get(connector.portal_instance_id) %}
+      {% set opportunity = opportunities|selectattr('id', 'equalto', connector.default_opportunity_id)|first %}
+      <article class="list-item connector-row">
+        <div class="list-heading">
+          <div>
+            <h3>{{ connector.connector_name }}</h3>
+            <p class="hint">{{ portal.portal_name if portal else "No portal linked" }}{% if opportunity %} | {{ opportunity.title }}{% endif %}</p>
+          </div>
+          <div class="record-actions">
+            <span class="badge {{ 'green' if connector.enabled else 'weak' }}">{{ 'enabled' if connector.enabled else 'disabled' }}</span>
+            <form method="post" action="/portal-connectors/{{ connector.id }}/run"><button class="compact" type="submit">Run</button></form>
+            <form method="post" action="/portal-connectors/{{ connector.id }}/delete" onsubmit="return confirm('Delete this retrieval connector? Retrieval run history will remain but lose the connector link.');"><button class="danger compact" type="submit">Delete</button></form>
+          </div>
+        </div>
+        <div class="badges">
+          <span class="badge cyan">{{ connector.integration_method | replace('_', ' ') }}</span>
+          <span class="badge weak">{{ connector.auth_type | replace('_', ' ') }}</span>
+          <span class="badge {{ 'green' if connector.read_only else 'red' }}">{{ 'read only' if connector.read_only else 'write capable' }}</span>
+        </div>
+        <p class="hint">{{ connector.endpoint_url or "No endpoint configured" }}</p>
+        <p>{{ connector.notes }}</p>
+        <details class="edit-drawer">
+          <summary>Edit connector</summary>
+          <form method="post" action="/portal-connectors/{{ connector.id }}">
+            <div class="field"><label>Connector name</label><input name="connector_name" value="{{ connector.connector_name }}" required></div>
+            <div class="form-grid">
+              <div class="field"><label>Portal instance</label><select name="portal_instance_id"><option value="">Not linked</option>{% for item in portal_instances %}<option value="{{ item.id }}" {% if connector.portal_instance_id == item.id %}selected{% endif %}>{{ item.portal_name }}</option>{% endfor %}</select></div>
+              <div class="field"><label>Default opportunity</label><select name="default_opportunity_id"><option value="">Create finding only</option>{% for opportunity in opportunities %}<option value="{{ opportunity.id }}" {% if connector.default_opportunity_id == opportunity.id %}selected{% endif %}>{{ opportunity.title }}</option>{% endfor %}</select></div>
+            </div>
+            <div class="form-grid">
+              <div class="field"><label>Integration method</label><select name="integration_method">{% for option in connector_method_options %}<option value="{{ option }}" {% if connector.integration_method == option %}selected{% endif %}>{{ option | replace('_', ' ') | title }}</option>{% endfor %}</select></div>
+              <div class="field"><label>Auth type</label><select name="auth_type">{% for option in connector_auth_options %}<option value="{{ option }}" {% if connector.auth_type == option %}selected{% endif %}>{{ option | replace('_', ' ') | title }}</option>{% endfor %}</select></div>
+            </div>
+            <div class="field"><label>Endpoint URL</label><input name="endpoint_url" value="{{ connector.endpoint_url }}" placeholder="https://..."></div>
+            <div class="form-grid">
+              <div class="field"><label>API key secret environment variable</label><input name="api_key_secret_name" value="{{ connector.api_key_secret_name }}" placeholder="DELTA_API_KEY"></div>
+              <div class="field"><label>Header name</label><input name="api_key_header_name" value="{{ connector.api_key_header_name }}"></div>
+            </div>
+            <div class="form-grid">
+              <div class="field"><label>Query parameter name</label><input name="api_key_query_name" value="{{ connector.api_key_query_name }}"></div>
+              <div class="field"><label>Enabled</label><select name="enabled"><option value="true" {% if connector.enabled %}selected{% endif %}>Yes</option><option value="false" {% if not connector.enabled %}selected{% endif %}>No</option></select></div>
+            </div>
+            <div class="field"><label>Allowed operations</label><input name="allowed_operations" value="{{ connector.allowed_operations }}"></div>
+            <div class="field"><label>Notes</label><textarea name="notes">{{ connector.notes }}</textarea></div>
+            <button type="submit">Save connector</button>
+          </form>
+        </details>
+      </article>
+      {% else %}
+      <p>No automated retrieval connectors configured yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Add Retrieval Connector</h2>
+    <p class="hint">Use this only for approved read-only information retrieval. Store the API key in an environment variable or Key Vault mapping, then reference its name here.</p>
+    <form method="post" action="/portal-connectors">
+      <div class="field"><label>Connector name</label><input name="connector_name" placeholder="National Highways ProContract API lookup" required></div>
+      <div class="form-grid">
+        <div class="field"><label>Portal instance</label><select name="portal_instance_id"><option value="">Not linked</option>{% for portal in portal_instances %}<option value="{{ portal.id }}">{{ portal.portal_name }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Default opportunity</label><select name="default_opportunity_id"><option value="">Create finding only</option>{% for opportunity in opportunities %}<option value="{{ opportunity.id }}">{{ opportunity.title }}</option>{% endfor %}</select></div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Integration method</label><select name="integration_method">{% for option in connector_method_options %}<option value="{{ option }}">{{ option | replace('_', ' ') | title }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Auth type</label><select name="auth_type">{% for option in connector_auth_options %}<option value="{{ option }}">{{ option | replace('_', ' ') | title }}</option>{% endfor %}</select></div>
+      </div>
+      <div class="field"><label>Endpoint URL</label><input name="endpoint_url" placeholder="https://..."></div>
+      <div class="form-grid">
+        <div class="field"><label>API key secret environment variable</label><input name="api_key_secret_name" placeholder="DELTA_API_KEY"></div>
+        <div class="field"><label>Header name</label><input name="api_key_header_name" value="X-API-Key"></div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Query parameter name</label><input name="api_key_query_name" value="api_key"></div>
+        <div class="field"><label>Enabled</label><select name="enabled"><option value="false">No</option><option value="true">Yes</option></select></div>
+      </div>
+      <div class="field"><label>Allowed operations</label><input name="allowed_operations" value="retrieve_metadata; retrieve_documents; detect_changes"></div>
+      <div class="field"><label>Notes</label><textarea name="notes" placeholder="Provider approval, rate limits, endpoint purpose and any data handling constraints."></textarea></div>
+      <button type="submit">Save retrieval connector</button>
+    </form>
+  </div>
+</section>
+
+<section class="panel" style="margin-top:18px;">
+  <h2>Latest Retrieval Runs</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Started</th><th>Connector</th><th>Status</th><th>HTTP</th><th>Documents</th><th>Findings</th><th>Notes</th></tr></thead>
+      <tbody>
+        {% for run in retrieval_runs %}
+        {% set connector = portal_connector_map.get(run.connector_id) %}
+        <tr>
+          <td>{{ run.started_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td>{{ connector.connector_name if connector else run.connector_id }}</td>
+          <td><span class="badge {{ 'green' if run.status == 'completed' else 'amber' if run.status == 'blocked' else 'red' }}">{{ run.status }}</span></td>
+          <td>{{ run.http_status or "" }}</td>
+          <td>{{ run.documents_created }}</td>
+          <td>{{ run.findings_created }}</td>
+          <td>{{ run.error_summary or run.guardrail_summary }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7">No retrieval runs yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </section>
 
