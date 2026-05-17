@@ -23,3 +23,5 @@ docs/*.pdf
 *.log
 .outbox/
 .tmp_pdf_pages/
+infra/azure/generated/
+infra/azure/*.json

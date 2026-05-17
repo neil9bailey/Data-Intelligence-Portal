@@ -192,16 +192,39 @@ Guardrails:
 
 ## Azure Evolution Path
 
-The next phase can migrate this local MVP to the Vendorlogic test Azure tenant and `vendorlogic.io` Entra ID:
+The repo now includes an isolated Azure Container Apps live-test path for `dip.vendorlogic.io` under `infra/azure`.
+
+Live-test additions:
 
 - Entra ID authentication
-- RBAC roles for viewers, contributors, reviewers and administrators
-- Azure Key Vault for API keys and connector secrets
-- Azure Container Apps or Azure Container Instances for hosting
-- Azure Database for PostgreSQL
-- managed storage for documents
-- scheduled KRA source checks
+- Standard and Admin Entra groups
+- Azure Key Vault secret reference for Container Apps auth
+- dedicated Azure Container Registry
+- dedicated Azure Container Apps environment and app
+- Azure Files persistence for SQLite live-test snapshots and the email outbox
+- managed certificate flow for `dip.vendorlogic.io`
+- Azure-only SQLite snapshot persistence for the MVP live-test container
+
+Start with:
+
+```powershell
+.\scripts\azure\prepare-entra.ps1
+.\scripts\azure\deploy-dip.ps1 -Mode apply -InfraOnly
+.\scripts\azure\build-push-image.ps1
+.\scripts\azure\deploy-dip.ps1 -Mode apply
+.\scripts\azure\show-dns-and-bind-domain.ps1
+```
+
+See [Azure live-test hosting](docs/azure-live-test-hosting.md) and [infra/azure/README.md](infra/azure/README.md).
+
+Production should still move beyond the MVP choices:
+
+- Azure Database for PostgreSQL instead of SQLite snapshot persistence
+- stronger RBAC and data governance
+- backup/restore and retention controls
 - immutable audit/event storage
+- scheduled KRA source checks
+- reviewed connector secrets and outbound network controls
 
 ## Official Source Baseline
 

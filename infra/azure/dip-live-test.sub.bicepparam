@@ -1,0 +1,32 @@
+using './main.sub.bicep'
+
+param resourceGroupName = 'RG_DIP_VENDORLOGIC_TEST'
+param resourceGroupLocation = 'uksouth'
+param deployApps = false
+
+param containerRegistryName = 'acrdipvltest01'
+param managedIdentityName = 'id-dip-vl-test'
+param logAnalyticsWorkspaceName = 'law-dip-vl-test'
+param storageAccountName = 'stdipvltest01'
+param containerAppsEnvironmentName = 'acae-dip-vl-test'
+param containerAppName = 'ca-dip-vl-test'
+
+param sharedKeyVaultName = 'kv-diiac-vendorlogic'
+param sharedKeyVaultResourceGroupName = 'RG_ROOT'
+param publicDomain = 'dip.vendorlogic.io'
+param dnsSubdomain = 'dip'
+
+param imageRepositoryPrefix = 'dip'
+param imageTag = '1.0.5-live-test'
+param sqliteJournalMode = 'DELETE'
+param minReplicas = 1
+
+param entraAuthEnabled = true
+param entraTenantId = '1384b1c5-2bae-45a1-a4b4-e94e3315eb41'
+param entraClientId = '00000000-0000-0000-0000-000000000000'
+param entraClientSecretName = 'dip-entra-client-secret'
+param entraAdminGroupId = '00000000-0000-0000-0000-000000000000'
+param entraStandardGroupId = '00000000-0000-0000-0000-000000000000'
+
+param seedReferenceData = true
+param seedDemoData = false

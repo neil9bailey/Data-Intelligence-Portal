@@ -16,7 +16,7 @@
         <div class="chips">
           <span class="chip"><span class="dot"></span>Local secure MVP</span>
           <span class="chip">KRA {{ kra_runtime.provider }}</span>
-          <span class="chip">Human-reviewed intelligence</span>
+          <span class="chip">{{ current_user.role | replace('-', ' ') | title }}</span>
         </div>
         <div class="actions">
           <a class="button secondary" href="/reports">Reports</a>

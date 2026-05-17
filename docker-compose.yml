@@ -6,11 +6,17 @@ services:
     environment:
       - APP_NAME=${APP_NAME:-Data Intelligence Portal}
       - DATABASE_URL=${DATABASE_URL:-sqlite:///data/data-intelligence-portal.sqlite}
+      - SQLITE_JOURNAL_MODE=${SQLITE_JOURNAL_MODE:-DELETE}
+      - SQLITE_PERSISTENT_COPY_PATH=${SQLITE_PERSISTENT_COPY_PATH:-}
       - SEED_REFERENCE_DATA=${SEED_REFERENCE_DATA:-true}
       - SEED_DEMO_DATA=${SEED_DEMO_DATA:-false}
       - KRA_LLM_PROVIDER=${KRA_LLM_PROVIDER:-disabled}
       - KRA_API_KEY=${KRA_API_KEY:-}
       - KRA_MODEL=${KRA_MODEL:-}
       - KRA_MCP_MODE=${KRA_MCP_MODE:-local_registry}
+      - ENTRA_AUTH_ENABLED=${ENTRA_AUTH_ENABLED:-false}
+      - ENTRA_ADMIN_GROUP_ID=${ENTRA_ADMIN_GROUP_ID:-}
+      - ENTRA_STANDARD_GROUP_ID=${ENTRA_STANDARD_GROUP_ID:-}
+      - DIP_OUTBOX_DIR=${DIP_OUTBOX_DIR:-/app/data/outbox}
     volumes:
       - ./data:/app/data

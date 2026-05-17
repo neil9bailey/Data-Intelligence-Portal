@@ -9,7 +9,16 @@ from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, col, select
 
 from app.audit import compact_snapshot, log_event
-from app.database import engine, get_session, init_db
+from app.auth import get_current_user, require_admin
+from app.database import (
+    backup_sqlite_persistent_copy,
+    engine,
+    get_session,
+    init_db,
+    restore_sqlite_persistent_copy,
+    retry_sqlite_locked,
+    sqlite_startup_lock,
+)
 from app.email_service import get_email_configuration, send_or_store_email, split_recipients
 from app.export_service import report_export
 from app.form_utils import parse_bool, parse_float, parse_optional_date, parse_optional_int, validation_error_response
@@ -51,17 +60,26 @@ from app.seed import seed_demo_data, seed_reference_data
 from app.settings import BASE_DIR, get_settings
 
 
+def run_seed(seed_fn):
+    with Session(engine) as session:
+        seed_fn(session)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
-    settings = get_settings()
-    if settings.seed_reference_data:
-        with Session(engine) as session:
-            seed_reference_data(session)
-    if settings.seed_demo_data:
-        with Session(engine) as session:
-            seed_demo_data(session)
-    yield
+    with sqlite_startup_lock():
+        restore_sqlite_persistent_copy()
+        init_db()
+        settings = get_settings()
+        if settings.seed_reference_data:
+            retry_sqlite_locked(lambda: run_seed(seed_reference_data))
+        if settings.seed_demo_data:
+            retry_sqlite_locked(lambda: run_seed(seed_demo_data))
+        backup_sqlite_persistent_copy()
+    try:
+        yield
+    finally:
+        backup_sqlite_persistent_copy()
 
 
 app = FastAPI(title="Data Intelligence Portal", lifespan=lifespan)
@@ -69,16 +87,27 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 
+@app.middleware("http")
+async def persist_sqlite_copy_after_writes(request: Request, call_next):
+    response = await call_next(request)
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"} and response.status_code < 500:
+        backup_sqlite_persistent_copy()
+    return response
+
+
 def redirect(path: str) -> RedirectResponse:
     return RedirectResponse(path, status_code=303)
 
 
 def context(request: Request, **extra):
+    settings = get_settings()
     base = {
         "request": request,
-        "app_name": get_settings().app_name,
+        "app_name": settings.app_name,
         "rules_versions": rules_version_summary(),
         "kra_runtime": kra_runtime_status(),
+        "current_user": get_current_user(request),
+        "entra_auth_enabled": settings.entra_auth_enabled,
     }
     base.update(extra)
     return base
@@ -263,7 +292,7 @@ async def create_interest_signal(request: Request, session: Session = Depends(ge
 
 
 @app.get("/admin", response_class=HTMLResponse)
-def admin(request: Request, session: Session = Depends(get_session)):
+def admin(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     email_config = get_email_configuration(session)
     email_logs = list(session.exec(select(EmailDeliveryLog).order_by(col(EmailDeliveryLog.created_at).desc()).limit(50)))
     return templates.TemplateResponse(
@@ -274,7 +303,7 @@ def admin(request: Request, session: Session = Depends(get_session)):
 
 
 @app.post("/admin/email")
-async def update_email_configuration(request: Request, session: Session = Depends(get_session)):
+async def update_email_configuration(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     form = await request.form()
     errors: list[str] = []
     config = get_email_configuration(session)
@@ -303,7 +332,7 @@ async def update_email_configuration(request: Request, session: Session = Depend
 
 
 @app.post("/admin/email/test")
-async def send_test_email(request: Request, session: Session = Depends(get_session)):
+async def send_test_email(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     form = await request.form()
     config = get_email_configuration(session)
     recipients = split_recipients(str(form.get("recipients") or config.default_recipients))
@@ -583,6 +612,6 @@ async def send_report_email(report_id: int, request: Request, session: Session =
 
 
 @app.get("/audit", response_class=HTMLResponse)
-def audit(request: Request, session: Session = Depends(get_session)):
+def audit(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     events = list(session.exec(select(AuditEvent).order_by(col(AuditEvent.created_at).desc()).limit(200)))
     return templates.TemplateResponse(request, "audit.html", context(request, events=events))

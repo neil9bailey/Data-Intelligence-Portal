@@ -10,7 +10,7 @@ from sqlmodel import Session, select
 from app.audit import log_event
 from app.export_service import report_export
 from app.models import EmailConfiguration, EmailDeliveryLog, IntelligenceReport
-from app.settings import ROOT_DIR
+from app.settings import get_settings
 
 
 def get_email_configuration(session: Session) -> EmailConfiguration:
@@ -87,8 +87,8 @@ def send_or_store_email(
                 smtp.send_message(msg)
             log.status = "sent"
         else:
-            outbox = ROOT_DIR / ".outbox"
-            outbox.mkdir(exist_ok=True)
+            outbox = Path(get_settings().outbox_dir)
+            outbox.mkdir(parents=True, exist_ok=True)
             filename = f"{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}-{subject[:34].replace(' ', '-') or 'message'}.eml"
             path = outbox / filename
             path.write_text(msg.as_string(), encoding="utf-8")
