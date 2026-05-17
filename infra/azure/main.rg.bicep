@@ -39,6 +39,12 @@ param publicDomain string = 'dip.vendorlogic.io'
 @description('Subdomain host record for the portal custom domain.')
 param dnsSubdomain string = 'dip'
 
+@description('Bind the public custom domain to the Container App. Enable only after DNS validation records exist.')
+param customDomainBindingEnabled bool = false
+
+@description('Existing managed certificate name for the public custom domain. Leave blank only when extending the template to create a new certificate.')
+param managedCertificateName string = ''
+
 @description('Container image repository prefix.')
 param imageRepositoryPrefix string = 'dip'
 
@@ -197,6 +203,11 @@ var allowedGroups = [
   entraStandardGroupId
 ]
 
+resource existingManagedCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2024-03-01' existing = if (deployApps && customDomainBindingEnabled) {
+  parent: containerAppsEnvironment
+  name: managedCertificateName
+}
+
 resource portalApp 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
   name: containerAppName
   location: location
@@ -215,6 +226,15 @@ resource portalApp 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
         targetPort: 8080
         allowInsecure: false
         transport: 'auto'
+        customDomains: customDomainBindingEnabled
+          ? [
+              {
+                name: publicDomain
+                bindingType: 'SniEnabled'
+                certificateId: existingManagedCertificate.id
+              }
+            ]
+          : []
       }
       registries: [
         {

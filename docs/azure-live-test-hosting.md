@@ -50,6 +50,8 @@ The generated stack outputs:
 
 After those DNS records are created, `scripts/azure/show-dns-and-bind-domain.ps1 -Bind` adds the hostname and requests a free managed certificate from Azure Container Apps. Microsoft guidance requires the subdomain CNAME to point directly at the generated Container App FQDN for managed certificate issuance.
 
+Once the managed certificate exists, the live-test parameter file enables `customDomainBindingEnabled` and references the managed certificate name so normal IaC deployments preserve the hostname.
+
 Current live-test outputs from the first deployment:
 
 - Container App FQDN: `ca-dip-vl-test.kindocean-6b756cbc.uksouth.azurecontainerapps.io`

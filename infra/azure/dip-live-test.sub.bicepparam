@@ -15,6 +15,8 @@ param sharedKeyVaultName = 'kv-diiac-vendorlogic'
 param sharedKeyVaultResourceGroupName = 'RG_ROOT'
 param publicDomain = 'dip.vendorlogic.io'
 param dnsSubdomain = 'dip'
+param customDomainBindingEnabled = true
+param managedCertificateName = 'mc-acae-dip-vl-te-dip-vendorlogic--9882'
 
 param imageRepositoryPrefix = 'dip'
 param imageTag = '1.0.5-live-test'

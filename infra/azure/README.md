@@ -15,6 +15,7 @@ Created resources:
 - Azure Container Apps managed environment
 - Data Intelligence Portal container app
 - Container Apps built-in Microsoft Entra authentication
+- Container Apps custom domain binding to the existing managed certificate after DNS is live
 - Key Vault Secrets User role assignment for the dedicated managed identity
 
 ## Official Microsoft Guidance Used
@@ -63,6 +64,8 @@ Run from the repo root.
    ```powershell
    .\scripts\azure\show-dns-and-bind-domain.ps1 -Bind
    ```
+
+   After the first successful bind, set `customDomainBindingEnabled=true` and `managedCertificateName` in the parameter file so later IaC applies preserve the hostname binding.
 
 7. Run Azure smoke checks:
 

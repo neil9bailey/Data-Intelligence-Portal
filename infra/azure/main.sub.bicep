@@ -42,6 +42,12 @@ param publicDomain string = 'dip.vendorlogic.io'
 @description('Subdomain host record for the portal custom domain.')
 param dnsSubdomain string = 'dip'
 
+@description('Bind the public custom domain to the Container App. Enable only after DNS validation records exist.')
+param customDomainBindingEnabled bool = false
+
+@description('Existing managed certificate name for the public custom domain. Leave blank only when extending the template to create a new certificate.')
+param managedCertificateName string = ''
+
 @description('Container image repository prefix.')
 param imageRepositoryPrefix string = 'dip'
 
@@ -117,6 +123,8 @@ module portalStack './main.rg.bicep' = {
     sharedKeyVaultSubscriptionId: sharedKeyVaultSubscriptionId
     publicDomain: publicDomain
     dnsSubdomain: dnsSubdomain
+    customDomainBindingEnabled: customDomainBindingEnabled
+    managedCertificateName: managedCertificateName
     imageRepositoryPrefix: imageRepositoryPrefix
     imageTag: imageTag
     sqliteJournalMode: sqliteJournalMode
