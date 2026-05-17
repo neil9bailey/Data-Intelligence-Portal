@@ -1,35 +1,166 @@
 {% extends "base.html" %}
 {% block title %}Portals - {{ app_name }}{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Portal Platforms</h1><p>Buyer-side portal families and customer portal instances. No credentials are stored in the MVP.</p></div></div>
-<section class="grid two">
+<div class="page-head">
+  <div>
+    <h1>Portal Workbench</h1>
+    <p>Configure buyer portal instances, track access readiness, assign manual retrieval work and turn permitted portal text into reusable intelligence. No credentials are stored in the MVP.</p>
+  </div>
+  <a class="button secondary" href="/opportunities">Open opportunity catalogue</a>
+</div>
+
+<section class="portal-command">
+  <div>
+    <span class="eyebrow">Manual-assisted portal intelligence</span>
+    <h2>Make the buyer portals operational before the bid clock starts.</h2>
+    <p>Use this page to record where each customer publishes documents, whether the supplier account is usable, who owns retrieval, and what still needs human action.</p>
+  </div>
+  <ol class="activation-steps">
+    <li><strong>1. Link</strong><span>Create one portal instance per buyer/customer and platform family.</span></li>
+    <li><strong>2. Verify</strong><span>Record registration, MFA owner, blocked or expired access status.</span></li>
+    <li><strong>3. Retrieve</strong><span>Create manual document tasks for each portal opportunity.</span></li>
+    <li><strong>4. Extract</strong><span>Paste permitted ITT text into opportunity documents for KRA extraction.</span></li>
+  </ol>
+</section>
+
+<section class="grid metrics portal-metrics">
+  <div class="metric"><span class="value">{{ portal_metrics.platforms }}</span><span class="label">platform families configured</span></div>
+  <div class="metric"><span class="value">{{ portal_metrics.portal_instances }}</span><span class="label">buyer portal instances</span></div>
+  <div class="metric"><span class="value">{{ portal_metrics.ready_portals }}</span><span class="label">registered / active portals</span></div>
+  <div class="metric"><span class="value">{{ portal_metrics.needs_action }}</span><span class="label">portals needing action</span></div>
+  <div class="metric"><span class="value">{{ portal_metrics.open_tasks }}</span><span class="label">open retrieval tasks</span></div>
+</section>
+
+<section class="grid two" style="margin-top:18px;">
   <div class="panel">
-    <h2>Platform Families</h2>
+    <div class="panel-title">
+      <h2>Platform Families</h2>
+      <span class="badge amber">human approval required</span>
+    </div>
     <div class="stack">
-      {% for platform in platforms %}
-      <article class="list-item"><h3>{{ platform.name }}</h3><div class="badges"><span class="badge weak">{{ platform.connector_status }}</span>{% if platform.human_approval_required %}<span class="badge amber">human approval</span>{% endif %}</div><p>{{ platform.supported_actions }}</p><p class="hint">{{ platform.platform_domains }}</p></article>
+      {% for row in platform_rows %}
+      {% set platform = row.platform %}
+      <article class="list-item platform-family">
+        <div class="list-heading">
+          <h3>{{ platform.name }}</h3>
+          <div class="badges">
+            <span class="badge weak">{{ platform.connector_status }}</span>
+            <span class="badge cyan">{{ row.instance_count }} instances</span>
+            {% if row.ready_count %}<span class="badge green">{{ row.ready_count }} ready</span>{% endif %}
+            {% if row.action_count %}<span class="badge amber">{{ row.action_count }} action</span>{% endif %}
+          </div>
+        </div>
+        <p>{{ platform.supported_actions }}</p>
+        <p class="hint">{{ platform.platform_domains }}</p>
+        <p class="hint">{{ platform.notes }}</p>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">
+      <h2>Add Portal Instance</h2>
+      <span class="badge weak">no passwords</span>
+    </div>
+    <p class="hint">Create one record for each buyer/customer portal you need to monitor. Use the status to show whether the team can retrieve documents today.</p>
+    <form method="post" action="/portals">
+      <div class="field"><label>Portal instance name</label><input name="portal_name" placeholder="National Highways - ProContract" required></div>
+      <div class="form-grid">
+        <div class="field"><label>Platform family</label><select name="platform_id"><option value="">Select platform</option>{% for platform in platforms %}<option value="{{ platform.id }}">{{ platform.name }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Access status</label><select name="access_status">{% for option in portal_status_options %}<option value="{{ option }}">{{ option | replace('_', ' ') | title }}</option>{% endfor %}</select></div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Customer</label><select name="customer_id"><option value="">Select customer</option>{% for customer in customers %}<option value="{{ customer.id }}">{{ customer.customer_name }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Business unit</label><select name="business_unit_id"><option value="">Select business unit</option>{% for unit in business_units %}<option value="{{ unit.id }}">{{ unit.name }}</option>{% endfor %}</select></div>
+      </div>
+      <div class="field"><label>Portal URL</label><input name="portal_url" placeholder="https://..."></div>
+      <div class="field"><label>Operational notes</label><textarea name="notes" placeholder="Registration owner, MFA owner, account status, known framework area, document retrieval hints."></textarea></div>
+      <button type="submit">Save portal instance</button>
+    </form>
+  </div>
+</section>
+
+<section class="panel" style="margin-top:18px;">
+  <div class="panel-title">
+    <h2>Buyer Portal Readiness</h2>
+    <span class="badge cyan">{{ portal_metrics.missing_urls }} missing URL</span>
+  </div>
+  <div class="portal-grid">
+    {% for item in portal_readiness_items %}
+    {% set portal = item.portal %}
+    {% set platform = item.platform %}
+    {% set customer = customer_map.get(portal.customer_id) %}
+    {% set unit = business_unit_map.get(portal.business_unit_id) %}
+    <article class="portal-card">
+      <div class="portal-card-head">
+        <div>
+          <h3>{{ portal.portal_name }}</h3>
+          <p class="hint">{{ customer.customer_name if customer else "No customer linked" }}{% if unit %} - {{ unit.name }}{% endif %}</p>
+        </div>
+        <span class="badge {{ item.badge_class }}">{{ portal.access_status | replace('_', ' ') }}</span>
+      </div>
+      <div class="badges">
+        <span class="badge weak">{{ platform.name if platform else "No platform" }}</span>
+        {% if portal.portal_url %}<a class="badge cyan" href="{{ portal.portal_url }}" target="_blank" rel="noreferrer">open portal</a>{% else %}<span class="badge red">missing URL</span>{% endif %}
+        {% if item.open_tasks %}<span class="badge amber">{{ item.open_tasks | length }} open task</span>{% endif %}
+      </div>
+      {% if item.missing_items %}
+      <p class="warning-text">Missing: {{ item.missing_items | join(", ") }}.</p>
+      {% endif %}
+      <p>{{ item.next_action }}</p>
+      {% if portal.notes %}<p class="hint">{{ portal.notes }}</p>{% endif %}
+      <details class="task-drawer">
+        <summary>Create retrieval task</summary>
+        <form method="post" action="/portals/{{ portal.id }}/tasks">
+          <div class="field"><label>Task</label><input name="task_name" value="Manual portal document retrieval"></div>
+          <div class="form-grid">
+            <div class="field"><label>Opportunity</label><select name="opportunity_id"><option value="">Not linked yet</option>{% for opportunity in opportunities %}<option value="{{ opportunity.id }}">{{ opportunity.title }}</option>{% endfor %}</select></div>
+            <div class="field"><label>Status</label><select name="status">{% for option in task_status_options %}<option value="{{ option }}">{{ option | replace('_', ' ') | title }}</option>{% endfor %}</select></div>
+          </div>
+          <div class="form-grid">
+            <div class="field"><label>Owner</label><input name="owner" value="local-user"></div>
+            <div class="field"><label>Due date</label><input type="date" name="due_date"></div>
+          </div>
+          <div class="field"><label>Notes</label><textarea name="notes" placeholder="What to retrieve, where it is in the portal, and what can be pasted into the document extractor."></textarea></div>
+          <button type="submit">Create retrieval task</button>
+        </form>
+      </details>
+    </article>
+    {% else %}
+    <p>No buyer portal instances yet. Add the first customer portal instance above.</p>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="grid two" style="margin-top:18px;">
+  <div class="panel">
+    <h2>Open Portal Retrieval Tasks</h2>
+    <div class="stack">
+      {% for task in open_portal_tasks %}
+      {% set portal = portal_map.get(task.portal_instance_id) %}
+      <article class="list-item task-row">
+        <h3>{{ task.task_name }}</h3>
+        <div class="badges">
+          <span class="badge {{ 'red' if task.status == 'blocked' else 'amber' }}">{{ task.status | replace('_', ' ') }}</span>
+          {% if portal %}<span class="badge weak">{{ portal.portal_name }}</span>{% endif %}
+          {% if task.due_date %}<span class="badge cyan">due {{ task.due_date }}</span>{% endif %}
+        </div>
+        <p>{{ task.notes or task.guardrail_summary }}</p>
+      </article>
+      {% else %}
+      <p>No open portal retrieval tasks.</p>
       {% endfor %}
     </div>
   </div>
   <div class="panel">
-    <h2>Buyer Portal Instances</h2>
-    <div class="stack">
-      {% for portal in portal_instances %}
-      {% set platform = platform_map.get(portal.platform_id) %}
-      <article class="list-item"><h3>{{ portal.portal_name }}</h3><div class="badges"><span class="badge weak">{{ platform.name if platform else "No platform" }}</span><span class="badge amber">{{ portal.access_status }}</span></div><p>{{ portal.notes }}</p>{% if portal.portal_url %}<a href="{{ portal.portal_url }}">portal</a>{% endif %}</article>
-      {% else %}<p>No portal instances yet.</p>{% endfor %}
+    <h2>How Users Should Work This</h2>
+    <div class="instruction-list">
+      <p><strong>Before an opportunity lands:</strong> add the buyer portal instance, confirm registration, and capture owner/MFA notes.</p>
+      <p><strong>When a notice appears:</strong> create a retrieval task linked to the matching portal and opportunity.</p>
+      <p><strong>After human download:</strong> add the document on the opportunity documents page and paste permitted requirement text for extraction.</p>
+      <p><strong>After extraction:</strong> review requirements and quality questions before including them in reports.</p>
     </div>
   </div>
-</section>
-<section class="panel" style="margin-top:18px;">
-  <h2>Add Portal Instance</h2>
-  <form method="post" action="/portals">
-    <div class="form-grid"><div class="field"><label>Name</label><input name="portal_name" required></div><div class="field"><label>Platform</label><select name="platform_id"><option value="">Not linked</option>{% for platform in platforms %}<option value="{{ platform.id }}">{{ platform.name }}</option>{% endfor %}</select></div></div>
-    <div class="form-grid"><div class="field"><label>Customer</label><select name="customer_id"><option value="">Not linked</option>{% for customer in customers %}<option value="{{ customer.id }}">{{ customer.customer_name }}</option>{% endfor %}</select></div><div class="field"><label>Business unit</label><select name="business_unit_id"><option value="">Not linked</option>{% for unit in business_units %}<option value="{{ unit.id }}">{{ unit.name }}</option>{% endfor %}</select></div></div>
-    <div class="field"><label>Portal URL</label><input name="portal_url"></div>
-    <div class="field"><label>Access status</label><input name="access_status" value="unknown"></div>
-    <div class="field"><label>Notes</label><textarea name="notes"></textarea></div>
-    <button type="submit">Save portal</button>
-  </form>
 </section>
 {% endblock %}

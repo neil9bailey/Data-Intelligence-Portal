@@ -155,6 +155,142 @@ def reference_context(session: Session) -> dict:
     }
 
 
+PORTAL_READY_STATUSES = {"active", "registered", "live"}
+PORTAL_ACTION_STATUSES = {
+    "unknown",
+    "registration_required",
+    "access_requested",
+    "blocked",
+    "expired",
+    "pending_mfa_owner",
+    "not_registered",
+}
+TASK_OPEN_STATUSES = {"requested", "in_progress", "blocked", "review_required"}
+
+
+def normalise_status(value: str) -> str:
+    return (value or "").strip().lower().replace(" ", "_").replace("-", "_")
+
+
+def status_badge_class(status: str) -> str:
+    value = normalise_status(status)
+    if value in PORTAL_READY_STATUSES or value in {"completed", "done", "approved"}:
+        return "green"
+    if value in {"blocked", "expired", "rejected", "failed"}:
+        return "red"
+    if value in {"manual_assisted", "requested", "in_progress", "review_required"}:
+        return "amber"
+    return "weak"
+
+
+def portal_next_action(portal: BuyerPortalInstance, platform: ProcurementPlatform | None, open_task_count: int) -> str:
+    status = normalise_status(portal.access_status)
+    if not portal.customer_id:
+        return "Link the portal instance to the buyer/customer so captured intelligence can be reused."
+    if not portal.platform_id or platform is None:
+        return "Select the platform family so teams know the registration and retrieval pattern."
+    if not portal.portal_url:
+        return "Add the buyer portal URL used by the team."
+    if status in {"", "unknown"}:
+        return "Confirm whether the supplier account is registered, blocked or needs access requested."
+    if status in {"registration_required", "not_registered"}:
+        return "Assign an owner to complete supplier registration outside the app."
+    if status == "access_requested":
+        return "Track the access request and add due-date notes until the portal is usable."
+    if status == "pending_mfa_owner":
+        return "Record the internal MFA/account owner and keep credentials outside the MVP."
+    if status in {"blocked", "expired"}:
+        return "Escalate portal access before relying on it for bid document retrieval."
+    if open_task_count:
+        return "Complete the open manual document retrieval task, then paste permitted text into the opportunity documents screen."
+    return "Ready for manual-assisted document retrieval when a matching opportunity appears."
+
+
+def portal_workbench_context(session: Session) -> dict:
+    platforms = list(session.exec(select(ProcurementPlatform).order_by(col(ProcurementPlatform.name))))
+    portals = list(session.exec(select(BuyerPortalInstance).order_by(col(BuyerPortalInstance.portal_name))))
+    tasks = list(session.exec(select(DocumentRetrievalTask).order_by(col(DocumentRetrievalTask.created_at).desc())))
+    opportunities = list(session.exec(select(Opportunity).order_by(col(Opportunity.created_at).desc()).limit(100)))
+
+    platform_map = {item.id: item for item in platforms}
+    portal_task_map: dict[int, list[DocumentRetrievalTask]] = {}
+    for task in tasks:
+        if task.portal_instance_id:
+            portal_task_map.setdefault(task.portal_instance_id, []).append(task)
+
+    readiness_items = []
+    for portal in portals:
+        platform = platform_map.get(portal.platform_id)
+        portal_tasks = portal_task_map.get(portal.id or 0, [])
+        open_tasks = [task for task in portal_tasks if normalise_status(task.status) in TASK_OPEN_STATUSES]
+        status = normalise_status(portal.access_status)
+        missing_items = []
+        if not portal.customer_id:
+            missing_items.append("customer link")
+        if not portal.platform_id:
+            missing_items.append("platform family")
+        if not portal.portal_url:
+            missing_items.append("portal URL")
+        if status in {"", "unknown"}:
+            missing_items.append("confirmed access status")
+        readiness_items.append(
+            {
+                "portal": portal,
+                "platform": platform,
+                "tasks": portal_tasks,
+                "open_tasks": open_tasks,
+                "missing_items": missing_items,
+                "next_action": portal_next_action(portal, platform, len(open_tasks)),
+                "badge_class": status_badge_class(portal.access_status),
+                "ready": status in PORTAL_READY_STATUSES and not missing_items,
+                "needs_action": bool(missing_items) or status in PORTAL_ACTION_STATUSES or bool(open_tasks),
+            }
+        )
+
+    platform_rows = []
+    for platform in platforms:
+        platform_portals = [portal for portal in portals if portal.platform_id == platform.id]
+        ready_count = sum(1 for portal in platform_portals if normalise_status(portal.access_status) in PORTAL_READY_STATUSES)
+        action_count = sum(1 for portal in platform_portals if normalise_status(portal.access_status) in PORTAL_ACTION_STATUSES)
+        platform_rows.append(
+            {
+                "platform": platform,
+                "instance_count": len(platform_portals),
+                "ready_count": ready_count,
+                "action_count": action_count,
+            }
+        )
+
+    open_tasks = [task for task in tasks if normalise_status(task.status) in TASK_OPEN_STATUSES]
+    metrics = {
+        "platforms": len(platforms),
+        "portal_instances": len(portals),
+        "ready_portals": sum(1 for item in readiness_items if item["ready"]),
+        "needs_action": sum(1 for item in readiness_items if item["needs_action"]),
+        "open_tasks": len(open_tasks),
+        "missing_urls": sum(1 for portal in portals if not portal.portal_url),
+    }
+    return {
+        "portal_metrics": metrics,
+        "platform_rows": platform_rows,
+        "portal_readiness_items": readiness_items,
+        "portal_tasks": tasks[:80],
+        "open_portal_tasks": open_tasks[:80],
+        "opportunities": opportunities,
+        "portal_status_options": [
+            "unknown",
+            "registration_required",
+            "access_requested",
+            "pending_mfa_owner",
+            "registered",
+            "active",
+            "blocked",
+            "expired",
+        ],
+        "task_status_options": ["requested", "in_progress", "blocked", "review_required", "completed"],
+    }
+
+
 def dashboard_metrics(session: Session) -> dict:
     return {
         "customers": len(list(session.exec(select(Customer)))),
@@ -501,7 +637,11 @@ async def create_document_task(opportunity_id: int, request: Request, session: S
 
 @app.get("/portals", response_class=HTMLResponse)
 def portals(request: Request, session: Session = Depends(get_session)):
-    return templates.TemplateResponse(request, "portals.html", context(request, **reference_context(session)))
+    return templates.TemplateResponse(
+        request,
+        "portals.html",
+        context(request, **reference_context(session), **portal_workbench_context(session)),
+    )
 
 
 @app.post("/portals")
@@ -526,6 +666,33 @@ async def create_portal(request: Request, session: Session = Depends(get_session
         notes=str(form.get("notes") or ""),
     )
     save_with_audit(session, portal, "create", f"Created portal {portal.portal_name}")
+    return redirect("/portals")
+
+
+@app.post("/portals/{portal_id}/tasks")
+async def create_portal_task(portal_id: int, request: Request, session: Session = Depends(get_session)):
+    portal = session.get(BuyerPortalInstance, portal_id)
+    if not portal:
+        return redirect("/portals")
+    form = await request.form()
+    errors: list[str] = []
+    opportunity_id = parse_optional_int(form.get("opportunity_id"), "Opportunity", errors)
+    due_date = parse_optional_date(form.get("due_date"), "Due date", errors)
+    task_name = str(form.get("task_name") or "Manual portal document retrieval").strip()
+    if not task_name:
+        errors.append("Task name is required.")
+    if errors:
+        return validation_error_response(errors, "/portals")
+    task = DocumentRetrievalTask(
+        opportunity_id=opportunity_id,
+        portal_instance_id=portal.id,
+        task_name=task_name,
+        status=str(form.get("status") or "requested"),
+        owner=str(form.get("owner") or "local-user"),
+        due_date=due_date,
+        notes=str(form.get("notes") or ""),
+    )
+    save_with_audit(session, task, "create", f"Created portal task {task.task_name}")
     return redirect("/portals")
 
 

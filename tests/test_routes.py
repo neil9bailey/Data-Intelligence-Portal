@@ -3,7 +3,7 @@ from sqlmodel import select
 
 from app.database import get_session
 from app.main import app
-from app.models import EmailDeliveryLog, Opportunity
+from app.models import BuyerPortalInstance, DocumentRetrievalTask, EmailDeliveryLog, Opportunity
 from app.reports import create_report
 
 
@@ -42,6 +42,36 @@ def test_route_smoke_pages(seeded_session):
             assert response.status_code == 200, path
     finally:
         app.dependency_overrides.clear()
+
+
+def test_portal_workbench_guidance_and_task_creation(seeded_session):
+    portal = seeded_session.exec(select(BuyerPortalInstance)).first()
+    opportunity = seeded_session.exec(select(Opportunity)).first()
+    client = client_for(seeded_session)
+    try:
+        page = client.get("/portals")
+        response = client.post(
+            f"/portals/{portal.id}/tasks",
+            data={
+                "task_name": "Retrieve ITT pack",
+                "opportunity_id": str(opportunity.id),
+                "status": "requested",
+                "owner": "bid-team",
+                "notes": "Download permitted portal documents and paste quality text.",
+            },
+            follow_redirects=False,
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert page.status_code == 200
+    assert "Manual-assisted portal intelligence" in page.text
+    assert "Make the buyer portals operational before the bid clock starts." in page.text
+    assert response.status_code == 303
+    task = seeded_session.exec(select(DocumentRetrievalTask).where(DocumentRetrievalTask.task_name == "Retrieve ITT pack")).first()
+    assert task is not None
+    assert task.portal_instance_id == portal.id
+    assert task.opportunity_id == opportunity.id
 
 
 def test_create_customer_route(seeded_session):
