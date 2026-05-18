@@ -20,6 +20,7 @@ This page records the current MVP delivery state and the next sensible epics.
 | Audit log | Delivered MVP | Event log for key user and automation changes. |
 | Azure live-test IaC | Delivered MVP | Container Apps, Entra auth, Key Vault reference, Azure Files and custom domain path. |
 | CI quality gates | Delivered | GitHub Actions runs Python 3.12 pytest and conservative ruff linting on push and pull request. |
+| Modular FastAPI routing | Delivered | Route groups are split into `app/routes/` modules with shared web helpers in `app/route_utils.py`; `app/main.py` now focuses on app setup and router registration. |
 
 ## Next Delivery Epics
 

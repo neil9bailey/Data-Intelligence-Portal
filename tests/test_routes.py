@@ -278,7 +278,7 @@ def test_admin_automation_route_queues_background_run(reference_session, monkeyp
             }
         )
 
-    monkeypatch.setattr("app.main.run_admin_full_cycle_background", fake_background)
+    monkeypatch.setattr("app.routes.admin.run_admin_full_cycle_background", fake_background)
     client = client_for(reference_session)
     try:
         response = client.post(

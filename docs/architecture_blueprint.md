@@ -56,7 +56,9 @@ flowchart LR
 
 | Module | Purpose |
 | --- | --- |
-| `app/main.py` | Routes, page rendering and orchestration. |
+| `app/main.py` | FastAPI app construction, lifespan, static files, persistence middleware and router registration. |
+| `app/routes/` | Modular FastAPI routers for dashboard, admin, customers, sources, portals, opportunities, requirements, KRA, reports and audit pages. |
+| `app/route_utils.py` | Shared template context, pagination, audit CRUD helpers, dashboard metrics, portal workbench helpers and admin health context. |
 | `app/models.py` | Data model for customers, sources, portals, opportunities, documents, reports and audit. |
 | `app/intelligence.py` | Source checks, KRA runs, deterministic parsing, extraction and optional AI-assisted summaries. |
 | `app/llm.py` | Small guarded OpenAI Responses API client used only when KRA live-demo settings are enabled. |
