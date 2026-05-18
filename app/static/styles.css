@@ -505,6 +505,25 @@ p { margin: 0 0 12px; }
 .weak { color: var(--plum); background: var(--weak-bg); }
 .cyan { color: #006070; background: #d8f5f8; }
 .badges { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+.pagination {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+}
+.page-current, .page-disabled {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted);
+  background: #f5f2f8;
+  font-size: 12px;
+  font-weight: 900;
+}
+.page-disabled { opacity: 0.55; }
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 12px; border-bottom: 1px solid #e9edf5; text-align: left; vertical-align: top; }
 th { color: var(--plum); background: #f4eef8; font-size: 12px; text-transform: uppercase; }

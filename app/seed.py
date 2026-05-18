@@ -264,6 +264,7 @@ def seed_demo_data(session: Session) -> None:
             opportunity_id=opportunity.id,
             customer_id=customers[0].id,
             requirement_theme="operational resilience",
+            requirement_category="operational_technology_and_iot",
             requirement_text=opportunity.summary,
             requirement_source=opportunity.source_url,
             confidence="high",

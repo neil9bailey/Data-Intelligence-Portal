@@ -47,6 +47,7 @@
       <article class="list-item"><h3>{{ source.name if source else "Source" }}</h3><p><span class="badge {{ 'red' if snapshot.change_type == 'failed' else 'amber' if snapshot.change_type == 'changed' else 'green' }}">{{ snapshot.change_type }}</span> {{ snapshot.detected_schema }} | {{ snapshot.status_code or snapshot.notes }}</p></article>
       {% else %}<p>No snapshots yet.</p>{% endfor %}
     </div>
+    {% with pagination=snapshots_pagination %}{% include "_pagination.html" %}{% endwith %}
   </div>
   <div class="panel">
     <h2>Add Source</h2>

@@ -1,4 +1,4 @@
-version: 2026.05.17
+version: 2026.05.18
 themes:
   cyber security:
     - cyber
@@ -58,3 +58,84 @@ quality_question_markers:
 weighting_patterns:
   - "\\d{1,3}\\s?%"
   - "\\d{1,3}\\s?marks?"
+requirement_categories:
+  cyber_and_information_security:
+    - cyber
+    - information security
+    - accreditation
+    - secure by design
+    - security operations
+    - soc
+    - zero trust
+  digital_data_and_integration:
+    - data
+    - analytics
+    - api
+    - integration
+    - interface
+    - interoperability
+    - dashboard
+    - reporting
+    - prediction
+    - digital platform
+  operational_technology_and_iot:
+    - scada
+    - operational technology
+    - ot
+    - telemetry
+    - roadside
+    - iot
+    - sensor
+    - control system
+  service_management_and_support:
+    - service management
+    - itil
+    - service desk
+    - incident
+    - problem management
+    - sla
+    - kpi
+    - support model
+  networks_and_connectivity:
+    - network
+    - connectivity
+    - communications
+    - wan
+    - lan
+    - mobile
+    - radio
+    - fibre
+  asset_and_field_operations:
+    - asset management
+    - maintenance
+    - field force
+    - lifecycle
+    - inspection
+    - repair
+    - mobilisation
+  compliance_social_value_and_sustainability:
+    - compliance
+    - social value
+    - sustainability
+    - carbon
+    - environment
+    - accessibility
+    - equality
+  commercial_and_procurement:
+    - framework
+    - dps
+    - procurement
+    - contract
+    - lot
+    - pricing
+    - tender
+  mobilisation_and_delivery:
+    - mobilisation
+    - transition
+    - implementation
+    - delivery plan
+    - migration
+    - deployment
+  general:
+    - requirement
+    - opportunity

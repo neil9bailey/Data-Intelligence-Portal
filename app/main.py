@@ -72,6 +72,7 @@ from app.models import (
     utc_now,
 )
 from app.portal_connectors import run_enabled_portal_connectors, run_portal_connector
+from app.requirement_taxonomy import classify_requirement_category, requirement_categories
 from app.reports import create_report
 from app.rule_loader import load_rule_file, rules_version_summary
 from app.seed import seed_demo_data, seed_reference_data
@@ -106,6 +107,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Data Intelligence Portal", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
+PAGE_SIZE = 10
 
 
 @app.middleware("http")
@@ -120,6 +122,10 @@ def redirect(path: str) -> RedirectResponse:
     return RedirectResponse(path, status_code=303)
 
 
+def page_url(request: Request, param: str, page: int) -> str:
+    return str(request.url.include_query_params(**{param: page}))
+
+
 def context(request: Request, **extra):
     settings = get_settings()
     base = {
@@ -129,6 +135,7 @@ def context(request: Request, **extra):
         "kra_runtime": kra_runtime_status(),
         "current_user": get_current_user(request),
         "entra_auth_enabled": settings.entra_auth_enabled,
+        "page_url": page_url,
     }
     base.update(extra)
     return base
@@ -218,7 +225,29 @@ def reference_context(session: Session) -> dict:
         "portal_connector_map": {item.id: item for item in connectors},
         "agent_map": {item.id: item for item in agents},
         "news_feed_map": {item.id: item for item in news_feeds},
+        "requirement_categories": sorted(requirement_categories().keys()),
     }
+
+
+def page_number(request: Request, param: str = "page") -> int:
+    try:
+        return max(1, int(request.query_params.get(param, "1")))
+    except ValueError:
+        return 1
+
+
+def paged(session: Session, statement, request: Request, param: str = "page", page_size: int = PAGE_SIZE):
+    page = page_number(request, param)
+    rows = list(session.exec(statement.offset((page - 1) * page_size).limit(page_size + 1)))
+    pagination = {
+        "page": page,
+        "param": param,
+        "has_prev": page > 1,
+        "prev_page": page - 1,
+        "has_next": len(rows) > page_size,
+        "next_page": page + 1,
+    }
+    return rows[:page_size], pagination
 
 
 @app.get("/business-units", response_class=HTMLResponse)
@@ -708,11 +737,11 @@ def _pack_from_form(form_values: dict[str, str]) -> dict:
 
 @app.get("/review", response_class=HTMLResponse)
 def review_queue(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
-    opportunities = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(200)))
+    opportunities, pagination = paged(session, select(Opportunity).order_by(col(Opportunity.updated_at).desc()), request)
     return templates.TemplateResponse(
         request,
         "review.html",
-        context(request, opportunities=opportunities, **reference_context(session)),
+        context(request, opportunities=opportunities, opportunities_pagination=pagination, **reference_context(session)),
     )
 
 
@@ -903,7 +932,11 @@ async def send_test_email(request: Request, session: Session = Depends(get_sessi
 
 @app.get("/customers", response_class=HTMLResponse)
 def customers(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
-    return templates.TemplateResponse(request, "customers.html", context(request, **reference_context(session)))
+    items, pagination = paged(session, select(Customer).order_by(col(Customer.customer_name)), request)
+    data = reference_context(session)
+    data["customers"] = items
+    data["customers_pagination"] = pagination
+    return templates.TemplateResponse(request, "customers.html", context(request, **data))
 
 
 @app.post("/customers")
@@ -978,8 +1011,13 @@ def delete_customer(customer_id: int, session: Session = Depends(get_session), _
 
 @app.get("/sources", response_class=HTMLResponse)
 def sources(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
-    snapshots = list(session.exec(select(SourceCheckSnapshot).order_by(col(SourceCheckSnapshot.checked_at).desc()).limit(100)))
-    return templates.TemplateResponse(request, "sources.html", context(request, snapshots=snapshots, **reference_context(session)))
+    snapshots, pagination = paged(
+        session,
+        select(SourceCheckSnapshot).order_by(col(SourceCheckSnapshot.checked_at).desc()),
+        request,
+        param="snapshots_page",
+    )
+    return templates.TemplateResponse(request, "sources.html", context(request, snapshots=snapshots, snapshots_pagination=pagination, **reference_context(session)))
 
 
 @app.post("/sources/{source_id}/check")
@@ -1071,12 +1109,16 @@ def delete_source(source_id: int, session: Session = Depends(get_session), _user
 
 @app.get("/opportunities", response_class=HTMLResponse)
 def opportunities(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
-    items = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(200)))
+    items, pagination = paged(session, select(Opportunity).order_by(col(Opportunity.updated_at).desc()), request)
     documents = list(session.exec(select(OpportunityDocument)))
     doc_counts: dict[int, int] = {}
     for doc in documents:
         doc_counts[doc.opportunity_id] = doc_counts.get(doc.opportunity_id, 0) + 1
-    return templates.TemplateResponse(request, "opportunities.html", context(request, opportunities=items, doc_counts=doc_counts, **reference_context(session)))
+    return templates.TemplateResponse(
+        request,
+        "opportunities.html",
+        context(request, opportunities=items, opportunities_pagination=pagination, doc_counts=doc_counts, **reference_context(session)),
+    )
 
 
 @app.post("/opportunities")
@@ -1520,14 +1562,33 @@ async def create_portal_task(portal_id: int, request: Request, session: Session 
 
 @app.get("/requirements", response_class=HTMLResponse)
 def requirements(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
-    reqs = list(session.exec(select(ExtractedRequirement).order_by(col(ExtractedRequirement.created_at).desc()).limit(300)))
-    questions = list(session.exec(select(ExtractedQualityQuestion).order_by(col(ExtractedQualityQuestion.created_at).desc()).limit(300)))
+    reqs, req_pagination = paged(
+        session,
+        select(ExtractedRequirement).order_by(col(ExtractedRequirement.created_at).desc()),
+        request,
+        param="requirements_page",
+    )
+    questions, question_pagination = paged(
+        session,
+        select(ExtractedQualityQuestion).order_by(col(ExtractedQualityQuestion.created_at).desc()),
+        request,
+        param="questions_page",
+    )
     opportunities = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(300)))
     documents = list(session.exec(select(OpportunityDocument).order_by(col(OpportunityDocument.extracted_at).desc()).limit(300)))
     return templates.TemplateResponse(
         request,
         "requirements.html",
-        context(request, requirements=reqs, questions=questions, opportunities=opportunities, documents=documents, **reference_context(session)),
+        context(
+            request,
+            requirements=reqs,
+            questions=questions,
+            opportunities=opportunities,
+            documents=documents,
+            requirements_pagination=req_pagination,
+            questions_pagination=question_pagination,
+            **reference_context(session),
+        ),
     )
 
 
@@ -1547,6 +1608,7 @@ async def create_requirement(request: Request, session: Session = Depends(get_se
         customer_id=customer_id,
         opportunity_id=opportunity_id,
         requirement_theme=theme,
+        requirement_category=str(form.get("requirement_category") or classify_requirement_category(text, theme)),
         requirement_text=text,
         requirement_source=str(form.get("requirement_source") or ""),
         confidence=str(form.get("confidence") or "medium"),
@@ -1576,6 +1638,7 @@ async def update_requirement(requirement_id: int, request: Request, session: Ses
     requirement.customer_id = customer_id
     requirement.opportunity_id = opportunity_id
     requirement.requirement_theme = theme
+    requirement.requirement_category = str(form.get("requirement_category") or classify_requirement_category(text, theme))
     requirement.requirement_text = text
     requirement.requirement_source = str(form.get("requirement_source") or "")
     requirement.confidence = str(form.get("confidence") or "medium")
@@ -1615,6 +1678,7 @@ async def create_quality_question(request: Request, session: Session = Depends(g
         question_text=text,
         weighting=str(form.get("weighting") or ""),
         requirement_theme=str(form.get("requirement_theme") or ""),
+        requirement_category=str(form.get("requirement_category") or classify_requirement_category(text, str(form.get("requirement_theme") or ""))),
         confidence=str(form.get("confidence") or "medium"),
         human_review_status=str(form.get("human_review_status") or "pending"),
     )
@@ -1644,6 +1708,7 @@ async def update_quality_question(question_id: int, request: Request, session: S
     question.question_text = text
     question.weighting = str(form.get("weighting") or "")
     question.requirement_theme = str(form.get("requirement_theme") or "")
+    question.requirement_category = str(form.get("requirement_category") or classify_requirement_category(text, question.requirement_theme))
     question.confidence = str(form.get("confidence") or "medium")
     question.human_review_status = str(form.get("human_review_status") or "pending")
     update_with_audit(session, question, "Updated quality question", before)
@@ -1663,9 +1728,30 @@ async def delete_quality_question(question_id: int, request: Request, session: S
 
 @app.get("/kra", response_class=HTMLResponse)
 def kra(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
-    runs = list(session.exec(select(KRAResearchRun).order_by(col(KRAResearchRun.started_at).desc()).limit(100)))
-    findings = list(session.exec(select(KRAFinding).order_by(col(KRAFinding.created_at).desc()).limit(200)))
-    return templates.TemplateResponse(request, "kra.html", context(request, runs=runs, findings=findings, **reference_context(session)))
+    runs, runs_pagination = paged(
+        session,
+        select(KRAResearchRun).order_by(col(KRAResearchRun.started_at).desc()),
+        request,
+        param="runs_page",
+    )
+    findings, findings_pagination = paged(
+        session,
+        select(KRAFinding).order_by(col(KRAFinding.created_at).desc()),
+        request,
+        param="findings_page",
+    )
+    return templates.TemplateResponse(
+        request,
+        "kra.html",
+        context(
+            request,
+            runs=runs,
+            findings=findings,
+            runs_pagination=runs_pagination,
+            findings_pagination=findings_pagination,
+            **reference_context(session),
+        ),
+    )
 
 
 @app.post("/kra/run")
@@ -1683,8 +1769,8 @@ async def run_kra(request: Request, session: Session = Depends(get_session), _us
 
 @app.get("/reports", response_class=HTMLResponse)
 def reports(request: Request, session: Session = Depends(get_session)):
-    items = list(session.exec(select(IntelligenceReport).order_by(col(IntelligenceReport.generated_at).desc())))
-    return templates.TemplateResponse(request, "reports.html", context(request, reports=items, **reference_context(session)))
+    items, pagination = paged(session, select(IntelligenceReport).order_by(col(IntelligenceReport.generated_at).desc()), request)
+    return templates.TemplateResponse(request, "reports.html", context(request, reports=items, reports_pagination=pagination, **reference_context(session)))
 
 
 @app.post("/reports")
@@ -1774,5 +1860,5 @@ async def send_report_email(report_id: int, request: Request, session: Session =
 
 @app.get("/audit", response_class=HTMLResponse)
 def audit(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
-    events = list(session.exec(select(AuditEvent).order_by(col(AuditEvent.created_at).desc()).limit(200)))
-    return templates.TemplateResponse(request, "audit.html", context(request, events=events))
+    events, pagination = paged(session, select(AuditEvent).order_by(col(AuditEvent.created_at).desc()), request)
+    return templates.TemplateResponse(request, "audit.html", context(request, events=events, audit_pagination=pagination))

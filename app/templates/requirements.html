@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Requirements - {{ app_name }}{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Requirement Knowledge Base</h1><p>Human-review requirement themes, extracted quality questions and weighting signals.</p></div></div>
+<div class="page-head"><div><h1>Requirement Knowledge Base</h1><p>Agent-categorised requirement themes, extracted quality questions and weighting signals for trend analysis.</p></div></div>
 <section class="grid two">
   <div class="panel">
     <h2>Requirement Themes</h2>
@@ -14,7 +14,7 @@
             <button class="danger compact" type="submit">Delete</button>
           </form>
         </div>
-        <div class="badges"><span class="badge weak">{{ req.confidence }}</span><span class="badge amber">{{ req.human_review_status }}</span></div>
+        <div class="badges"><span class="badge cyan">{{ req.requirement_category or "general" }}</span><span class="badge weak">{{ req.confidence }}</span><span class="badge amber">{{ req.human_review_status }}</span></div>
         <p>{{ req.requirement_text }}</p>
         <details class="edit-drawer">
           <summary>Edit requirement</summary>
@@ -24,6 +24,7 @@
               <div class="field"><label>Opportunity</label><select name="opportunity_id"><option value="">Not linked</option>{% for opportunity in opportunities %}<option value="{{ opportunity.id }}" {% if req.opportunity_id == opportunity.id %}selected{% endif %}>{{ opportunity.title }}</option>{% endfor %}</select></div>
             </div>
             <div class="field"><label>Theme</label><input name="requirement_theme" value="{{ req.requirement_theme }}" required></div>
+            <div class="field"><label>Trend category</label><select name="requirement_category"><option value="">Agent classify</option>{% for category in requirement_categories %}<option value="{{ category }}" {% if req.requirement_category == category %}selected{% endif %}>{{ category.replace('_', ' ') }}</option>{% endfor %}</select></div>
             <div class="field"><label>Requirement text</label><textarea name="requirement_text" required>{{ req.requirement_text }}</textarea></div>
             <div class="field"><label>Source</label><input name="requirement_source" value="{{ req.requirement_source }}"></div>
             <div class="form-grid">
@@ -36,6 +37,7 @@
       </article>
       {% else %}<p>No requirements extracted yet.</p>{% endfor %}
     </div>
+    {% with pagination=requirements_pagination %}{% include "_pagination.html" %}{% endwith %}
   </div>
   <div class="panel">
     <h2>Quality Questions</h2>
@@ -48,7 +50,7 @@
             <button class="danger compact" type="submit">Delete</button>
           </form>
         </div>
-        <div class="badges"><span class="badge weak">{{ question.confidence }}</span>{% if question.weighting %}<span class="badge green">{{ question.weighting }}</span>{% endif %}<span class="badge amber">{{ question.human_review_status }}</span></div>
+        <div class="badges"><span class="badge cyan">{{ question.requirement_category or "general" }}</span><span class="badge weak">{{ question.confidence }}</span>{% if question.weighting %}<span class="badge green">{{ question.weighting }}</span>{% endif %}<span class="badge amber">{{ question.human_review_status }}</span></div>
         <p>{{ question.question_text }}</p>
         <details class="edit-drawer">
           <summary>Edit question</summary>
@@ -63,6 +65,7 @@
               <div class="field"><label>Weighting</label><input name="weighting" value="{{ question.weighting }}"></div>
               <div class="field"><label>Theme</label><input name="requirement_theme" value="{{ question.requirement_theme }}"></div>
             </div>
+            <div class="field"><label>Trend category</label><select name="requirement_category"><option value="">Agent classify</option>{% for category in requirement_categories %}<option value="{{ category }}" {% if question.requirement_category == category %}selected{% endif %}>{{ category.replace('_', ' ') }}</option>{% endfor %}</select></div>
             <div class="form-grid">
               <div class="field"><label>Confidence</label><input name="confidence" value="{{ question.confidence }}"></div>
               <div class="field"><label>Review status</label><input name="human_review_status" value="{{ question.human_review_status }}"></div>
@@ -73,6 +76,7 @@
       </article>
       {% else %}<p>No quality questions captured yet.</p>{% endfor %}
     </div>
+    {% with pagination=questions_pagination %}{% include "_pagination.html" %}{% endwith %}
   </div>
 </section>
 <section class="grid two" style="margin-top:18px;">
@@ -84,6 +88,7 @@
         <div class="field"><label>Opportunity</label><select name="opportunity_id"><option value="">Not linked</option>{% for opportunity in opportunities %}<option value="{{ opportunity.id }}">{{ opportunity.title }}</option>{% endfor %}</select></div>
       </div>
       <div class="field"><label>Theme</label><input name="requirement_theme" required></div>
+      <div class="field"><label>Trend category</label><select name="requirement_category"><option value="">Agent classify</option>{% for category in requirement_categories %}<option value="{{ category }}">{{ category.replace('_', ' ') }}</option>{% endfor %}</select></div>
       <div class="field"><label>Requirement text</label><textarea name="requirement_text" required></textarea></div>
       <div class="field"><label>Source</label><input name="requirement_source"></div>
       <div class="form-grid">
@@ -106,6 +111,7 @@
         <div class="field"><label>Weighting</label><input name="weighting"></div>
         <div class="field"><label>Theme</label><input name="requirement_theme"></div>
       </div>
+      <div class="field"><label>Trend category</label><select name="requirement_category"><option value="">Agent classify</option>{% for category in requirement_categories %}<option value="{{ category }}">{{ category.replace('_', ' ') }}</option>{% endfor %}</select></div>
       <div class="form-grid">
         <div class="field"><label>Confidence</label><input name="confidence" value="medium"></div>
         <div class="field"><label>Review status</label><input name="human_review_status" value="pending"></div>

@@ -204,7 +204,7 @@ Connector principles:
 - endpoint host must be on an approved source domain or the configured portal/platform domain
 - API keys are referenced by environment variable / Key Vault secret name only
 - secret values are not stored in SQLite, displayed in the UI or written into reports
-- retrieved information is marked pending human review before onward use
+- retrieved information is agent-classified and auto-approved into the catalogue only when source, relevance and assignment thresholds are met; lower-confidence items remain queued for review
 
 Supported MVP auth modes:
 
@@ -242,13 +242,15 @@ The workflow covers:
 - customer-specific public search URLs retained as inactive `search_reference` records for human validation and drill-through
 - one ingestion pipeline with OCDS/eForms normalisation and dedupe by OCID or stable notice reference
 - customer matching using watch profiles, aliases, keywords, sectors, regions, CPV codes and value bands
-- a human review gate at `/review` for approve, hold, reject and reassign actions
+- agent classification at `/review` for visibility, override, hold, reject and reassign actions
 - branded report generation with local downloads in PDF, Markdown, HTML, JSON and text
 - two report products: a credibility-gated executive intelligence pack for leadership/demo use, and an admin automation run log for source, connector and KRA runtime traceability
 - email delivery through `/admin`, using local `.eml` outbox mode by default or SMTP when configured
 - a phase-2 style `/client-portal` interest tracker for "I'm interested" signals and pipeline follow-up
 
-The Admin automation can run the full operating rhythm in one cycle, but the MVP keeps the important COF guardrail: generated intelligence remains review-required and no portal login, expression of interest, submission or customer contact is automated. Admin source health now shows diagnostic detail such as rate-limit, TLS, allow-list and HTTP status notes when a source cannot be checked. Executive reports suppress raw runtime noise and move buyer mismatches or very low-confidence records into a data-quality exclusions section.
+The Admin automation can run the full operating rhythm in one cycle. High-confidence mined records can now be assigned to a business unit/customer and approved into the catalogue by the agent, while low-confidence records remain queued for override. The MVP keeps the important COF guardrail that no portal login, expression of interest, submission or customer contact is automated. Admin source health shows diagnostic detail such as rate-limit, TLS, allow-list and HTTP status notes when a source cannot be checked. Executive reports suppress raw runtime noise and move buyer mismatches or very low-confidence records into a data-quality exclusions section.
+
+Requirement and quality-question records are categorised into configurable trend categories from `app/rules/extraction.yml`, including cyber, digital/data, operational technology, service management, networks, asset operations, compliance/social value, commercial/procurement and mobilisation themes. High-volume catalogue pages use 10-record pagination to keep the UI usable during demos and live testing.
 
 ## Data Maintenance
 

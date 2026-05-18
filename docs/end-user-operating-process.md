@@ -230,7 +230,7 @@ Use this weekly or before a bid review:
 1. Apply or update customer packs.
 2. Refresh public sources.
 3. Run KRA checks.
-4. Review opportunities and requirements.
+4. Check agent-classified opportunities and requirements, only overriding low-confidence or incorrect records.
 5. Confirm portal tasks are complete.
 6. Generate a report.
 7. Download the report for file storage.

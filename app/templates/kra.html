@@ -33,7 +33,7 @@
 <section class="grid two" style="margin-top:18px;">
   <div class="panel">
     <h2>Research Runs</h2>
-    <div class="table-wrap"><table><thead><tr><th>Started</th><th>Status</th><th>Sources</th><th>Findings</th><th>Runtime note</th></tr></thead><tbody>{% for run in runs %}<tr><td>{{ run.started_at.strftime('%Y-%m-%d %H:%M') }}</td><td><span class="badge {{ 'green' if run.status == 'completed' and not run.error_summary else 'amber' if run.status in ['started','running','completed'] else 'red' }}">{{ run.status }}</span></td><td>{{ run.sources_checked }}</td><td>{{ run.findings_created }}</td><td>{{ run.error_summary or run.guardrail_summary }}</td></tr>{% else %}<tr><td colspan="5">No KRA runs yet.</td></tr>{% endfor %}</tbody></table></div>
+    <div class="table-wrap"><table><thead><tr><th>Started</th><th>Status</th><th>Sources</th><th>Findings</th><th>Runtime note</th></tr></thead><tbody>{% for run in runs %}<tr><td>{{ run.started_at.strftime('%Y-%m-%d %H:%M') }}</td><td><span class="badge {{ 'green' if run.status == 'completed' and not run.error_summary else 'amber' if run.status in ['started','running','completed'] else 'red' }}">{{ run.status }}</span></td><td>{{ run.sources_checked }}</td><td>{{ run.findings_created }}</td><td>{{ run.error_summary or run.guardrail_summary }}</td></tr>{% else %}<tr><td colspan="5">No KRA runs yet.</td></tr>{% endfor %}</tbody></table>{% with pagination=runs_pagination %}{% include "_pagination.html" %}{% endwith %}</div>
   </div>
   <div class="panel">
     <h2>Findings</h2>
@@ -42,6 +42,7 @@
       <article class="list-item"><h3>{{ finding.title }}</h3><div class="badges"><span class="badge weak">{{ finding.finding_type }}</span><span class="badge amber">{{ finding.change_status }}</span><span class="badge">{{ finding.confidence }}</span></div><p>{{ finding.summary }}</p></article>
       {% else %}<p>No findings yet.</p>{% endfor %}
     </div>
+    {% with pagination=findings_pagination %}{% include "_pagination.html" %}{% endwith %}
   </div>
 </section>
 {% endblock %}

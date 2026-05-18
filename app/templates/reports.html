@@ -42,6 +42,7 @@
       </article>
       {% else %}<p>No reports generated yet.</p>{% endfor %}
     </div>
+    {% with pagination=reports_pagination %}{% include "_pagination.html" %}{% endwith %}
   </div>
   {% if current_user.is_admin %}
   <div class="panel">

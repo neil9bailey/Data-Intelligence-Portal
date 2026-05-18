@@ -327,7 +327,7 @@ def test_report_generation_uses_ai_brief_when_llm_enabled(seeded_session, monkey
     report = create_report(seeded_session, "AI report")
 
     assert "Executive AI briefing text." in report.markdown
-    assert "Requires human review before onward use." in report.markdown
+    assert "Agent-classified records should be checked before bid, customer, legal or compliance action." in report.markdown
 
 
 def test_report_generation_can_skip_report_level_ai_brief(seeded_session, monkeypatch):

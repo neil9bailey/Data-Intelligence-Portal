@@ -23,6 +23,7 @@ from app.models import (
     ProcurementSource,
     SourceCheckSnapshot,
 )
+from app.requirement_taxonomy import category_trend_counts
 from app.rule_loader import rules_version_summary
 
 
@@ -119,6 +120,7 @@ def generate_executive_intelligence_pack_markdown(
     opportunity_blocks = [_opportunity_block(index, item, context["sources_by_id"]) for index, item in enumerate(current_opportunities[:25], start=1)]
     requirement_lines = [_requirement_line(item) for item in requirements[:12]]
     question_lines = [_question_line(item) for item in questions[:8]]
+    category_lines = _category_trend_lines(requirements + questions)
     exclusion_note = _exclusion_summary(excluded)
 
     return f"""# {report_name}
@@ -127,7 +129,7 @@ def generate_executive_intelligence_pack_markdown(
 **Generated at:** {generated_at}  
 **Scope:** {scope}  
 **Credibility status:** {confidence}  
-**Human review:** Requires human review before onward use.
+**Decision caveat:** Agent-classified records should be checked before bid, customer, legal or compliance action.
 
 ## Purpose
 
@@ -147,7 +149,11 @@ This digest summarises current public-sector opportunity signals for leadership,
 
 ## Requirement And Capability Themes
 
-{chr(10).join(requirement_lines) if requirement_lines else "- No reviewed requirement themes are available yet. Capture permitted tender text or run approved source checks before using the pack externally."}
+{chr(10).join(requirement_lines) if requirement_lines else "- No categorised requirement themes are available yet. Capture permitted tender text or run approved source checks before using the pack externally."}
+
+## Requirement Category Trends
+
+{chr(10).join(category_lines) if category_lines else "- No category trends are available yet."}
 
 ## Quality Questions And Weightings
 
@@ -460,9 +466,9 @@ def _readiness_assessment(
     if excluded:
         gaps.append(f"{len(excluded)} opportunity record(s) were excluded because buyer matching or relevance was not credible enough for the executive pack.")
     if requirements and not any((item.human_review_status or "") in REVIEW_READY_STATUSES for item in requirements):
-        gaps.append("Requirements remain pending human review.")
+        gaps.append("Requirements remain pending agent or manual approval.")
     if questions and not any((item.human_review_status or "") in REVIEW_READY_STATUSES for item in questions):
-        gaps.append("Extracted quality questions remain pending human review.")
+        gaps.append("Extracted quality questions remain pending agent or manual approval.")
 
     if opportunities and requirements and documents and ok_sources and not excluded:
         confidence = "Green - credible pack ready for human approval"
@@ -693,6 +699,8 @@ Notice summary: {summary}
 def _executive_rationale(item: Opportunity) -> str:
     rationale = clean_ai_text(item.relevance_rationale, 260) or ""
     rationale = rationale.replace("Automation prepared this opportunity for human review.", "").strip()
+    rationale = rationale.replace("Agent auto-approved catalogue entry because relevance, source traceability and BU/customer assignment thresholds were met.", "").strip()
+    rationale = rationale.replace("Agent queued catalogue entry for review because confidence or assignment thresholds were incomplete.", "").strip()
     if rationale.startswith("Capability-market match for "):
         marker = ": "
         rationale = rationale.split(marker, 1)[1] if marker in rationale else rationale
@@ -728,19 +736,26 @@ def _historical_opportunity_line(item: Opportunity) -> str:
 
 
 def _requirement_line(item: ExtractedRequirement) -> str:
+    category = (item.requirement_category or "general").replace("_", " ")
     return (
         f"- **{item.requirement_theme}:** {clean_ai_text(item.requirement_text, 260)} "
-        f"({item.confidence or 'unknown'} confidence; {item.human_review_status or 'pending'} review)."
+        f"({category}; {item.confidence or 'unknown'} confidence; {item.human_review_status or 'pending'} status)."
     )
 
 
 def _question_line(item: ExtractedQualityQuestion) -> str:
     weighting = f"; weighting {item.weighting}" if item.weighting else ""
     theme = item.requirement_theme or "quality question"
+    category = (item.requirement_category or "general").replace("_", " ")
     return (
         f"- **{theme}:** {clean_ai_text(item.question_text, 260)} "
-        f"({item.confidence or 'unknown'} confidence{weighting}; {item.human_review_status or 'pending'} review)."
+        f"({category}; {item.confidence or 'unknown'} confidence{weighting}; {item.human_review_status or 'pending'} status)."
     )
+
+
+def _category_trend_lines(items: list[ExtractedRequirement | ExtractedQualityQuestion]) -> list[str]:
+    counts = category_trend_counts(items)
+    return [f"- **{category.replace('_', ' ').title()}**: {count} signal(s)." for category, count in counts.most_common(10)]
 
 
 def _document_line(item: OpportunityDocument) -> str:

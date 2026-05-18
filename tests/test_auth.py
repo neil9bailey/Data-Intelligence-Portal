@@ -67,7 +67,7 @@ def test_standard_user_sees_simple_pages_not_admin_setup(monkeypatch, reference_
     assert reports_response.status_code == 200
     assert customers_response.status_code == 403
     assert 'href="/admin"' not in home_response.text
-    assert "Opportunity intelligence, ready for review." in home_response.text
+    assert "Opportunity intelligence, classified and ready." in home_response.text
 
 
 def test_admin_user_gets_dedicated_admin_workspace(monkeypatch, reference_session):

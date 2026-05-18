@@ -1,0 +1,15 @@
+{% if pagination and (pagination.has_prev or pagination.has_next) %}
+<nav class="pagination" aria-label="Page navigation">
+  {% if pagination.has_prev %}
+  <a class="button compact secondary" href="{{ page_url(request, pagination.param, pagination.prev_page) }}">Previous</a>
+  {% else %}
+  <span class="page-disabled">Previous</span>
+  {% endif %}
+  <span class="page-current">Page {{ pagination.page }}</span>
+  {% if pagination.has_next %}
+  <a class="button compact secondary" href="{{ page_url(request, pagination.param, pagination.next_page) }}">Next</a>
+  {% else %}
+  <span class="page-disabled">Next</span>
+  {% endif %}
+</nav>
+{% endif %}

@@ -155,7 +155,14 @@ def retry_sqlite_locked(action):
 def apply_sqlite_schema_updates() -> None:
     if not settings.database_url.startswith("sqlite"):
         return
-    updates: dict[str, dict[str, str]] = {}
+    updates: dict[str, dict[str, str]] = {
+        "extractedrequirement": {
+            "requirement_category": "requirement_category VARCHAR DEFAULT 'general'",
+        },
+        "extractedqualityquestion": {
+            "requirement_category": "requirement_category VARCHAR DEFAULT 'general'",
+        },
+    }
     with engine.begin() as connection:
         for table_name, columns in updates.items():
             existing = {row[1] for row in connection.execute(text(f"PRAGMA table_info({table_name})")).fetchall()}

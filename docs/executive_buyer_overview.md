@@ -251,7 +251,7 @@ With Data Intelligence Portal:
 4. Portal retrieval tasks are created for documents.
 5. Document extracts are analysed.
 6. Requirements and quality questions are structured.
-7. Findings are flagged for human review.
+7. High-confidence findings are agent-classified into the catalogue; lower-confidence records are flagged for override.
 8. A summary report is generated for the bid or leadership team.
 
 The result is a faster, clearer and more repeatable route from market signal to informed action.

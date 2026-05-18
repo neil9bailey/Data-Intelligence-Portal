@@ -31,6 +31,7 @@ from app.models import (
     ProcurementSource,
     SourceCheckSnapshot,
 )
+from app.requirement_taxonomy import classify_requirement_category, requirement_themes_for_text as taxonomy_requirement_themes_for_text
 from app.rule_loader import load_rule_file
 from app.settings import get_settings
 
@@ -1078,12 +1079,7 @@ def repair_low_quality_market_opportunities(session: Session) -> int:
 
 
 def requirement_themes_for_text(text: str) -> list[str]:
-    lower = f" {text.lower()} "
-    themes: list[str] = []
-    for theme, patterns in (extraction_rules().get("themes") or {}).items():
-        if any(str(pattern).lower() in lower for pattern in patterns):
-            themes.append(str(theme))
-    return themes
+    return taxonomy_requirement_themes_for_text(text)
 
 
 def create_requirements_for_opportunity(session: Session, opportunity: Opportunity, source_text: str) -> int:
@@ -1102,6 +1098,7 @@ def create_requirements_for_opportunity(session: Session, opportunity: Opportuni
             opportunity_id=opportunity.id,
             customer_id=opportunity.customer_id,
             requirement_theme=theme,
+            requirement_category=classify_requirement_category(source_text, theme),
             requirement_text=source_text[:1200],
             requirement_source=opportunity.source_url,
             confidence="medium",
@@ -1163,6 +1160,7 @@ def extract_document_intelligence(session: Session, opportunity: Opportunity, do
             question_text=question_text,
             weighting=weighting,
             requirement_theme=themes[0] if themes else "bid quality response",
+            requirement_category=classify_requirement_category(question_text, themes[0] if themes else "bid quality response"),
             confidence="medium" if weighting else "low",
         )
         session.add(question)

@@ -121,6 +121,33 @@ def test_healthz():
     assert response.json()["status"] == "ok"
 
 
+def test_opportunities_page_is_paginated(session):
+    for index in range(12):
+        session.add(
+            Opportunity(
+                title=f"Paged opportunity {index:02d}",
+                buyer_name="Test Buyer",
+                status="approved",
+                relevance_score=75,
+                source_url=f"https://example.com/{index}",
+            )
+        )
+    session.commit()
+    client = client_for(session)
+    try:
+        page_one = client.get("/opportunities")
+        page_two = client.get("/opportunities?page=2")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert page_one.status_code == 200
+    assert page_two.status_code == 200
+    assert "Paged opportunity 11" in page_one.text
+    assert "Paged opportunity 01" not in page_one.text
+    assert "Paged opportunity 01" in page_two.text
+    assert "Next" in page_one.text
+
+
 def test_dashboard_uses_clean_setup_homepage(reference_session):
     client = client_for(reference_session)
     try:
@@ -130,7 +157,7 @@ def test_dashboard_uses_clean_setup_homepage(reference_session):
 
     assert response.status_code == 200
     assert '<base target="_top">' in response.text
-    assert "Opportunity intelligence, ready for review." in response.text
+    assert "Opportunity intelligence, classified and ready." in response.text
     assert "One customer memory for every source, portal and requirement." not in response.text
     assert "Official Intelligence Feed" in response.text
 

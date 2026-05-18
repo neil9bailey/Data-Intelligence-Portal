@@ -4,7 +4,7 @@
 <div class="page-head">
   <div>
     <h1>Live Operating Workflow</h1>
-    <p>A practical view of how source monitoring, portal retrieval, human review and report delivery move information through the platform.</p>
+    <p>A practical view of how source monitoring, agent classification, portal retrieval and report delivery move information through the platform.</p>
   </div>
 </div>
 
@@ -36,10 +36,10 @@
     <a class="button secondary compact" href="/portals">Portal workbench</a>
   </article>
   <article class="workflow-card">
-    <span class="eyebrow">4. Review</span>
-    <h2>Human decision gate</h2>
-    <p>Approve, hold, reject or reassign before information is treated as report-ready.</p>
-    <a class="button secondary compact" href="/review">Review queue</a>
+    <span class="eyebrow">4. Classify</span>
+    <h2>Agent decisioning</h2>
+    <p>High-confidence signals are assigned to BU/customer and approved into the catalogue; low-confidence records are held for override.</p>
+    <a class="button secondary compact" href="/review">Overrides</a>
   </article>
   <article class="workflow-card">
     <span class="eyebrow">5. Reports</span>
@@ -58,7 +58,7 @@
 <section class="grid three" style="margin-top:18px;">
   <div class="panel"><h2>Portal Rule</h2><p>Delta, In-Tend, JAGGAER and ProContract are treated as account-required for full tender pack retrieval by default. DIP stores account references and status only, never passwords.</p></div>
   <div class="panel"><h2>Automation Rule</h2><p>Automated retrieval is read-only and only runs against approved public/API endpoints. Anything requiring login/MFA becomes a human retrieval task.</p></div>
-  <div class="panel"><h2>Output Rule</h2><p>Reports can run enabled connectors first, but retrieved information remains pending human review until accepted by the team.</p></div>
+  <div class="panel"><h2>Output Rule</h2><p>Reports use auto-approved mined intelligence, with review flags retained for any low-confidence source, assignment or extraction.</p></div>
 </section>
 
 <section class="grid two" style="margin-top:18px;">

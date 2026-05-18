@@ -39,6 +39,7 @@
       </article>
       {% else %}<p>No customers yet.</p>{% endfor %}
     </div>
+    {% with pagination=customers_pagination %}{% include "_pagination.html" %}{% endwith %}
   </div>
   <div class="panel">
     <h2>Add Customer</h2>

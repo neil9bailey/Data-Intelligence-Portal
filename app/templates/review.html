@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Review Queue - {{ app_name }}{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Human Review Gate</h1><p>Approve, hold, reject or reassign opportunities before they become report/client ready.</p></div></div>
+<div class="page-head"><div><h1>Agent Decisions & Overrides</h1><p>High-confidence signals can be auto-approved into the catalogue. Use this page to correct, hold, reject or reassign records where the agent confidence is not enough.</p></div></div>
 <section class="panel">
   <div class="table-wrap">
     <table>
@@ -32,6 +32,7 @@
         {% endfor %}
       </tbody>
     </table>
+    {% with pagination=opportunities_pagination %}{% include "_pagination.html" %}{% endwith %}
   </div>
 </section>
 {% endblock %}

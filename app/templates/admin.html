@@ -53,7 +53,7 @@
   </div>
   {% endif %}
   <div class="automation-grid">
-    {% set labels = ['Apply or update customer packs', 'Refresh official news feeds', 'Refresh public sources', 'Run KRA checks', 'Run public opportunity keyword sweep', 'Review opportunities and requirements', 'Run approved portal retrieval', 'Prepare retrieved intelligence for review', 'Confirm portal tasks are complete', 'Generate a report', 'Generate branded report export', 'Email the report', 'Check the audit log'] %}
+    {% set labels = ['Apply or update customer packs', 'Refresh official news feeds', 'Refresh public sources', 'Run KRA checks', 'Run public opportunity keyword sweep', 'Classify opportunities and requirements', 'Run approved portal retrieval', 'Classify retrieved intelligence', 'Confirm portal tasks are complete', 'Generate a report', 'Generate branded report export', 'Email the report', 'Check the audit log'] %}
     {% for label in labels %}
     {% set current = namespace(step=None) %}
     {% for step in automation.latest_steps %}

@@ -8,6 +8,7 @@ import logging
 from sqlmodel import Session, col, select
 
 from app.audit import compact_snapshot, log_event
+from app.classification import agent_classify_catalogue
 from app.database import backup_sqlite_persistent_copy, engine
 from app.email_service import get_email_configuration, send_or_store_email, split_recipients
 from app.export_service import report_export, report_filename
@@ -28,10 +29,8 @@ from app.models import (
     BuyerPortalInstance,
     Customer,
     DocumentRetrievalTask,
-    ExtractedRequirement,
     IntelligenceReport,
     KRAResearchRun,
-    Opportunity,
     PortalRetrievalRun,
     ProcurementSource,
 )
@@ -127,9 +126,15 @@ def run_admin_full_cycle(
 
         review_result = auto_prepare_review_queue(session)
         step(
-            "Review opportunities and requirements",
+            "Classify opportunities and requirements",
             "completed",
-            f"{review_result['opportunities']} opportunities and {review_result['requirements']} requirements moved to review-ready status.",
+            (
+                f"{review_result.get('auto_approved', 0)} opportunities auto-approved; "
+                f"{review_result.get('review_required', 0)} queued for review; "
+                f"{review_result.get('assigned_customers', 0)} customer assignments; "
+                f"{review_result.get('assigned_business_units', 0)} BU assignments; "
+                f"{review_result.get('requirements', 0)} requirements categorised."
+            ),
         )
 
         retrieval_runs = run_enabled_portal_connectors(session, fetcher=connector_fetcher) if connector_fetcher else run_enabled_portal_connectors(session)
@@ -142,11 +147,19 @@ def run_admin_full_cycle(
         )
 
         post_retrieval_review = auto_prepare_review_queue(session)
-        if post_retrieval_review["opportunities"] or post_retrieval_review["requirements"]:
+        if (
+            post_retrieval_review.get("opportunities")
+            or post_retrieval_review.get("requirements")
+            or post_retrieval_review.get("questions")
+        ):
             step(
-                "Prepare retrieved intelligence for review",
+                "Classify retrieved intelligence",
                 "completed",
-                f"{post_retrieval_review['opportunities']} opportunities and {post_retrieval_review['requirements']} requirements updated after retrieval.",
+                (
+                    f"{post_retrieval_review.get('auto_approved', 0)} opportunities auto-approved; "
+                    f"{post_retrieval_review.get('requirements', 0)} requirements and "
+                    f"{post_retrieval_review.get('questions', 0)} quality questions categorised after retrieval."
+                ),
             )
 
         task_result = complete_automated_portal_tasks(session)
@@ -305,25 +318,9 @@ def cached_source_fetcher(fetcher=None):
 
 
 def auto_prepare_review_queue(session: Session) -> dict[str, int]:
-    opportunity_count = 0
-    requirement_count = 0
-    for item in session.exec(select(Opportunity)):
-        if item.status in {"new", "matched", "watching", "pending_review"} and item.customer_id:
-            before = compact_snapshot(item)
-            item.status = "review_required"
-            item.relevance_rationale = _append_note(item.relevance_rationale, "Automation prepared this opportunity for human review.")
-            session.add(item)
-            log_event(session, entity_type="Opportunity", entity_id=item.id, action="auto_review_prepare", summary=f"Prepared opportunity for review: {item.title}", before=before, after=item)
-            opportunity_count += 1
-    for item in session.exec(select(ExtractedRequirement)):
-        if item.human_review_status == "pending":
-            before = compact_snapshot(item)
-            item.human_review_status = "review_required"
-            session.add(item)
-            log_event(session, entity_type="ExtractedRequirement", entity_id=item.id, action="auto_review_prepare", summary=f"Prepared requirement for review: {item.requirement_theme}", before=before, after=item)
-            requirement_count += 1
+    result = agent_classify_catalogue(session, actor="automation-agent")
     session.commit()
-    return {"opportunities": opportunity_count, "requirements": requirement_count}
+    return result
 
 
 def complete_automated_portal_tasks(session: Session) -> dict[str, int]:
