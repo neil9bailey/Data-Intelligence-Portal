@@ -31,7 +31,7 @@ from app.models import (
     ProcurementSource,
     SourceCheckSnapshot,
 )
-from app.requirement_taxonomy import classify_requirement_category, requirement_themes_for_text as taxonomy_requirement_themes_for_text
+from app.requirement_taxonomy import assess_requirement_confidence, classify_requirement_category, requirement_themes_for_text as taxonomy_requirement_themes_for_text
 from app.rule_loader import load_rule_file
 from app.settings import get_settings
 
@@ -1094,14 +1094,24 @@ def create_requirements_for_opportunity(session: Session, opportunity: Opportuni
         ).first()
         if existing:
             continue
+        category = classify_requirement_category(source_text, theme)
+        confidence, confidence_reason = assess_requirement_confidence(
+            source_text,
+            theme=theme,
+            category=category,
+            customer_id=opportunity.customer_id,
+            opportunity_id=opportunity.id,
+            source_reference=opportunity.source_url,
+        )
         requirement = ExtractedRequirement(
             opportunity_id=opportunity.id,
             customer_id=opportunity.customer_id,
             requirement_theme=theme,
-            requirement_category=classify_requirement_category(source_text, theme),
-            requirement_text=source_text[:1200],
+            requirement_category=category,
+            requirement_text=source_text[:6000],
             requirement_source=opportunity.source_url,
-            confidence="medium",
+            confidence=confidence,
+            confidence_reason=confidence_reason,
         )
         session.add(requirement)
         session.flush()
@@ -1153,15 +1163,28 @@ def extract_document_intelligence(session: Session, opportunity: Opportunity, do
         if existing:
             continue
         themes = requirement_themes_for_text(question_text)
+        theme = themes[0] if themes else "bid quality response"
+        category = classify_requirement_category(question_text, theme)
+        confidence, confidence_reason = assess_requirement_confidence(
+            question_text,
+            theme=theme,
+            category=category,
+            customer_id=opportunity.customer_id,
+            opportunity_id=opportunity.id,
+            source_reference=document.url_or_path or opportunity.source_url,
+            weighting=weighting,
+        )
         question = ExtractedQualityQuestion(
             opportunity_id=opportunity.id or 0,
+            customer_id=opportunity.customer_id,
             document_id=document.id,
             section_reference=document.document_type,
             question_text=question_text,
             weighting=weighting,
-            requirement_theme=themes[0] if themes else "bid quality response",
-            requirement_category=classify_requirement_category(question_text, themes[0] if themes else "bid quality response"),
-            confidence="medium" if weighting else "low",
+            requirement_theme=theme,
+            requirement_category=category,
+            confidence=confidence,
+            confidence_reason=confidence_reason,
         )
         session.add(question)
         session.flush()

@@ -268,6 +268,45 @@ p { margin: 0 0 12px; }
 .metric .label { color: var(--muted); font-size: 13px; }
 .stack { display: grid; gap: 12px; }
 .list-item { padding: 14px; background: #fbfbfe; }
+.requirement-body {
+  max-width: 100%;
+  margin: 10px 0;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-height: 1.48;
+}
+.confidence-note {
+  margin: 8px 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.42;
+}
+.full-text-drawer {
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+.full-text-drawer summary {
+  padding: 9px 11px;
+  color: var(--plum);
+  cursor: pointer;
+  font-weight: 1000;
+}
+.full-text-drawer pre {
+  max-height: 520px;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  border-top: 1px solid var(--line);
+}
 .portal-command {
   min-height: 210px;
   border-radius: 8px;

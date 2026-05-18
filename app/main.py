@@ -72,7 +72,7 @@ from app.models import (
     utc_now,
 )
 from app.portal_connectors import run_enabled_portal_connectors, run_portal_connector
-from app.requirement_taxonomy import classify_requirement_category, requirement_categories
+from app.requirement_taxonomy import assess_requirement_confidence, classify_requirement_category, requirement_categories
 from app.reports import create_report
 from app.rule_loader import load_rule_file, rules_version_summary
 from app.seed import seed_demo_data, seed_reference_data
@@ -1003,6 +1003,7 @@ def delete_customer(customer_id: int, session: Session = Depends(get_session), _
     clear_links(session, Opportunity, "customer_id", customer.id)
     clear_links(session, ClientInterestSignal, "customer_id", customer.id)
     clear_links(session, ExtractedRequirement, "customer_id", customer.id)
+    clear_links(session, ExtractedQualityQuestion, "customer_id", customer.id)
     clear_links(session, KRAResearchRun, "customer_id", customer.id)
     clear_links(session, KRAFinding, "customer_id", customer.id)
     delete_with_audit(session, customer, f"Deleted customer {customer.customer_name}")
@@ -1576,6 +1577,7 @@ def requirements(request: Request, session: Session = Depends(get_session), _use
     )
     opportunities = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(300)))
     documents = list(session.exec(select(OpportunityDocument).order_by(col(OpportunityDocument.extracted_at).desc()).limit(300)))
+    opportunity_map = {item.id: item for item in opportunities}
     return templates.TemplateResponse(
         request,
         "requirements.html",
@@ -1584,6 +1586,7 @@ def requirements(request: Request, session: Session = Depends(get_session), _use
             requirements=reqs,
             questions=questions,
             opportunities=opportunities,
+            opportunity_map=opportunity_map,
             documents=documents,
             requirements_pagination=req_pagination,
             questions_pagination=question_pagination,
@@ -1604,14 +1607,28 @@ async def create_requirement(request: Request, session: Session = Depends(get_se
         errors.append("Requirement theme and text are required.")
     if errors:
         return validation_error_response(errors, "/requirements")
+    opportunity = session.get(Opportunity, opportunity_id) if opportunity_id else None
+    if opportunity and not customer_id:
+        customer_id = opportunity.customer_id
+    category = str(form.get("requirement_category") or classify_requirement_category(text, theme))
+    confidence, confidence_reason = assess_requirement_confidence(
+        text,
+        theme=theme,
+        category=category,
+        customer_id=customer_id,
+        opportunity_id=opportunity_id,
+        source_reference=str(form.get("requirement_source") or ""),
+    )
+    submitted_confidence = str(form.get("confidence") or "").strip()
     requirement = ExtractedRequirement(
         customer_id=customer_id,
         opportunity_id=opportunity_id,
         requirement_theme=theme,
-        requirement_category=str(form.get("requirement_category") or classify_requirement_category(text, theme)),
+        requirement_category=category,
         requirement_text=text,
         requirement_source=str(form.get("requirement_source") or ""),
-        confidence=str(form.get("confidence") or "medium"),
+        confidence=submitted_confidence if submitted_confidence and submitted_confidence != "agent" else confidence,
+        confidence_reason=confidence_reason,
         human_review_status=str(form.get("human_review_status") or "pending"),
     )
     save_with_audit(session, requirement, "create", f"Created requirement {requirement.requirement_theme}")
@@ -1634,14 +1651,28 @@ async def update_requirement(requirement_id: int, request: Request, session: Ses
         errors.append("Requirement theme and text are required.")
     if errors:
         return validation_error_response(errors, return_to)
+    opportunity = session.get(Opportunity, opportunity_id) if opportunity_id else None
+    if opportunity and not customer_id:
+        customer_id = opportunity.customer_id
+    category = str(form.get("requirement_category") or classify_requirement_category(text, theme))
+    confidence, confidence_reason = assess_requirement_confidence(
+        text,
+        theme=theme,
+        category=category,
+        customer_id=customer_id,
+        opportunity_id=opportunity_id,
+        source_reference=str(form.get("requirement_source") or ""),
+    )
+    submitted_confidence = str(form.get("confidence") or "").strip()
     before = compact_snapshot(requirement)
     requirement.customer_id = customer_id
     requirement.opportunity_id = opportunity_id
     requirement.requirement_theme = theme
-    requirement.requirement_category = str(form.get("requirement_category") or classify_requirement_category(text, theme))
+    requirement.requirement_category = category
     requirement.requirement_text = text
     requirement.requirement_source = str(form.get("requirement_source") or "")
-    requirement.confidence = str(form.get("confidence") or "medium")
+    requirement.confidence = submitted_confidence if submitted_confidence and submitted_confidence != "agent" else confidence
+    requirement.confidence_reason = confidence_reason
     requirement.human_review_status = str(form.get("human_review_status") or "pending")
     update_with_audit(session, requirement, f"Updated requirement {requirement.requirement_theme}", before)
     return redirect(return_to)
@@ -1663,6 +1694,7 @@ async def create_quality_question(request: Request, session: Session = Depends(g
     form = await request.form()
     errors: list[str] = []
     opportunity_id = parse_optional_int(form.get("opportunity_id"), "Opportunity", errors)
+    customer_id = parse_optional_int(form.get("customer_id"), "Customer", errors)
     document_id = parse_optional_int(form.get("document_id"), "Document", errors)
     text = str(form.get("question_text") or "").strip()
     if opportunity_id is None:
@@ -1671,15 +1703,32 @@ async def create_quality_question(request: Request, session: Session = Depends(g
         errors.append("Question text is required.")
     if errors:
         return validation_error_response(errors, "/requirements")
+    opportunity = session.get(Opportunity, opportunity_id) if opportunity_id else None
+    if opportunity and not customer_id:
+        customer_id = opportunity.customer_id
+    theme = str(form.get("requirement_theme") or "")
+    category = str(form.get("requirement_category") or classify_requirement_category(text, theme))
+    confidence, confidence_reason = assess_requirement_confidence(
+        text,
+        theme=theme,
+        category=category,
+        customer_id=customer_id,
+        opportunity_id=opportunity_id,
+        source_reference=str(form.get("section_reference") or ""),
+        weighting=str(form.get("weighting") or ""),
+    )
+    submitted_confidence = str(form.get("confidence") or "").strip()
     question = ExtractedQualityQuestion(
         opportunity_id=opportunity_id,
+        customer_id=customer_id,
         document_id=document_id,
         section_reference=str(form.get("section_reference") or ""),
         question_text=text,
         weighting=str(form.get("weighting") or ""),
-        requirement_theme=str(form.get("requirement_theme") or ""),
-        requirement_category=str(form.get("requirement_category") or classify_requirement_category(text, str(form.get("requirement_theme") or ""))),
-        confidence=str(form.get("confidence") or "medium"),
+        requirement_theme=theme,
+        requirement_category=category,
+        confidence=submitted_confidence if submitted_confidence and submitted_confidence != "agent" else confidence,
+        confidence_reason=confidence_reason,
         human_review_status=str(form.get("human_review_status") or "pending"),
     )
     save_with_audit(session, question, "create", "Created quality question")
@@ -1698,18 +1747,36 @@ async def update_quality_question(question_id: int, request: Request, session: S
         return validation_error_response(["Question text is required."], return_to)
     errors: list[str] = []
     opportunity_id = parse_optional_int(form.get("opportunity_id"), "Opportunity", errors) or question.opportunity_id
+    customer_id = parse_optional_int(form.get("customer_id"), "Customer", errors)
     document_id = parse_optional_int(form.get("document_id"), "Document", errors)
     if errors:
         return validation_error_response(errors, return_to)
+    opportunity = session.get(Opportunity, opportunity_id) if opportunity_id else None
+    if opportunity and not customer_id:
+        customer_id = opportunity.customer_id
+    theme = str(form.get("requirement_theme") or "")
+    category = str(form.get("requirement_category") or classify_requirement_category(text, theme))
+    confidence, confidence_reason = assess_requirement_confidence(
+        text,
+        theme=theme,
+        category=category,
+        customer_id=customer_id,
+        opportunity_id=opportunity_id,
+        source_reference=str(form.get("section_reference") or ""),
+        weighting=str(form.get("weighting") or ""),
+    )
+    submitted_confidence = str(form.get("confidence") or "").strip()
     before = compact_snapshot(question)
     question.opportunity_id = opportunity_id
+    question.customer_id = customer_id
     question.document_id = document_id
     question.section_reference = str(form.get("section_reference") or "")
     question.question_text = text
     question.weighting = str(form.get("weighting") or "")
-    question.requirement_theme = str(form.get("requirement_theme") or "")
-    question.requirement_category = str(form.get("requirement_category") or classify_requirement_category(text, question.requirement_theme))
-    question.confidence = str(form.get("confidence") or "medium")
+    question.requirement_theme = theme
+    question.requirement_category = category
+    question.confidence = submitted_confidence if submitted_confidence and submitted_confidence != "agent" else confidence
+    question.confidence_reason = confidence_reason
     question.human_review_status = str(form.get("human_review_status") or "pending")
     update_with_audit(session, question, "Updated quality question", before)
     return redirect(return_to)

@@ -7,6 +7,7 @@
     <h2>Requirement Themes</h2>
     <div class="stack">
       {% for req in requirements %}
+      {% set req_customer = customer_map.get(req.customer_id) %}
       <article class="list-item">
         <div class="list-heading">
           <h3>{{ req.requirement_theme }}</h3>
@@ -14,8 +15,13 @@
             <button class="danger compact" type="submit">Delete</button>
           </form>
         </div>
-        <div class="badges"><span class="badge cyan">{{ req.requirement_category or "general" }}</span><span class="badge weak">{{ req.confidence }}</span><span class="badge amber">{{ req.human_review_status }}</span></div>
-        <p>{{ req.requirement_text }}</p>
+        <div class="badges"><span class="badge green">{{ req_customer.customer_name if req_customer else "Customer not mapped" }}</span><span class="badge cyan">{{ (req.requirement_category or "general").replace('_', ' ') }}</span><span class="badge weak">{{ req.confidence }}</span><span class="badge amber">{{ req.human_review_status }}</span></div>
+        <p class="confidence-note">{{ req.confidence_reason or "Confidence is calculated from customer mapping, opportunity linkage, source traceability, category specificity and buyer requirement language." }}</p>
+        <div class="requirement-body">{{ req.requirement_text }}</div>
+        <details class="full-text-drawer">
+          <summary>View full requirement text</summary>
+          <pre>{{ req.requirement_text }}</pre>
+        </details>
         <details class="edit-drawer">
           <summary>Edit requirement</summary>
           <form method="post" action="/requirements/{{ req.id }}">
@@ -28,9 +34,10 @@
             <div class="field"><label>Requirement text</label><textarea name="requirement_text" required>{{ req.requirement_text }}</textarea></div>
             <div class="field"><label>Source</label><input name="requirement_source" value="{{ req.requirement_source }}"></div>
             <div class="form-grid">
-              <div class="field"><label>Confidence</label><input name="confidence" value="{{ req.confidence }}"></div>
+              <div class="field"><label>Confidence</label><input name="confidence" value="{{ req.confidence }}" placeholder="agent"></div>
               <div class="field"><label>Review status</label><input name="human_review_status" value="{{ req.human_review_status }}"></div>
             </div>
+            <div class="field"><label>Confidence reason</label><textarea readonly>{{ req.confidence_reason }}</textarea></div>
             <button type="submit">Save changes</button>
           </form>
         </details>
@@ -43,6 +50,10 @@
     <h2>Quality Questions</h2>
     <div class="stack">
       {% for question in questions %}
+      {% set question_customer = customer_map.get(question.customer_id) %}
+      {% if not question_customer and opportunity_map.get(question.opportunity_id) %}
+        {% set question_customer = customer_map.get(opportunity_map.get(question.opportunity_id).customer_id) %}
+      {% endif %}
       <article class="list-item">
         <div class="list-heading">
           <h3>{{ question.requirement_theme or "Quality question" }}</h3>
@@ -50,16 +61,24 @@
             <button class="danger compact" type="submit">Delete</button>
           </form>
         </div>
-        <div class="badges"><span class="badge cyan">{{ question.requirement_category or "general" }}</span><span class="badge weak">{{ question.confidence }}</span>{% if question.weighting %}<span class="badge green">{{ question.weighting }}</span>{% endif %}<span class="badge amber">{{ question.human_review_status }}</span></div>
-        <p>{{ question.question_text }}</p>
+        <div class="badges"><span class="badge green">{{ question_customer.customer_name if question_customer else "Customer not mapped" }}</span><span class="badge cyan">{{ (question.requirement_category or "general").replace('_', ' ') }}</span><span class="badge weak">{{ question.confidence }}</span>{% if question.weighting %}<span class="badge green">{{ question.weighting }}</span>{% endif %}<span class="badge amber">{{ question.human_review_status }}</span></div>
+        <p class="confidence-note">{{ question.confidence_reason or "Confidence is calculated from customer mapping, opportunity linkage, source traceability, category specificity, weighting and buyer requirement language." }}</p>
+        <div class="requirement-body">{{ question.question_text }}</div>
+        <details class="full-text-drawer">
+          <summary>View full question text</summary>
+          <pre>{{ question.question_text }}</pre>
+        </details>
         <details class="edit-drawer">
           <summary>Edit question</summary>
           <form method="post" action="/quality-questions/{{ question.id }}">
             <div class="form-grid">
+              <div class="field"><label>Customer</label><select name="customer_id"><option value="">Infer from opportunity/text</option>{% for customer in customers %}<option value="{{ customer.id }}" {% if question.customer_id == customer.id %}selected{% endif %}>{{ customer.customer_name }}</option>{% endfor %}</select></div>
               <div class="field"><label>Opportunity</label><select name="opportunity_id"><option value="">Keep linked opportunity</option>{% for opportunity in opportunities %}<option value="{{ opportunity.id }}" {% if question.opportunity_id == opportunity.id %}selected{% endif %}>{{ opportunity.title }}</option>{% endfor %}</select></div>
-              <div class="field"><label>Document</label><select name="document_id"><option value="">Not linked</option>{% for document in documents %}<option value="{{ document.id }}" {% if question.document_id == document.id %}selected{% endif %}>{{ document.title }}</option>{% endfor %}</select></div>
             </div>
-            <div class="field"><label>Section</label><input name="section_reference" value="{{ question.section_reference }}"></div>
+            <div class="form-grid">
+              <div class="field"><label>Document</label><select name="document_id"><option value="">Not linked</option>{% for document in documents %}<option value="{{ document.id }}" {% if question.document_id == document.id %}selected{% endif %}>{{ document.title }}</option>{% endfor %}</select></div>
+              <div class="field"><label>Section</label><input name="section_reference" value="{{ question.section_reference }}"></div>
+            </div>
             <div class="field"><label>Question</label><textarea name="question_text" required>{{ question.question_text }}</textarea></div>
             <div class="form-grid">
               <div class="field"><label>Weighting</label><input name="weighting" value="{{ question.weighting }}"></div>
@@ -67,9 +86,10 @@
             </div>
             <div class="field"><label>Trend category</label><select name="requirement_category"><option value="">Agent classify</option>{% for category in requirement_categories %}<option value="{{ category }}" {% if question.requirement_category == category %}selected{% endif %}>{{ category.replace('_', ' ') }}</option>{% endfor %}</select></div>
             <div class="form-grid">
-              <div class="field"><label>Confidence</label><input name="confidence" value="{{ question.confidence }}"></div>
+              <div class="field"><label>Confidence</label><input name="confidence" value="{{ question.confidence }}" placeholder="agent"></div>
               <div class="field"><label>Review status</label><input name="human_review_status" value="{{ question.human_review_status }}"></div>
             </div>
+            <div class="field"><label>Confidence reason</label><textarea readonly>{{ question.confidence_reason }}</textarea></div>
             <button type="submit">Save changes</button>
           </form>
         </details>
@@ -92,7 +112,7 @@
       <div class="field"><label>Requirement text</label><textarea name="requirement_text" required></textarea></div>
       <div class="field"><label>Source</label><input name="requirement_source"></div>
       <div class="form-grid">
-        <div class="field"><label>Confidence</label><input name="confidence" value="medium"></div>
+        <div class="field"><label>Confidence</label><input name="confidence" placeholder="agent"></div>
         <div class="field"><label>Review status</label><input name="human_review_status" value="pending"></div>
       </div>
       <button type="submit">Save requirement</button>
@@ -102,10 +122,13 @@
     <h2>Add Quality Question</h2>
     <form method="post" action="/quality-questions">
       <div class="form-grid">
+        <div class="field"><label>Customer</label><select name="customer_id"><option value="">Infer from opportunity/text</option>{% for customer in customers %}<option value="{{ customer.id }}">{{ customer.customer_name }}</option>{% endfor %}</select></div>
         <div class="field"><label>Opportunity</label><select name="opportunity_id" required><option value="">Select opportunity</option>{% for opportunity in opportunities %}<option value="{{ opportunity.id }}">{{ opportunity.title }}</option>{% endfor %}</select></div>
-        <div class="field"><label>Document</label><select name="document_id"><option value="">Not linked</option>{% for document in documents %}<option value="{{ document.id }}">{{ document.title }}</option>{% endfor %}</select></div>
       </div>
-      <div class="field"><label>Section</label><input name="section_reference"></div>
+      <div class="form-grid">
+        <div class="field"><label>Document</label><select name="document_id"><option value="">Not linked</option>{% for document in documents %}<option value="{{ document.id }}">{{ document.title }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Section</label><input name="section_reference"></div>
+      </div>
       <div class="field"><label>Question</label><textarea name="question_text" required></textarea></div>
       <div class="form-grid">
         <div class="field"><label>Weighting</label><input name="weighting"></div>
@@ -113,7 +136,7 @@
       </div>
       <div class="field"><label>Trend category</label><select name="requirement_category"><option value="">Agent classify</option>{% for category in requirement_categories %}<option value="{{ category }}">{{ category.replace('_', ' ') }}</option>{% endfor %}</select></div>
       <div class="form-grid">
-        <div class="field"><label>Confidence</label><input name="confidence" value="medium"></div>
+        <div class="field"><label>Confidence</label><input name="confidence" placeholder="agent"></div>
         <div class="field"><label>Review status</label><input name="human_review_status" value="pending"></div>
       </div>
       <button type="submit">Save question</button>

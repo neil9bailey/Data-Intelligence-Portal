@@ -158,9 +158,12 @@ def apply_sqlite_schema_updates() -> None:
     updates: dict[str, dict[str, str]] = {
         "extractedrequirement": {
             "requirement_category": "requirement_category VARCHAR DEFAULT 'general'",
+            "confidence_reason": "confidence_reason VARCHAR DEFAULT ''",
         },
         "extractedqualityquestion": {
+            "customer_id": "customer_id INTEGER",
             "requirement_category": "requirement_category VARCHAR DEFAULT 'general'",
+            "confidence_reason": "confidence_reason VARCHAR DEFAULT ''",
         },
     }
     with engine.begin() as connection:

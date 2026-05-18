@@ -58,8 +58,31 @@ def test_requirement_taxonomy_categorises_requirements_and_questions(seeded_sess
     assert classify_requirement_category(requirement.requirement_text, requirement.requirement_theme) == "cyber_and_information_security"
     assert requirement.requirement_category == "cyber_and_information_security"
     assert question.requirement_category == "digital_data_and_integration"
+    assert question.customer_id == opportunity.customer_id
     assert requirement.human_review_status == "approved"
     assert question.human_review_status == "approved"
+    assert "linked opportunity" in requirement.confidence_reason
+    assert "linked customer" in question.confidence_reason
     assert result["requirements"] >= 1
     assert result["questions"] >= 1
 
+
+def test_requirement_customer_mapping_from_text(seeded_session):
+    requirement = ExtractedRequirement(
+        requirement_theme="highways requirement",
+        requirement_text="National Highways requires roadside cyber security, resilience and service continuity evidence.",
+        confidence="low",
+        human_review_status="pending",
+    )
+    seeded_session.add(requirement)
+    seeded_session.commit()
+
+    result = agent_classify_catalogue(seeded_session)
+    seeded_session.commit()
+    seeded_session.refresh(requirement)
+    customer = seeded_session.exec(select(Customer).where(Customer.customer_name == "National Highways")).first()
+
+    assert requirement.customer_id == customer.id
+    assert requirement.confidence in {"medium", "high"}
+    assert "linked customer" in requirement.confidence_reason
+    assert result["requirements"] >= 1

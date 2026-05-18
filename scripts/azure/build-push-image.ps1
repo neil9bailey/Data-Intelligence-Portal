@@ -3,7 +3,7 @@ param(
     [string]$SubscriptionId = "3ed9fa77-6bf2-4ffc-bd67-f5a442d3e5e7",
     [string]$AcrName = "acrdipvltest01",
     [string]$Repository = "dip/app",
-    [string]$ImageTag = "1.0.30-live-test"
+    [string]$ImageTag = "1.0.31-live-test"
 )
 
 $ErrorActionPreference = "Stop"

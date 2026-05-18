@@ -252,6 +252,8 @@ The Admin automation can run the full operating rhythm in one cycle. High-confid
 
 Requirement and quality-question records are categorised into configurable trend categories from `app/rules/extraction.yml`, including cyber, digital/data, operational technology, service management, networks, asset operations, compliance/social value, commercial/procurement and mobilisation themes. High-volume catalogue pages use 10-record pagination to keep the UI usable during demos and live testing.
 
+Requirement confidence is also rule-driven from `app/rules/extraction.yml`. The agent scores each requirement or quality question using customer mapping, linked opportunity, source reference, specific trend category, buyer requirement language, weighting and text depth. The UI shows the resulting confidence reason beside the record so users can see why an item is high, medium or low confidence. Requirements and quality questions map to a customer from the linked opportunity first, then from configured customer names, aliases and buying entities in the extracted text.
+
 ## Data Maintenance
 
 The main operational sections now expose user-managed create, edit and delete controls where live data is entered or curated:

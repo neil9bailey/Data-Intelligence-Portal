@@ -1,4 +1,4 @@
-version: 2026.05.18
+version: 2026.05.19
 themes:
   cyber security:
     - cyber
@@ -139,3 +139,27 @@ requirement_categories:
   general:
     - requirement
     - opportunity
+confidence:
+  high_min_score: 7
+  medium_min_score: 4
+  scoring:
+    linked_customer: 2
+    linked_opportunity: 2
+    source_reference: 1
+    specific_category: 1
+    strong_text: 1
+    weighting_present: 1
+    text_min_length: 1
+  strong_text_terms:
+    - shall
+    - must
+    - required
+    - service level
+    - kpi
+    - weighting
+    - marks
+    - deadline
+    - accreditation
+    - security
+    - resilience
+    - availability

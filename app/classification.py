@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 
 from app.audit import compact_snapshot, log_event
 from app.models import BusinessUnit, Customer, ExtractedQualityQuestion, ExtractedRequirement, Opportunity, utc_now
-from app.requirement_taxonomy import classify_requirement_category
+from app.requirement_taxonomy import assess_requirement_confidence, classify_requirement_category
 
 
 AUTO_APPROVE_SCORE = 70
@@ -117,6 +117,29 @@ def classify_requirement_record(session: Session, requirement: ExtractedRequirem
     if opportunity and not requirement.customer_id and opportunity.customer_id:
         requirement.customer_id = opportunity.customer_id
         changed = True
+    if not requirement.customer_id:
+        inferred_customer, reason = _infer_customer_from_text(
+            session,
+            f"{requirement.requirement_theme} {requirement.requirement_text} {requirement.requirement_source}",
+        )
+        if inferred_customer:
+            requirement.customer_id = inferred_customer.id
+            changed = True
+
+    confidence, reason = assess_requirement_confidence(
+        requirement.requirement_text,
+        theme=requirement.requirement_theme,
+        category=requirement.requirement_category,
+        customer_id=requirement.customer_id,
+        opportunity_id=requirement.opportunity_id,
+        source_reference=requirement.requirement_source,
+    )
+    if requirement.confidence != confidence:
+        requirement.confidence = confidence
+        changed = True
+    if requirement.confidence_reason != reason:
+        requirement.confidence_reason = reason
+        changed = True
 
     confidence = (requirement.confidence or "").lower()
     if (requirement.human_review_status or "") in {"", "pending", "review_required"}:
@@ -146,6 +169,35 @@ def classify_quality_question(session: Session, question: ExtractedQualityQuesti
     changed = False
     if question.requirement_category != category:
         question.requirement_category = category
+        changed = True
+
+    opportunity = session.get(Opportunity, question.opportunity_id) if question.opportunity_id else None
+    if opportunity and not question.customer_id and opportunity.customer_id:
+        question.customer_id = opportunity.customer_id
+        changed = True
+    if not question.customer_id:
+        inferred_customer, reason = _infer_customer_from_text(
+            session,
+            f"{question.requirement_theme} {question.question_text} {question.section_reference}",
+        )
+        if inferred_customer:
+            question.customer_id = inferred_customer.id
+            changed = True
+
+    confidence, reason = assess_requirement_confidence(
+        question.question_text,
+        theme=question.requirement_theme,
+        category=question.requirement_category,
+        customer_id=question.customer_id,
+        opportunity_id=question.opportunity_id,
+        source_reference=question.section_reference,
+        weighting=question.weighting,
+    )
+    if question.confidence != confidence:
+        question.confidence = confidence
+        changed = True
+    if question.confidence_reason != reason:
+        question.confidence_reason = reason
         changed = True
 
     confidence = (question.confidence or "").lower()
@@ -192,6 +244,19 @@ def _infer_customer(session: Session, opportunity: Opportunity) -> tuple[Custome
             best = (score, customer, ", ".join(matched_terms[:5]))
     if best[1] and best[0] >= 2:
         return best[1], f"Agent assigned customer {best[1].customer_name} from buyer/source terms: {best[2]}."
+    return None, ""
+
+
+def _infer_customer_from_text(session: Session, text: str) -> tuple[Customer | None, str]:
+    haystack = _normalise(text)
+    best: tuple[int, Customer | None, str] = (0, None, "")
+    for customer in session.exec(select(Customer).where(Customer.active == True)):  # noqa: E712
+        score, matched_terms = _score_terms(haystack, _customer_terms(customer))
+        if score > best[0]:
+            best = (score, customer, ", ".join(matched_terms[:5]))
+    exact_customer_match = bool(best[1] and _normalise(best[1].customer_name) in haystack)
+    if best[1] and (best[0] >= 2 or exact_customer_match):
+        return best[1], f"Agent mapped customer {best[1].customer_name} from requirement terms: {best[2]}."
     return None, ""
 
 
@@ -287,4 +352,3 @@ def _append_note(existing: str, note: str) -> str:
     if note in (existing or ""):
         return existing or ""
     return f"{existing.strip()}\n{note}".strip() if existing else note
-

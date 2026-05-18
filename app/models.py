@@ -250,6 +250,7 @@ class ExtractedRequirement(SQLModel, table=True):
     requirement_text: str
     requirement_source: str = ""
     confidence: str = "medium"
+    confidence_reason: str = ""
     human_review_status: str = "pending"
     created_at: datetime = Field(default_factory=utc_now)
 
@@ -257,6 +258,7 @@ class ExtractedRequirement(SQLModel, table=True):
 class ExtractedQualityQuestion(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     opportunity_id: int = Field(foreign_key="opportunity.id", index=True)
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
     document_id: Optional[int] = Field(default=None, foreign_key="opportunitydocument.id")
     section_reference: str = ""
     question_text: str
@@ -264,6 +266,7 @@ class ExtractedQualityQuestion(SQLModel, table=True):
     requirement_theme: str = ""
     requirement_category: str = Field(default="general", index=True)
     confidence: str = "medium"
+    confidence_reason: str = ""
     human_review_status: str = "pending"
     created_at: datetime = Field(default_factory=utc_now)
 
