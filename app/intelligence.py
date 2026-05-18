@@ -135,12 +135,26 @@ def source_query_url(source: ProcurementSource, terms: list[str]) -> str:
     return source.query_url.replace("{query}", quote_plus(query))
 
 
+def fetch_error_message(status_code: int, headers: httpx.Headers) -> str:
+    if status_code in {403, 429, 503}:
+        retry_after = headers.get("retry-after")
+        retry_detail = f"; retry after {retry_after} seconds" if retry_after else ""
+        return f"HTTP {status_code} rate/service limit{retry_detail}"
+    return f"HTTP {status_code}"
+
+
 def fetch_source_url(url: str) -> FetchResult:
     if not source_allowed(url):
         return FetchResult(False, 0, url, "", error="Blocked by approved-source allow-list.")
     try:
         with httpx.Client(follow_redirects=True, timeout=15.0) as client:
-            response = client.get(url, headers={"User-Agent": "Data Intelligence Portal KRA local agent"})
+            response = client.get(
+                url,
+                headers={
+                    "User-Agent": "Data Intelligence Portal KRA local agent",
+                    "Accept": "application/json,text/html,text/plain,*/*",
+                },
+            )
         final_url = str(response.url)
         if not source_allowed(final_url):
             return FetchResult(False, response.status_code, final_url, "", error="Redirected outside approved domains.")
@@ -150,7 +164,7 @@ def fetch_source_url(url: str) -> FetchResult:
             final_url,
             response.text or "",
             response.headers.get("content-type", ""),
-            "" if response.status_code < 400 else f"HTTP {response.status_code}",
+            "" if response.status_code < 400 else fetch_error_message(response.status_code, response.headers),
         )
     except httpx.HTTPError as exc:
         return FetchResult(False, 0, url, "", error=f"Source check failed: {exc}")
@@ -281,6 +295,21 @@ def detect_schema(text: str, content_type: str = "") -> str:
     return "unknown"
 
 
+def failure_schema(fetch: FetchResult) -> str:
+    error = (fetch.error or "").lower()
+    if "allow-list" in error or "outside approved domains" in error:
+        return "guardrail_blocked"
+    if "rate" in error or "too many" in error or fetch.status_code in {403, 429, 503}:
+        return "rate_limited"
+    if "certificate" in error or "ssl" in error:
+        return "tls_error"
+    if fetch.status_code:
+        return "http_error"
+    if error:
+        return "network_error"
+    return "unknown"
+
+
 def record_snapshot(session: Session, source: ProcurementSource, fetch: FetchResult, query_url: str) -> SourceCheckSnapshot:
     latest = session.exec(
         select(SourceCheckSnapshot)
@@ -305,7 +334,7 @@ def record_snapshot(session: Session, source: ProcurementSource, fetch: FetchRes
         content_hash=current_hash,
         previous_hash=previous_hash,
         change_type=change_type,
-        detected_schema=detect_schema(fetch.text, fetch.content_type),
+        detected_schema=detect_schema(fetch.text, fetch.content_type) if fetch.ok else failure_schema(fetch),
         connector_status=source.connector_status,
         notes=fetch.error or source.last_status,
     )
@@ -735,13 +764,19 @@ def run_kra_research(
     session: Session,
     agent_profile_id: int | None = None,
     source_id: int | None = None,
+    source_ids: list[int] | None = None,
     customer_id: int | None = None,
     query: str = "",
     fetcher=fetch_source_url,
 ) -> KRAResearchRun:
     agent = session.get(KRAAgentProfile, agent_profile_id) if agent_profile_id else session.exec(select(KRAAgentProfile)).first()
     customer = session.get(Customer, customer_id) if customer_id else None
-    sources = [session.get(ProcurementSource, source_id)] if source_id else list(session.exec(select(ProcurementSource).where(ProcurementSource.active == True)))  # noqa: E712
+    if source_id:
+        sources = [session.get(ProcurementSource, source_id)]
+    elif source_ids is not None:
+        sources = [session.get(ProcurementSource, item) for item in source_ids]
+    else:
+        sources = list(session.exec(select(ProcurementSource).where(ProcurementSource.active == True)))  # noqa: E712
     sources = [source for source in sources if source]
     run = KRAResearchRun(
         agent_profile_id=agent.id if agent else None,

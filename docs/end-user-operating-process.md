@@ -31,7 +31,7 @@ Go to **Admin**.
 Use **Run full cycle** to automate the normal operating rhythm:
 
 1. Apply or update preconfigured customer packs.
-2. Refresh public sources and official feeds.
+2. Refresh active public sources and official feeds.
 3. Run KRA checks.
 4. Prepare opportunities and requirements for review.
 5. Run approved read-only portal/source retrieval connectors.
@@ -42,6 +42,8 @@ Use **Run full cycle** to automate the normal operating rhythm:
 10. Record the audit trail.
 
 In Azure live-test, **Run full cycle** queues the work and returns to Admin immediately. Refresh Admin after a short pause to see whether the latest run is queued, running, completed or failed. This avoids the browser appearing frozen while source checks, KRA calls and report generation continue in the background worker.
+
+The automation uses the broad official Find a Tender and Contracts Finder OCDS APIs for live matching, then filters by customer aliases and watch terms inside DIP. Customer-specific web search URLs are stored as reference links for human drill-through, but they are not used as high-frequency automation targets because public search pages can rate-limit automated bursts.
 
 The automation does not log into buyer portals, submit expressions of interest, send portal messages or make bid/no-bid decisions.
 
@@ -86,7 +88,7 @@ If the portal needs human login, create a retrieval task for the authorised port
 
 Go to **Admin** or **KRA**.
 
-Run checks against approved public sources and customer-specific sources.
+Run checks against approved public sources and customer-specific reference sources.
 
 Use KRA to:
 
@@ -97,6 +99,8 @@ Use KRA to:
 - extract requirement themes from permitted text
 
 KRA findings stay review-required until a user reviews them.
+
+For live-demo automation, KRA prioritises broad official OCDS APIs and review-required customer matching. Inactive `search_reference` records remain available for a human to open when validating a specific customer or notice.
 
 ## 7. Admin: Review Opportunities And Requirements
 

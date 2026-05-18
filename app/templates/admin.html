@@ -155,10 +155,10 @@
 <section class="grid two" style="margin-top:18px;">
   <div class="panel">
     <h2>Latest Source Checks</h2>
-    <div class="table-wrap"><table><thead><tr><th>When</th><th>Source</th><th>Status</th><th>Schema</th></tr></thead><tbody>
+    <div class="table-wrap"><table><thead><tr><th>When</th><th>Source</th><th>Status</th><th>Schema</th><th>Detail</th></tr></thead><tbody>
       {% for snapshot in health.recent_source_snapshots %}
-      <tr><td>{{ snapshot.checked_at.strftime('%Y-%m-%d %H:%M') }}</td><td>{{ source_map.get(snapshot.source_id).name if source_map.get(snapshot.source_id) else snapshot.source_id }}</td><td><span class="badge {{ 'red' if snapshot.change_type == 'failed' else 'amber' if snapshot.change_type == 'changed' else 'green' }}">{{ snapshot.change_type }}</span></td><td>{{ snapshot.detected_schema }}</td></tr>
-      {% else %}<tr><td colspan="4">No source checks yet.</td></tr>{% endfor %}
+      <tr><td>{{ snapshot.checked_at.strftime('%Y-%m-%d %H:%M') }}</td><td>{{ source_map.get(snapshot.source_id).name if source_map.get(snapshot.source_id) else snapshot.source_id }}</td><td><span class="badge {{ 'red' if snapshot.change_type == 'failed' else 'amber' if snapshot.change_type == 'changed' else 'green' }}">{{ snapshot.change_type }}</span></td><td>{{ snapshot.detected_schema }}</td><td class="muted small">{{ snapshot.notes or ('HTTP ' ~ snapshot.status_code if snapshot.status_code else '') }}</td></tr>
+      {% else %}<tr><td colspan="5">No source checks yet.</td></tr>{% endfor %}
     </tbody></table></div>
   </div>
   <div class="panel">

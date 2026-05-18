@@ -237,7 +237,9 @@ Pages 2 and 3 of the COF design draft have been mapped into the product as the u
 
 The workflow covers:
 
-- five public opportunity sources: Find a Tender, Contracts Finder, Public Contracts Scotland, Sell2Wales and TED
+- live-demo automation through the broad official Find a Tender and Contracts Finder OCDS APIs, with customer matching performed inside DIP
+- configurable public-source coverage for Public Contracts Scotland, Sell2Wales, TED and approved customer websites
+- customer-specific public search URLs retained as inactive `search_reference` records for human validation and drill-through
 - one ingestion pipeline with OCDS/eForms normalisation and dedupe by OCID or stable notice reference
 - customer matching using watch profiles, aliases, keywords, sectors, regions, CPV codes and value bands
 - a human review gate at `/review` for approve, hold, reject and reassign actions
@@ -245,7 +247,7 @@ The workflow covers:
 - email delivery through `/admin`, using local `.eml` outbox mode by default or SMTP when configured
 - a phase-2 style `/client-portal` interest tracker for "I'm interested" signals and pipeline follow-up
 
-The Admin automation can run the full operating rhythm in one cycle, but the MVP keeps the important COF guardrail: generated intelligence remains review-required and no portal login, expression of interest, submission or customer contact is automated.
+The Admin automation can run the full operating rhythm in one cycle, but the MVP keeps the important COF guardrail: generated intelligence remains review-required and no portal login, expression of interest, submission or customer contact is automated. Admin source health now shows diagnostic detail such as rate-limit, TLS, allow-list and HTTP status notes when a source cannot be checked.
 
 ## Data Maintenance
 

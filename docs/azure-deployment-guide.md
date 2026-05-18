@@ -82,11 +82,12 @@ Vendorlogic live-test currently uses:
 | Public URL | https://dip.vendorlogic.io |
 | Resource group | RG_DIP_VENDORLOGIC_TEST |
 | Container App | ca-dip-vl-test |
-| Container image | acrdipvltest01.azurecr.io/dip/app:1.0.21-live-test |
+| Container image | acrdipvltest01.azurecr.io/dip/app:1.0.24-live-test |
 | Auth | Container Apps built-in Microsoft Entra auth |
 | Admin group | Data Intelligence Portal Admin Users |
 | Standard group | Data Intelligence Portal Standard Users |
 | Persistence | SQLite active DB on `/tmp/dip`, snapshot and outbox on Azure Files `/app/data` |
+| Container sizing | `1.0` CPU / `2Gi` memory for live-demo KRA, PDF export and email-outbox cycle |
 | KRA live-demo AI | `openai_direct`, model `gpt-5.4`, Key Vault secret `diiac-openai-api-key` |
 | Live-demo preconfiguration | `AUTO_APPLY_CUSTOMER_PACKS=true` |
 

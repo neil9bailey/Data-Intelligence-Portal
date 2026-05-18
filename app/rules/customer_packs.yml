@@ -108,31 +108,31 @@ packs:
       - key: find_a_tender_national_highways
         name: Find a Tender - National Highways
         source_family: official_notice
-        source_type: web_page
+        source_type: search_reference
         base_url: https://www.find-tender.service.gov.uk
         query_url: https://www.find-tender.service.gov.uk/Search/Results?Keywords=National%20Highways
         official: true
-        active: true
+        active: false
         coverage: UK public procurement notices mentioning National Highways.
         auth_model: none
         data_format: HTML / OCDS links
-        connector_status: configured
+        connector_status: reference_only
         review_frequency: daily
-        notes: Official public notice source. Use alongside default Find a Tender source checks.
+        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Find a Tender OCDS API and DIP customer filtering to avoid search-page rate limits.
       - key: contracts_finder_national_highways
         name: Contracts Finder - National Highways
         source_family: official_notice
-        source_type: web_page
+        source_type: search_reference
         base_url: https://www.contractsfinder.service.gov.uk
         query_url: https://www.contractsfinder.service.gov.uk/Search/Results?Keywords=National%20Highways
         official: true
-        active: true
+        active: false
         coverage: UK lower-value opportunities, awards and notices mentioning National Highways.
         auth_model: none
         data_format: HTML / OCDS links
-        connector_status: configured
+        connector_status: reference_only
         review_frequency: daily
-        notes: Official public notice source. Useful for earlier signals and award history.
+        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Contracts Finder OCDS API and DIP customer filtering to avoid search-page rate limits.
     portals:
       - name: National Highways - Jaggaer eSourcing
         platform_name: Jaggaer
@@ -199,31 +199,31 @@ packs:
       - key: find_a_tender_tfl
         name: Find a Tender - Transport for London
         source_family: official_notice
-        source_type: web_page
+        source_type: search_reference
         base_url: https://www.find-tender.service.gov.uk
         query_url: https://www.find-tender.service.gov.uk/Search/Results?Keywords=Transport%20for%20London
         official: true
-        active: true
+        active: false
         coverage: UK public procurement notices mentioning Transport for London or TfL.
         auth_model: none
         data_format: HTML / OCDS links
-        connector_status: configured
+        connector_status: reference_only
         review_frequency: daily
-        notes: Official public notice source. KRA must filter buyer aliases before assignment.
+        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Find a Tender OCDS API and DIP customer filtering to avoid search-page rate limits.
       - key: contracts_finder_tfl
         name: Contracts Finder - Transport for London
         source_family: official_notice
-        source_type: web_page
+        source_type: search_reference
         base_url: https://www.contractsfinder.service.gov.uk
         query_url: https://www.contractsfinder.service.gov.uk/Search/Results?Keywords=Transport%20for%20London
         official: true
-        active: true
+        active: false
         coverage: UK lower-value opportunities and notices mentioning Transport for London or TfL.
         auth_model: none
         data_format: HTML / OCDS links
-        connector_status: configured
+        connector_status: reference_only
         review_frequency: daily
-        notes: Official public notice source.
+        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Contracts Finder OCDS API and DIP customer filtering to avoid search-page rate limits.
     portals:
       - name: TfL - Supplier portal tracking
         platform_name: SAP Ariba / TfL supplier portal
@@ -271,31 +271,31 @@ packs:
       - key: find_a_tender_network_rail
         name: Find a Tender - Network Rail
         source_family: official_notice
-        source_type: web_page
+        source_type: search_reference
         base_url: https://www.find-tender.service.gov.uk
         query_url: https://www.find-tender.service.gov.uk/Search/Results?Keywords=Network%20Rail
         official: true
-        active: true
+        active: false
         coverage: UK public procurement notices mentioning Network Rail.
         auth_model: none
         data_format: HTML / OCDS links
-        connector_status: configured
+        connector_status: reference_only
         review_frequency: daily
-        notes: Official public notice source.
+        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Find a Tender OCDS API and DIP customer filtering to avoid search-page rate limits.
       - key: contracts_finder_network_rail
         name: Contracts Finder - Network Rail
         source_family: official_notice
-        source_type: web_page
+        source_type: search_reference
         base_url: https://www.contractsfinder.service.gov.uk
         query_url: https://www.contractsfinder.service.gov.uk/Search/Results?Keywords=Network%20Rail
         official: true
-        active: true
+        active: false
         coverage: UK notices mentioning Network Rail.
         auth_model: none
         data_format: HTML / OCDS links
-        connector_status: configured
+        connector_status: reference_only
         review_frequency: daily
-        notes: Official public notice source.
+        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Contracts Finder OCDS API and DIP customer filtering to avoid search-page rate limits.
     portals:
       - name: Network Rail - procurement portal tracking
         platform_name: BravoSolution / Jaggaer
@@ -340,31 +340,31 @@ packs:
       - key: find_a_tender_dft
         name: Find a Tender - Department for Transport
         source_family: official_notice
-        source_type: web_page
+        source_type: search_reference
         base_url: https://www.find-tender.service.gov.uk
         query_url: https://www.find-tender.service.gov.uk/Search/Results?Keywords=Department%20for%20Transport
         official: true
-        active: true
+        active: false
         coverage: UK public procurement notices mentioning Department for Transport or DfT.
         auth_model: none
         data_format: HTML / OCDS links
-        connector_status: configured
+        connector_status: reference_only
         review_frequency: daily
-        notes: Official public notice source.
+        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Find a Tender OCDS API and DIP customer filtering to avoid search-page rate limits.
       - key: contracts_finder_dft
         name: Contracts Finder - Department for Transport
         source_family: official_notice
-        source_type: web_page
+        source_type: search_reference
         base_url: https://www.contractsfinder.service.gov.uk
         query_url: https://www.contractsfinder.service.gov.uk/Search/Results?Keywords=Department%20for%20Transport
         official: true
-        active: true
+        active: false
         coverage: UK lower-value opportunities and notices mentioning Department for Transport or DfT.
         auth_model: none
         data_format: HTML / OCDS links
-        connector_status: configured
+        connector_status: reference_only
         review_frequency: daily
-        notes: Official public notice source.
+        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Contracts Finder OCDS API and DIP customer filtering to avoid search-page rate limits.
     portals: []
     connectors: []
     kra_queries:
@@ -402,31 +402,31 @@ packs:
       - key: find_a_tender_ccs
         name: Find a Tender - Crown Commercial Service
         source_family: official_notice
-        source_type: web_page
+        source_type: search_reference
         base_url: https://www.find-tender.service.gov.uk
         query_url: https://www.find-tender.service.gov.uk/Search/Results?Keywords=Crown%20Commercial%20Service
         official: true
-        active: true
+        active: false
         coverage: UK public procurement notices mentioning Crown Commercial Service or CCS.
         auth_model: none
         data_format: HTML / OCDS links
-        connector_status: configured
+        connector_status: reference_only
         review_frequency: daily
-        notes: Official public notice source.
+        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Find a Tender OCDS API and DIP customer filtering to avoid search-page rate limits.
       - key: contracts_finder_ccs
         name: Contracts Finder - Crown Commercial Service
         source_family: official_notice
-        source_type: web_page
+        source_type: search_reference
         base_url: https://www.contractsfinder.service.gov.uk
         query_url: https://www.contractsfinder.service.gov.uk/Search/Results?Keywords=Crown%20Commercial%20Service
         official: true
-        active: true
+        active: false
         coverage: UK lower-value opportunities and framework notices mentioning CCS.
         auth_model: none
         data_format: HTML / OCDS links
-        connector_status: configured
+        connector_status: reference_only
         review_frequency: daily
-        notes: Official public notice source.
+        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Contracts Finder OCDS API and DIP customer filtering to avoid search-page rate limits.
     portals: []
     connectors: []
     kra_queries:
@@ -464,31 +464,31 @@ packs:
       - key: find_a_tender_nhs_england
         name: Find a Tender - NHS England
         source_family: official_notice
-        source_type: web_page
+        source_type: search_reference
         base_url: https://www.find-tender.service.gov.uk
         query_url: https://www.find-tender.service.gov.uk/Search/Results?Keywords=NHS%20England
         official: true
-        active: true
+        active: false
         coverage: UK public procurement notices mentioning NHS England.
         auth_model: none
         data_format: HTML / OCDS links
-        connector_status: configured
+        connector_status: reference_only
         review_frequency: daily
-        notes: Official public notice source.
+        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Find a Tender OCDS API and DIP customer filtering to avoid search-page rate limits.
       - key: contracts_finder_nhs_england
         name: Contracts Finder - NHS England
         source_family: official_notice
-        source_type: web_page
+        source_type: search_reference
         base_url: https://www.contractsfinder.service.gov.uk
         query_url: https://www.contractsfinder.service.gov.uk/Search/Results?Keywords=NHS%20England
         official: true
-        active: true
+        active: false
         coverage: UK lower-value opportunities and notices mentioning NHS England.
         auth_model: none
         data_format: HTML / OCDS links
-        connector_status: configured
+        connector_status: reference_only
         review_frequency: daily
-        notes: Official public notice source.
+        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Contracts Finder OCDS API and DIP customer filtering to avoid search-page rate limits.
     portals: []
     connectors: []
     kra_queries:

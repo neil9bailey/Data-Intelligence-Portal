@@ -488,11 +488,24 @@ def remote_health_check(url: str) -> dict:
         return {"status": "unreachable", "ok": False, "detail": str(exc)[:160]}
 
 
+def latest_active_source_snapshots(sources: list[ProcurementSource], snapshots: list[SourceCheckSnapshot]) -> list[SourceCheckSnapshot]:
+    active_ids = {source.id for source in sources if source.active and source.id}
+    latest: list[SourceCheckSnapshot] = []
+    seen: set[int] = set()
+    for snapshot in snapshots:
+        if snapshot.source_id not in active_ids or snapshot.source_id in seen:
+            continue
+        seen.add(snapshot.source_id)
+        latest.append(snapshot)
+    return latest
+
+
 def health_dashboard_context(session: Session, request: Request) -> dict:
     settings = get_settings()
     db_count = len(list(session.exec(select(BusinessUnit)))) + len(list(session.exec(select(Customer))))
     sources = list(session.exec(select(ProcurementSource)))
-    source_snapshots = list(session.exec(select(SourceCheckSnapshot).order_by(col(SourceCheckSnapshot.checked_at).desc()).limit(20)))
+    source_snapshots = list(session.exec(select(SourceCheckSnapshot).order_by(col(SourceCheckSnapshot.checked_at).desc()).limit(200)))
+    active_source_snapshots = latest_active_source_snapshots(sources, source_snapshots)
     connectors = list(session.exec(select(PortalInformationConnector)))
     retrieval_runs = list(session.exec(select(PortalRetrievalRun).order_by(col(PortalRetrievalRun.started_at).desc()).limit(20)))
     portals = list(session.exec(select(BuyerPortalInstance)))
@@ -500,7 +513,7 @@ def health_dashboard_context(session: Session, request: Request) -> dict:
     email_config = get_email_configuration(session)
     email_logs = list(session.exec(select(EmailDeliveryLog).order_by(col(EmailDeliveryLog.created_at).desc()).limit(10)))
     current_user = get_current_user(request)
-    source_failures = [item for item in source_snapshots if item.change_type == "failed" or not item.ok]
+    source_failures = [item for item in active_source_snapshots if item.change_type == "failed" or not item.ok]
     connector_failures = [item for item in retrieval_runs if item.status in {"failed", "blocked"}]
     account_required = sum(
         1
@@ -539,7 +552,7 @@ def health_dashboard_context(session: Session, request: Request) -> dict:
             "total": len(sources),
             "active": sum(1 for item in sources if item.active),
             "failures": len(source_failures),
-            "last_checked": source_snapshots[0].checked_at if source_snapshots else None,
+            "last_checked": active_source_snapshots[0].checked_at if active_source_snapshots else None,
         },
         "portal_health": {
             "portals": len(portals),
@@ -550,7 +563,7 @@ def health_dashboard_context(session: Session, request: Request) -> dict:
         },
         "kra": kra_runtime_status(),
         "recent_retrieval_runs": retrieval_runs[:8],
-        "recent_source_snapshots": source_snapshots[:8],
+        "recent_source_snapshots": active_source_snapshots[:8],
         "recent_email_logs": email_logs,
     }
 

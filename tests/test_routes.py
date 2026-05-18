@@ -26,7 +26,7 @@ from app.models import (
     ProcurementPlatform,
     ProcurementSource,
 )
-from app.automation import run_admin_full_cycle
+from app.automation import live_kra_source_ids, run_admin_full_cycle
 from app.portal_connectors import run_portal_connector
 from app.reports import create_report
 
@@ -218,6 +218,17 @@ def test_admin_full_cycle_automation_preconfigures_and_exports(reference_session
     assert reference_session.exec(select(AutomationRun)).first() is not None
     assert reference_session.exec(select(IntelligenceReport)).first() is not None
     assert reference_session.exec(select(EmailDeliveryLog)).first().status == "stored"
+    assert reference_session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "find_a_tender_national_highways")).first().active is False
+
+
+def test_live_kra_sources_prefer_broad_official_ocds_apis(reference_session):
+    source_ids = live_kra_source_ids(reference_session)
+    source_keys = {
+        reference_session.get(ProcurementSource, source_id).source_key
+        for source_id in source_ids
+    }
+
+    assert source_keys == {"find_a_tender", "contracts_finder"}
 
 
 def test_admin_automation_route_queues_background_run(reference_session, monkeypatch):

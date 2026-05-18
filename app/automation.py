@@ -11,7 +11,7 @@ from app.audit import compact_snapshot, log_event
 from app.database import backup_sqlite_persistent_copy, engine
 from app.email_service import get_email_configuration, send_or_store_email, split_recipients
 from app.export_service import report_export, report_filename
-from app.intelligence import refresh_news_feeds, repair_mismatched_customer_assignments, run_kra_research, run_source_check
+from app.intelligence import FetchResult, fetch_source_url, refresh_news_feeds, repair_mismatched_customer_assignments, run_kra_research, run_source_check
 from app.intelligence_packs import apply_intelligence_pack, get_preconfigured_customer_pack, list_preconfigured_customer_packs
 from app.models import (
     AuditEvent,
@@ -34,6 +34,7 @@ from app.settings import get_settings
 OPEN_TASK_STATUSES = {"requested", "in_progress", "blocked", "review_required"}
 AUTO_PORTAL_MODES = {"approved_api", "public_api_no_key", "api_key_header", "api_key_query", "oauth_client_credentials"}
 logger = logging.getLogger(__name__)
+LIVE_KRA_SOURCE_KEYS = {"find_a_tender", "contracts_finder"}
 
 
 def apply_all_preconfigured_packs(session: Session, actor: str = "system") -> list[dict]:
@@ -65,6 +66,7 @@ def run_admin_full_cycle(
     logger.info("DIP automation run %s started by %s", run.id, actor)
 
     steps: list[dict] = []
+    live_source_fetcher = cached_source_fetcher(source_fetcher)
 
     def step(name: str, status: str, detail: str, **extra) -> None:
         steps.append({"name": name, "status": status, "detail": detail, **extra})
@@ -78,7 +80,7 @@ def run_admin_full_cycle(
         news_created = refresh_news_feeds(session)
         step("Refresh official news feeds", "completed", f"{news_created} feed items created or refreshed.")
 
-        source_results = refresh_public_sources(session, fetcher=source_fetcher)
+        source_results = refresh_public_sources(session, fetcher=live_source_fetcher)
         source_failures = [item for item in source_results if not item.get("ok")]
         step(
             "Refresh public sources",
@@ -88,7 +90,7 @@ def run_admin_full_cycle(
         )
 
         repair_count = repair_mismatched_customer_assignments(session)
-        kra_runs = run_customer_kra_checks(session, fetcher=source_fetcher)
+        kra_runs = run_customer_kra_checks(session, fetcher=live_source_fetcher)
         kra_run_rows = [item for item in (session.get(KRAResearchRun, run_id) for run_id in kra_runs) if item]
         kra_warnings = [item for item in kra_run_rows if item.error_summary]
         step(
@@ -129,7 +131,11 @@ def run_admin_full_cycle(
             f"{task_result['completed']} automated tasks completed; {task_result['manual_open']} manual/account tasks remain open.",
         )
 
-        report = create_report(session, f"DIP automated intelligence pack {datetime.now(UTC).strftime('%Y-%m-%d %H:%M')}")
+        report = create_report(
+            session,
+            f"DIP automated intelligence pack {datetime.now(UTC).strftime('%Y-%m-%d %H:%M')}",
+            include_ai_brief=False,
+        )
         step("Generate a report", "completed", f"Report {report.id} generated.", report_id=report.id)
 
         stored_path = store_report_export(report, export_format)
@@ -221,7 +227,16 @@ def refresh_public_sources(session: Session, fetcher=None) -> list[dict]:
     for source in sources:
         try:
             snapshot = run_source_check(session, source.id or 0, fetcher=fetcher) if fetcher else run_source_check(session, source.id or 0)
-            results.append({"source": source.name, "ok": snapshot.ok, "change_type": snapshot.change_type, "status": snapshot.status_code})
+            results.append(
+                {
+                    "source": source.name,
+                    "ok": snapshot.ok,
+                    "change_type": snapshot.change_type,
+                    "status": snapshot.status_code,
+                    "schema": snapshot.detected_schema,
+                    "notes": snapshot.notes,
+                }
+            )
         except Exception as exc:
             results.append({"source": source.name, "ok": False, "error": str(exc)[:220]})
     return results
@@ -229,13 +244,38 @@ def refresh_public_sources(session: Session, fetcher=None) -> list[dict]:
 
 def run_customer_kra_checks(session: Session, fetcher=None) -> list[int]:
     customers = list(session.exec(select(Customer).where(Customer.active == True).order_by(col(Customer.customer_name))))  # noqa: E712
+    source_ids = live_kra_source_ids(session)
     run_ids: list[int] = []
     for customer in customers:
         query = f"{customer.customer_name} {customer.domain} {customer.strategic_notes[:160]}"
-        kra_run = run_kra_research(session, customer_id=customer.id, query=query, fetcher=fetcher) if fetcher else run_kra_research(session, customer_id=customer.id, query=query)
+        kra_run = (
+            run_kra_research(session, customer_id=customer.id, source_ids=source_ids, query=query, fetcher=fetcher)
+            if fetcher
+            else run_kra_research(session, customer_id=customer.id, source_ids=source_ids, query=query)
+        )
         if kra_run.id:
             run_ids.append(kra_run.id)
     return run_ids
+
+
+def live_kra_source_ids(session: Session) -> list[int]:
+    sources = list(session.exec(select(ProcurementSource).where(ProcurementSource.active == True)))  # noqa: E712
+    preferred = [source.id for source in sources if source.id and source.source_key in LIVE_KRA_SOURCE_KEYS]
+    if preferred:
+        return preferred
+    return [source.id for source in sources if source.id and source.source_type == "ocds_api"]
+
+
+def cached_source_fetcher(fetcher=None):
+    base_fetcher = fetcher or fetch_source_url
+    cache: dict[str, FetchResult] = {}
+
+    def fetch(url: str) -> FetchResult:
+        if url not in cache:
+            cache[url] = base_fetcher(url)
+        return cache[url]
+
+    return fetch
 
 
 def auto_prepare_review_queue(session: Session) -> dict[str, int]:

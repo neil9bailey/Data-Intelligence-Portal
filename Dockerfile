@@ -6,6 +6,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
+RUN chmod +x scripts/run-admin-cycle.sh
 
 EXPOSE 8080
 

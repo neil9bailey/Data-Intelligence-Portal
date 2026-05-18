@@ -32,6 +32,8 @@ from app.settings import get_settings
 def test_source_allowlist():
     assert source_allowed("https://www.gov.uk/contracts-finder")
     assert source_allowed("https://www.find-tender.service.gov.uk/Developer/Documentation")
+    assert source_allowed("https://nationalhighways.co.uk/suppliers/")
+    assert source_allowed("https://www.nationalhighways.co.uk/suppliers/")
     assert not source_allowed("http://www.gov.uk/contracts-finder")
     assert not source_allowed("https://example.com/not-approved")
 
@@ -57,6 +59,47 @@ def test_source_check_tracks_first_seen_unchanged_changed(session):
 
     assert [first.change_type, second.change_type, third.change_type] == ["first_seen", "unchanged", "changed"]
     assert len(list(session.exec(select(SourceCheckSnapshot)))) == 3
+
+
+def test_source_check_categorises_rate_limit_failures(session):
+    source = ProcurementSource(
+        name="Rate limited source",
+        base_url="https://www.find-tender.service.gov.uk",
+        query_url="https://www.find-tender.service.gov.uk/Search/Results?Keywords=National%20Highways",
+        active=True,
+    )
+    session.add(source)
+    session.commit()
+    session.refresh(source)
+
+    def fake_fetcher(url):
+        return FetchResult(False, 429, url, "", "text/plain", "HTTP 429 rate/service limit; retry after 11 seconds")
+
+    snapshot = run_source_check(session, source.id, fetcher=fake_fetcher)
+
+    assert snapshot.change_type == "failed"
+    assert snapshot.detected_schema == "rate_limited"
+    assert "retry after 11 seconds" in snapshot.notes
+
+
+def test_source_check_categorises_guardrail_failures(session):
+    source = ProcurementSource(
+        name="Blocked source",
+        base_url="https://example.com",
+        query_url="https://example.com/source",
+        active=True,
+    )
+    session.add(source)
+    session.commit()
+    session.refresh(source)
+
+    def fake_fetcher(url):
+        return FetchResult(False, 0, url, "", "", "Blocked by approved-source allow-list.")
+
+    snapshot = run_source_check(session, source.id, fetcher=fake_fetcher)
+
+    assert snapshot.detected_schema == "guardrail_blocked"
+    assert snapshot.notes == "Blocked by approved-source allow-list."
 
 
 def test_kra_run_creates_findings_opportunity_and_requirements(seeded_session):
@@ -245,6 +288,16 @@ def test_report_generation_uses_ai_brief_when_llm_enabled(seeded_session, monkey
 
     assert "Executive AI briefing text." in report.markdown
     assert "Requires human review before onward use." in report.markdown
+
+
+def test_report_generation_can_skip_report_level_ai_brief(seeded_session, monkeypatch):
+    monkeypatch.setattr("app.reports.llm_enabled", lambda: True)
+    monkeypatch.setattr("app.reports.generate_llm_text", lambda *args, **kwargs: "Should not be called.")
+
+    report = create_report(seeded_session, "Automation report", include_ai_brief=False)
+
+    assert "Report-level AI brief was skipped for the automated cycle" in report.markdown
+    assert "Should not be called." not in report.markdown
 
 
 def test_llm_enabled_requires_provider_model_and_key(monkeypatch):

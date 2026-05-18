@@ -8,11 +8,15 @@ Checked on 2026-05-18 against official/public source routes where available.
 | --- | --- | --- | --- |
 | Find a Tender | UK high-value public procurement notices | OCDS/API where available | Priority connector |
 | Contracts Finder | UK lower-value, future, live, early engagement and award notices | API/OCDS/data export routes | Priority connector |
-| Public Contracts Scotland | Scottish public-sector procurement notices | OCDS API | Configurable connector |
+| Public Contracts Scotland | Scottish public-sector procurement notices | OCDS API | Reference connector until live endpoint/TLS validation is confirmed |
 | Sell2Wales | Welsh public-sector procurement notices | Web/bulk/OCDS route to validate | Configurable source |
 | TED / eForms | EU and Ireland horizon scanning where relevant | eForms/TED developer tooling | Future connector |
 
-These five public sources are now preconfigured as the live-demo source-to-inbox baseline. Buyer portals that require supplier accounts remain tracked as portal tasks unless the provider exposes an approved read-only public/API route.
+Find a Tender and Contracts Finder broad OCDS APIs are the primary live-demo automation sources. DIP filters the returned notices against customer aliases and watch terms internally, which avoids repeatedly scraping public search result pages and reduces rate-limit warnings.
+
+Customer-specific Find a Tender and Contracts Finder search URLs are kept as inactive `search_reference` records for human drill-through. They are useful context, but the full-cycle automation does not hit those web pages.
+
+National Highways public supplier pages are allowed as approved public customer-website sources. Buyer portals that require supplier accounts remain tracked as portal tasks unless the provider exposes an approved read-only public/API route.
 
 ## Commercial Backup Sources
 
@@ -46,7 +50,7 @@ Commercial aggregators such as Tenders Direct can be configured only if the orga
 - Human approval required before any future portal action.
 - Extracted document intelligence remains pending until reviewed.
 - API keys and portal credentials are not stored in SQLite.
-- Admin health checks surface source, portal and connector issues.
+- Admin health checks surface source, portal and connector issues, including rate-limit, TLS, allow-list and HTTP detail where available.
 
 ## Official Reference Links
 

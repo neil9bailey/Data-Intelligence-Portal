@@ -49,7 +49,7 @@ param managedCertificateName string = ''
 param imageRepositoryPrefix string = 'dip'
 
 @description('Container image tag.')
-param imageTag string = '1.0.21-live-test'
+param imageTag string = '1.0.24-live-test'
 
 @allowed([
   'DELETE'
@@ -63,10 +63,10 @@ param imageTag string = '1.0.21-live-test'
 param sqliteJournalMode string = 'DELETE'
 
 @description('Container CPU allocation.')
-param appCpu string = '0.5'
+param appCpu string = '1.0'
 
 @description('Container memory allocation.')
-param appMemory string = '1Gi'
+param appMemory string = '2Gi'
 
 @description('Container app minimum replicas.')
 param minReplicas int = 1

@@ -21,6 +21,9 @@ guardrails:
     - find-tender.service.gov.uk
     - www.contractsfinder.service.gov.uk
     - contractsfinder.service.gov.uk
+    - nationalhighways.co.uk
+    - www.nationalhighways.co.uk
+    - prod-upgrade.nationalhighways.co.uk
     - api.publiccontractsscotland.gov.uk
     - www.publiccontractsscotland.gov.uk
     - publiccontractsscotland.gov.uk
@@ -34,6 +37,7 @@ source_types:
   - eforms_api
   - bulk_ocds
   - web_page
+  - search_reference
   - commercial_aggregator
 sources:
   - key: find_a_tender
@@ -71,13 +75,13 @@ sources:
     base_url: https://api.publiccontractsscotland.gov.uk
     query_url: https://api.publiccontractsscotland.gov.uk/v1/Notices
     official: true
-    active: true
+    active: false
     coverage: Scotland public-sector procurement notices
     auth_model: none
     data_format: REST OCDS JSON
     dedupe_strategy: ocid_or_notice_reference
-    connector_status: live_public_source
-    notes: Official OCDS API endpoint is active for source tracking; date-scoped notice retrieval can be configured once customer watch ranges are agreed.
+    connector_status: disabled_requires_endpoint_validation
+    notes: Official OCDS API endpoint is configured as a reference source. Keep disabled in the live demo until TLS/certificate validation and date-scoped retrieval behaviour are confirmed.
   - key: sell2wales
     name: Sell2Wales public procurement source
     source_family: official_notice

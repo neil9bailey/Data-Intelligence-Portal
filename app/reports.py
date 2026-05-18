@@ -27,6 +27,7 @@ def generate_intelligence_report_markdown(
     report_name: str,
     customer_id: int | None = None,
     business_unit_id: int | None = None,
+    include_ai_brief: bool = True,
 ) -> str:
     opportunity_query = select(Opportunity).order_by(col(Opportunity.updated_at).desc())
     if customer_id:
@@ -93,10 +94,13 @@ def generate_intelligence_report_markdown(
         f"- {item.title}: {item.summary} ({item.human_review_status})"
         for item in findings
     ] or ["- No KRA findings recorded."]
-    deterministic_brief = (
-        "No AI-assisted executive brief was generated because the KRA LLM provider is not enabled."
-    )
-    if llm_enabled():
+    deterministic_brief = "No AI-assisted executive brief was generated because the KRA LLM provider is not enabled."
+    if llm_enabled() and not include_ai_brief:
+        deterministic_brief = (
+            "Report-level AI brief was skipped for the automated cycle to keep the live run responsive. "
+            "Use the KRA findings section for AI-assisted source and customer summaries."
+        )
+    elif llm_enabled():
         try:
             deterministic_brief = generate_llm_text(
                 kra_system_prompt(),
@@ -182,13 +186,14 @@ def create_report(
     report_type: str = "executive_summary",
     customer_id: int | None = None,
     business_unit_id: int | None = None,
+    include_ai_brief: bool = True,
 ) -> IntelligenceReport:
     report = IntelligenceReport(
         report_name=report_name,
         report_type=report_type,
         customer_id=customer_id,
         business_unit_id=business_unit_id,
-        markdown=generate_intelligence_report_markdown(session, report_name, customer_id, business_unit_id),
+        markdown=generate_intelligence_report_markdown(session, report_name, customer_id, business_unit_id, include_ai_brief),
     )
     session.add(report)
     session.flush()
