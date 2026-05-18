@@ -65,7 +65,7 @@ $suffix = "$customer-$environment"
 $compact = Convert-ToToken -Value "$customer$environment" -MaxLength 13 -LettersOnlyPrefix
 
 if ([string]::IsNullOrWhiteSpace($ImageTag)) {
-    $ImageTag = "1.0.9-$environment"
+    $ImageTag = "1.0.10-$environment"
 }
 if ([string]::IsNullOrWhiteSpace($ContainerRegistryName)) {
     $ContainerRegistryName = "acrdip$compact"
