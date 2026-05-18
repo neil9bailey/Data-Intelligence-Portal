@@ -38,6 +38,7 @@ Data Intelligence Portal is a configurable information-gathering workspace for:
 - [Benefits case](docs/benefits_case.md)
 - [Source and portal catalogue](docs/source_and_portal_catalogue.md)
 - [Portal platform operating guide](docs/portal-platform-operating-guide.md)
+- [End user operating process](docs/end-user-operating-process.md)
 - [National Highways onboarding guide](docs/national-highways-onboarding-guide.md)
 - [Azure deployment guide](docs/azure-deployment-guide.md)
 - [UI mockup](docs/ui_mockups/data_intelligence_portal_mockup.html)

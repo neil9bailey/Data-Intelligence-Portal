@@ -4,10 +4,10 @@
 <div class="page-head">
   <div><h1>{{ report.report_name }}</h1><p>{{ report.generated_at.strftime('%Y-%m-%d %H:%M') }}</p></div>
   <div class="actions">
-    <a class="button secondary" href="/reports/{{ report.id }}?format=md">Markdown</a>
-    <a class="button secondary" href="/reports/{{ report.id }}?format=html">HTML</a>
-    <a class="button secondary" href="/reports/{{ report.id }}?format=json">JSON</a>
-    <a class="button" href="/reports/{{ report.id }}?format=txt">Text</a>
+    <a class="button secondary" href="/reports/{{ report.id }}?format=md">Download Markdown</a>
+    <a class="button secondary" href="/reports/{{ report.id }}?format=html">Download HTML</a>
+    <a class="button secondary" href="/reports/{{ report.id }}?format=json">Download JSON</a>
+    <a class="button" href="/reports/{{ report.id }}?format=txt">Download Text</a>
     <form method="post" action="/reports/{{ report.id }}/delete" onsubmit="return confirm('Delete this report?');">
       <button class="danger" type="submit">Delete</button>
     </form>

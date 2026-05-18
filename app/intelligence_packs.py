@@ -517,7 +517,7 @@ def _find_customer(session: Session, name: str, aliases: list[str]) -> Customer 
 def _split_values(value: str) -> list[str]:
     if not value:
         return []
-    return [item.strip() for item in re.split(r"[;\n,]+", value) if item.strip()]
+    return [item.strip() for item in re.split(r"[;\n]+", value) if item.strip()]
 
 
 def _join_values(values: list[str]) -> str:

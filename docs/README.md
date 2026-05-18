@@ -18,6 +18,7 @@ This folder is the single home for Data Intelligence Portal guides, operating no
 | Document | Purpose |
 | --- | --- |
 | [National Highways onboarding guide](national-highways-onboarding-guide.md) | Full setup guide for National Highways, Jaggaer and public API examples. |
+| [End user operating process](end-user-operating-process.md) | Simple start-to-finish user guide from customer setup to report download and email. |
 | [Portal platform operating guide](portal-platform-operating-guide.md) | Portal access, personal account, API-key and retrieval guardrails. |
 | [Source and portal catalogue](source_and_portal_catalogue.md) | Supported official sources and buyer portal families. |
 

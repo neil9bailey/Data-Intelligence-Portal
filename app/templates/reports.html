@@ -16,10 +16,10 @@
         </div>
         <p class="hint">{{ report.report_type }} | {{ report.generated_at.strftime('%Y-%m-%d %H:%M') }}</p>
         <div class="badges">
-          <a class="badge weak" href="/reports/{{ report.id }}?format=md">Markdown</a>
-          <a class="badge weak" href="/reports/{{ report.id }}?format=html">HTML</a>
-          <a class="badge weak" href="/reports/{{ report.id }}?format=json">JSON</a>
-          <a class="badge weak" href="/reports/{{ report.id }}?format=txt">Text</a>
+          <a class="badge weak" href="/reports/{{ report.id }}?format=md">Download Markdown</a>
+          <a class="badge weak" href="/reports/{{ report.id }}?format=html">Download HTML</a>
+          <a class="badge weak" href="/reports/{{ report.id }}?format=json">Download JSON</a>
+          <a class="badge weak" href="/reports/{{ report.id }}?format=txt">Download Text</a>
         </div>
         <details class="edit-drawer">
           <summary>Edit report metadata</summary>
