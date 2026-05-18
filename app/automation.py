@@ -3,10 +3,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 import json
+import logging
 
 from sqlmodel import Session, col, select
 
 from app.audit import compact_snapshot, log_event
+from app.database import backup_sqlite_persistent_copy, engine
 from app.email_service import get_email_configuration, send_or_store_email, split_recipients
 from app.export_service import report_export, report_filename
 from app.intelligence import refresh_news_feeds, repair_mismatched_customer_assignments, run_kra_research, run_source_check
@@ -30,6 +32,7 @@ from app.settings import get_settings
 
 OPEN_TASK_STATUSES = {"requested", "in_progress", "blocked", "review_required"}
 AUTO_PORTAL_MODES = {"approved_api", "public_api_no_key", "api_key_header", "api_key_query", "oauth_client_credentials"}
+logger = logging.getLogger(__name__)
 
 
 def apply_all_preconfigured_packs(session: Session, actor: str = "system") -> list[dict]:
@@ -47,11 +50,18 @@ def run_admin_full_cycle(
     export_format: str = "md",
     source_fetcher=None,
     connector_fetcher=None,
+    run_id: int | None = None,
 ) -> AutomationRun:
-    run = AutomationRun(actor=actor, status="started", summary="Admin automation cycle started.")
+    run = session.get(AutomationRun, run_id) if run_id else None
+    if run is None:
+        run = AutomationRun(actor=actor)
+    run.actor = actor
+    run.status = "running"
+    run.summary = "Admin automation cycle running."
     session.add(run)
     session.commit()
     session.refresh(run)
+    logger.info("DIP automation run %s started by %s", run.id, actor)
 
     steps: list[dict] = []
 
@@ -161,7 +171,40 @@ def run_admin_full_cycle(
     )
     session.commit()
     session.refresh(run)
+    logger.info("DIP automation run %s finished with status %s", run.id, run.status)
     return run
+
+
+def create_queued_automation_run(session: Session, actor: str = "local-user") -> AutomationRun:
+    run = AutomationRun(actor=actor, status="queued", summary="Automation queued. The run will continue in the live Azure app background worker.")
+    session.add(run)
+    session.commit()
+    session.refresh(run)
+    return run
+
+
+def run_admin_full_cycle_background(run_id: int, actor: str, email_recipients: str = "", export_format: str = "md") -> None:
+    try:
+        with Session(engine) as session:
+            run_admin_full_cycle(
+                session,
+                actor=actor,
+                email_recipients=email_recipients,
+                export_format=export_format,
+                run_id=run_id,
+            )
+    except Exception as exc:
+        logger.exception("DIP automation run %s failed outside the managed cycle", run_id)
+        with Session(engine) as session:
+            run = session.get(AutomationRun, run_id)
+            if run is not None:
+                run.status = "failed"
+                run.finished_at = datetime.now(UTC)
+                run.summary = f"Automation failed before completion: {str(exc)[:220]}"
+                session.add(run)
+                session.commit()
+    finally:
+        backup_sqlite_persistent_copy()
 
 
 def refresh_public_sources(session: Session, fetcher=None) -> list[dict]:

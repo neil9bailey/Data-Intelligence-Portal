@@ -215,6 +215,44 @@ def test_admin_full_cycle_automation_preconfigures_and_exports(reference_session
     assert reference_session.exec(select(EmailDeliveryLog)).first().status == "stored"
 
 
+def test_admin_automation_route_queues_background_run(reference_session, monkeypatch):
+    calls = []
+
+    def fake_background(run_id, actor, email_recipients="", export_format="md"):
+        calls.append(
+            {
+                "run_id": run_id,
+                "actor": actor,
+                "email_recipients": email_recipients,
+                "export_format": export_format,
+            }
+        )
+
+    monkeypatch.setattr("app.main.run_admin_full_cycle_background", fake_background)
+    client = client_for(reference_session)
+    try:
+        response = client.post(
+            "/admin/automation/run",
+            data={"email_recipients": "ops@example.com", "export_format": "md"},
+            follow_redirects=False,
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    run = reference_session.exec(select(AutomationRun).order_by(AutomationRun.id.desc())).first()
+    assert response.status_code == 303
+    assert response.headers["location"] == f"/admin?automation=queued&run_id={run.id}"
+    assert run.status == "queued"
+    assert calls == [
+        {
+            "run_id": run.id,
+            "actor": "local-user",
+            "email_recipients": "ops@example.com",
+            "export_format": "md",
+        }
+    ]
+
+
 def test_portal_connector_run_all_route_is_not_parsed_as_connector_id(reference_session):
     client = client_for(reference_session)
     try:

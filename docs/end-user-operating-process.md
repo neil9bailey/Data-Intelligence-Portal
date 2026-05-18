@@ -41,6 +41,8 @@ Use **Run full cycle** to automate the normal operating rhythm:
 9. Email or locally store the report email using the Admin email configuration.
 10. Record the audit trail.
 
+In Azure live-test, **Run full cycle** queues the work and returns to Admin immediately. Refresh Admin after a short pause to see whether the latest run is queued, running, completed or failed. This avoids the browser appearing frozen while source checks, KRA calls and report generation continue in the background worker.
+
 The automation does not log into buyer portals, submit expressions of interest, send portal messages or make bid/no-bid decisions.
 
 ## 4. Admin: Add Or Configure A Customer

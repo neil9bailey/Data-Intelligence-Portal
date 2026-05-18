@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
-from fastapi import Depends, FastAPI, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -12,7 +12,7 @@ from sqlmodel import Session, col, select
 
 from app.audit import compact_snapshot, log_event
 from app.auth import get_current_user, require_admin
-from app.automation import apply_all_preconfigured_packs, automation_steps, automation_summary, run_admin_full_cycle
+from app.automation import apply_all_preconfigured_packs, automation_steps, automation_summary, create_queued_automation_run, run_admin_full_cycle_background
 from app.database import (
     backup_sqlite_persistent_copy,
     engine,
@@ -822,15 +822,22 @@ def admin(request: Request, session: Session = Depends(get_session), _user=Depen
 
 
 @app.post("/admin/automation/run")
-async def run_admin_automation(request: Request, session: Session = Depends(get_session), user=Depends(require_admin)):
+async def run_admin_automation(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    session: Session = Depends(get_session),
+    user=Depends(require_admin),
+):
     form = await request.form()
-    run_admin_full_cycle(
-        session,
-        actor=user.username,
-        email_recipients=str(form.get("email_recipients") or ""),
-        export_format=str(form.get("export_format") or "md"),
+    run = create_queued_automation_run(session, actor=user.username)
+    background_tasks.add_task(
+        run_admin_full_cycle_background,
+        run.id,
+        user.username,
+        str(form.get("email_recipients") or ""),
+        str(form.get("export_format") or "md"),
     )
-    return redirect("/admin")
+    return redirect(f"/admin?automation=queued&run_id={run.id}")
 
 
 @app.post("/admin/email")

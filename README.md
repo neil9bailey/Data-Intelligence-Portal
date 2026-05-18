@@ -138,7 +138,7 @@ Admin and configuration tasks are consolidated under `/admin` and are reached fr
 
 The Admin Control Centre shows:
 
-- one-click autonomous COF workflow runner
+- one-click autonomous COF workflow runner, queued in the background on Azure so Admin can refresh status instead of waiting on a long browser request
 - local runtime/database persistence status
 - remote `/healthz` status for the configured public domain
 - Entra/local auth status and group configuration signals

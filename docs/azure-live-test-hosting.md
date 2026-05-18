@@ -7,7 +7,7 @@ The Data Intelligence Portal live-test stack is designed to sit alongside existi
 ## Target
 
 - Hostname: `dip.vendorlogic.io`
-- Current image: `acrdipvltest01.azurecr.io/dip/app:1.0.18-live-test`
+- Current image: `acrdipvltest01.azurecr.io/dip/app:1.0.20-live-test`
 - Azure model: isolated resource group plus Azure Container Apps
 - Auth: Microsoft Entra ID via Azure Container Apps built-in auth
 - Roles: `Data Intelligence Portal Admin Users` and `Data Intelligence Portal Standard Users`
@@ -85,7 +85,7 @@ Expected smoke result:
 
 - `/healthz` returns `200`.
 - `/` is protected and returns a redirect/401/403 when not signed in.
-- `/admin` shows local/remote health, source health, portal connector health, Entra status, email status, KRA runtime and the autonomous COF workflow runner for Admin users.
+- `/admin` shows local/remote health, source health, portal connector health, Entra status, email status, KRA runtime and the autonomous COF workflow runner for Admin users. The full cycle queues a background run and the Admin page shows queued/running/completed/failed status after refresh.
 
 ## Production Gaps To Close Later
 

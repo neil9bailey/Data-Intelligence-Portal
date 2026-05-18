@@ -430,6 +430,20 @@ p { margin: 0 0 12px; }
 .setup-steps { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .setup-steps a { min-height: 32px; padding: 0 11px; border-radius: 999px; display: inline-flex; align-items: center; color: var(--plum); background: var(--weak-bg); font-size: 12px; font-weight: 1000; }
 .automation-panel { border-top: 5px solid var(--cyan); }
+.run-alert {
+  margin: 10px 0 16px;
+  border: 1px solid #f1d083;
+  border-left: 6px solid #bf8018;
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  background: #fff8e4;
+}
+.run-alert strong { display: block; color: var(--amber); }
+.run-alert p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
 .automation-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
