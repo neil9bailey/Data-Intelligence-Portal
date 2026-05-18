@@ -36,6 +36,7 @@ from app.intelligence_packs import (
 from app.intelligence import (
     extract_document_intelligence,
     kra_runtime_status,
+    repair_mismatched_customer_assignments,
     refresh_news_feeds,
     run_kra_research,
     run_source_check,
@@ -90,6 +91,7 @@ async def lifespan(app: FastAPI):
             retry_sqlite_locked(lambda: run_seed(seed_reference_data))
         if settings.seed_demo_data:
             retry_sqlite_locked(lambda: run_seed(seed_demo_data))
+        retry_sqlite_locked(lambda: run_seed(repair_mismatched_customer_assignments))
         backup_sqlite_persistent_copy()
     try:
         yield

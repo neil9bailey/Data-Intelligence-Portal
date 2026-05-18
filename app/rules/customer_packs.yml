@@ -153,11 +153,11 @@ packs:
       - name: Contracts Finder - National Highways public notices
         portal_name: Contracts Finder - National Highways public notices
         integration_method: public_api_no_key
-        endpoint_url: https://www.contractsfinder.service.gov.uk/Published/Notices/OCDS/Search?stages=planning,tender,award&limit=50&keyword=National%20Highways
+        endpoint_url: https://www.contractsfinder.service.gov.uk/Published/Notices/OCDS/Search?stages=planning,tender,award&limit=50
         auth_type: none
         enabled: false
         allowed_operations: retrieve_metadata; retrieve_documents; detect_changes
-        notes: Keep disabled until endpoint format and review flow are accepted. Filter results for National Highways, National Highways Limited and Highways England.
+        notes: Keep disabled until endpoint format and review flow are accepted. The official Contracts Finder OCDS search endpoint is broad; DIP must filter results for National Highways, National Highways Limited and Highways England before assignment.
     kra_queries:
       - agent: Official Source Scout
         query: National Highways highways operational technology roadside technology cyber resilience asset management service management SCADA network communications maintenance response framework

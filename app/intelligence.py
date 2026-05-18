@@ -34,6 +34,11 @@ from app.rule_loader import load_rule_file
 from app.settings import get_settings
 
 
+MANAGED_STATUSES = {"", "new", "award_notice", "early_engagement", "needs_review"}
+GENERIC_CUSTOMER_TERM_MARKERS = {"context", "to be confirmed", "programme teams", "regional", "sponsor"}
+SHORT_ALIAS_ALLOWLIST = {"tfl"}
+
+
 @dataclass
 class FetchResult:
     ok: bool
@@ -401,6 +406,7 @@ def parse_ocds_candidates(text: str, source: ProcurementSource) -> list[Candidat
 
 def parse_web_candidates(text: str, source: ProcurementSource, terms: list[str]) -> list[CandidateOpportunity]:
     candidates: list[CandidateOpportunity] = []
+    seen: set[str] = set()
     for match in re.finditer(r"<a\s+[^>]*href=[\"']([^\"']+)[\"'][^>]*>(.*?)</a>", text or "", re.I | re.S):
         href, label_html = match.groups()
         title = strip_html(label_html)
@@ -413,6 +419,9 @@ def parse_web_candidates(text: str, source: ProcurementSource, terms: list[str])
         if not any(term in combined for term in terms) and "notice" not in combined:
             continue
         identifier = url.rstrip("/").rsplit("/", 1)[-1]
+        if identifier in seen:
+            continue
+        seen.add(identifier)
         candidates.append(
             CandidateOpportunity(
                 title=title[:250],
@@ -423,6 +432,38 @@ def parse_web_candidates(text: str, source: ProcurementSource, terms: list[str])
             )
         )
     return candidates
+
+
+def _specific_customer_terms(customer: Customer) -> list[str]:
+    raw_terms = [customer.customer_name, customer.aliases, customer.buying_entities]
+    terms: list[str] = []
+    for value in raw_terms:
+        for term in split_terms(value):
+            cleaned = term.lower()
+            if any(marker in cleaned for marker in GENERIC_CUSTOMER_TERM_MARKERS):
+                continue
+            if len(cleaned) < 4 and cleaned not in SHORT_ALIAS_ALLOWLIST:
+                continue
+            if cleaned not in terms:
+                terms.append(cleaned)
+    return terms
+
+
+def _term_in_text(term: str, text: str) -> bool:
+    if " " in term:
+        return term in text
+    return re.search(rf"\b{re.escape(term)}\b", text) is not None
+
+
+def candidate_matches_customer(candidate: CandidateOpportunity, customer: Customer) -> bool:
+    terms = _specific_customer_terms(customer)
+    if not terms:
+        return False
+    buyer_text = candidate.buyer_name.lower()
+    if buyer_text:
+        return any(_term_in_text(term, buyer_text) for term in terms)
+    combined = " ".join([candidate.title, candidate.summary, candidate.source_url]).lower()
+    return any(_term_in_text(term, combined) for term in terms)
 
 
 def watch_profile_terms(session: Session, profile: CustomerWatchProfile | None = None, customer: Customer | None = None) -> list[str]:
@@ -449,6 +490,15 @@ def relevance_for_candidate(candidate: CandidateOpportunity, terms: list[str]) -
     return float(min(100, 20 + len(matched) * 12)), f"Matched terms: {', '.join(matched[:8])}."
 
 
+def inferred_opportunity_status(candidate: CandidateOpportunity) -> str:
+    category = f"{candidate.notice_type} {candidate.procurement_stage} {candidate.title}".lower()
+    if "award" in category or candidate.procurement_stage.lower() in {"complete", "completed"}:
+        return "award_notice"
+    if "planning" in category or "early engagement" in category or "pipeline" in category:
+        return "early_engagement"
+    return "new"
+
+
 def upsert_opportunity(
     session: Session,
     source: ProcurementSource,
@@ -459,7 +509,11 @@ def upsert_opportunity(
     business_unit_id: int | None = None,
 ) -> tuple[Opportunity, bool]:
     existing = None
-    if candidate.notice_identifier:
+    if candidate.ocid:
+        existing = session.exec(select(Opportunity).where(Opportunity.ocid == candidate.ocid)).first()
+    if not existing and candidate.source_url:
+        existing = session.exec(select(Opportunity).where(Opportunity.source_url == candidate.source_url)).first()
+    if not existing and candidate.notice_identifier:
         existing = session.exec(
             select(Opportunity).where(
                 Opportunity.source_id == source.id,
@@ -472,8 +526,10 @@ def upsert_opportunity(
     opportunity = existing or Opportunity(source_id=source.id, title=candidate.title)
     before = compact_snapshot(opportunity) if existing else ""
     opportunity.source_id = source.id
-    opportunity.customer_id = customer_id
-    opportunity.business_unit_id = business_unit_id
+    if customer_id is not None:
+        opportunity.customer_id = customer_id
+    if business_unit_id is not None:
+        opportunity.business_unit_id = business_unit_id
     opportunity.title = candidate.title
     opportunity.buyer_name = candidate.buyer_name
     opportunity.notice_identifier = candidate.notice_identifier
@@ -487,6 +543,8 @@ def upsert_opportunity(
     opportunity.cpv_codes = candidate.cpv_codes
     opportunity.source_url = candidate.source_url
     opportunity.summary = candidate.summary
+    if created or opportunity.status in MANAGED_STATUSES:
+        opportunity.status = inferred_opportunity_status(candidate)
     opportunity.relevance_score = relevance_score
     opportunity.relevance_rationale = rationale
     opportunity.content_hash = candidate.content_hash
@@ -503,6 +561,53 @@ def upsert_opportunity(
         after=opportunity,
     )
     return opportunity, created
+
+
+def repair_mismatched_customer_assignments(session: Session) -> int:
+    repaired = 0
+    opportunities = list(session.exec(select(Opportunity).where(Opportunity.customer_id != None)))  # noqa: E711
+    for opportunity in opportunities:
+        customer = session.get(Customer, opportunity.customer_id) if opportunity.customer_id else None
+        if not customer:
+            continue
+        candidate = CandidateOpportunity(
+            title=opportunity.title,
+            buyer_name=opportunity.buyer_name,
+            notice_identifier=opportunity.notice_identifier,
+            ocid=opportunity.ocid,
+            notice_type=opportunity.notice_type,
+            procurement_stage=opportunity.procurement_stage,
+            source_url=opportunity.source_url,
+            summary=opportunity.summary,
+            cpv_codes=opportunity.cpv_codes,
+        )
+        if candidate_matches_customer(candidate, customer):
+            continue
+        before = compact_snapshot(opportunity)
+        customer_name = customer.customer_name
+        opportunity.customer_id = None
+        opportunity.business_unit_id = None
+        opportunity.status = "needs_review"
+        opportunity.relevance_score = 0
+        opportunity.relevance_rationale = (
+            f"Unassigned by data-quality repair: buyer/text did not match {customer_name} aliases. "
+            f"Previous assignment was {customer_name}."
+        )
+        opportunity.updated_at = datetime.now(UTC)
+        session.add(opportunity)
+        log_event(
+            session,
+            entity_type="Opportunity",
+            entity_id=opportunity.id,
+            action="data_quality_repair",
+            summary=f"Unassigned mismatched opportunity from {customer_name}",
+            before=before,
+            after=opportunity,
+        )
+        repaired += 1
+    if repaired:
+        session.commit()
+    return repaired
 
 
 def requirement_themes_for_text(text: str) -> list[str]:
@@ -682,6 +787,8 @@ def run_kra_research(
             if not candidates:
                 candidates = parse_web_candidates(fetch.text, source, terms)
             for candidate in candidates[:20]:
+                if customer and not candidate_matches_customer(candidate, customer):
+                    continue
                 relevance, rationale = relevance_for_candidate(candidate, terms)
                 if relevance <= 0:
                     continue

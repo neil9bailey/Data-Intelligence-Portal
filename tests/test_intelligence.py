@@ -3,7 +3,15 @@ import json
 from sqlmodel import select
 
 from app.audit import compact_snapshot
-from app.intelligence import FetchResult, extract_document_intelligence, parse_feed_items, run_kra_research, run_source_check, source_allowed
+from app.intelligence import (
+    FetchResult,
+    extract_document_intelligence,
+    parse_feed_items,
+    repair_mismatched_customer_assignments,
+    run_kra_research,
+    run_source_check,
+    source_allowed,
+)
 from app.models import (
     Customer,
     ExtractedQualityQuestion,
@@ -80,6 +88,83 @@ def test_kra_run_creates_findings_opportunity_and_requirements(seeded_session):
     assert seeded_session.exec(select(KRAFinding)).first() is not None
     assert seeded_session.exec(select(Opportunity).where(Opportunity.notice_identifier == "notice-1")).first() is not None
     assert seeded_session.exec(select(ExtractedRequirement)).first() is not None
+
+
+def test_customer_scoped_kra_filters_irrelevant_buyer_and_marks_award(seeded_session):
+    customer = seeded_session.exec(select(Customer).where(Customer.customer_name == "National Highways")).first()
+    source = seeded_session.exec(select(ProcurementSource).where(ProcurementSource.active == True)).first()  # noqa: E712
+    payload = {
+        "releases": [
+            {
+                "id": "moj-prison-education",
+                "ocid": "ocds-test-moj",
+                "date": "2026-05-18T09:00:00Z",
+                "tag": ["award"],
+                "buyer": {"name": "Ministry of Justice"},
+                "tender": {
+                    "title": "Award of a Call-Off Contract under the Prison Education Dynamic Purchasing System for a Self-Employment training course for Prisoners at HMP Lewes",
+                    "description": "Self-employment training course for prisoners.",
+                    "status": "complete",
+                },
+                "links": {"self": "https://www.contractsfinder.service.gov.uk/Notice/moj-prison-education"},
+            },
+            {
+                "id": "nh-award-1",
+                "ocid": "ocds-test-nh-award",
+                "date": "2026-05-18T09:00:00Z",
+                "tag": ["award"],
+                "buyer": {"name": "National Highways Limited"},
+                "tender": {
+                    "title": "National Highways roadside technology support award",
+                    "description": "Operational technology support for the strategic road network.",
+                    "status": "complete",
+                },
+                "links": {"self": "https://www.contractsfinder.service.gov.uk/Notice/nh-award-1"},
+            },
+        ]
+    }
+
+    def fake_fetcher(url):
+        return FetchResult(True, 200, url, json.dumps(payload), "application/json")
+
+    run = run_kra_research(
+        seeded_session,
+        source_id=source.id,
+        customer_id=customer.id,
+        query="National Highways",
+        fetcher=fake_fetcher,
+    )
+
+    assert run.status == "completed"
+    assert seeded_session.exec(select(Opportunity).where(Opportunity.notice_identifier == "moj-prison-education")).first() is None
+    opportunity = seeded_session.exec(select(Opportunity).where(Opportunity.notice_identifier == "nh-award-1")).first()
+    assert opportunity is not None
+    assert opportunity.customer_id == customer.id
+    assert opportunity.status == "award_notice"
+
+
+def test_data_quality_repair_unassigns_mismatched_customer_opportunity(seeded_session):
+    customer = seeded_session.exec(select(Customer).where(Customer.customer_name == "National Highways")).first()
+    opportunity = Opportunity(
+        customer_id=customer.id,
+        business_unit_id=customer.business_unit_id,
+        title="Award of a Call-Off Contract under the Prison Education Dynamic Purchasing System",
+        buyer_name="Ministry of Justice",
+        status="new",
+        relevance_score=50,
+    )
+    seeded_session.add(opportunity)
+    seeded_session.commit()
+    seeded_session.refresh(opportunity)
+
+    repaired = repair_mismatched_customer_assignments(seeded_session)
+
+    seeded_session.refresh(opportunity)
+    assert repaired >= 1
+    assert opportunity.customer_id is None
+    assert opportunity.business_unit_id is None
+    assert opportunity.status == "needs_review"
+    assert "did not match National Highways aliases" in opportunity.relevance_rationale
 
 
 def test_document_extraction_creates_quality_question(seeded_session):
