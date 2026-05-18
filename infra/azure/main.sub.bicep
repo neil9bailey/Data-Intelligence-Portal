@@ -52,7 +52,7 @@ param managedCertificateName string = ''
 param imageRepositoryPrefix string = 'dip'
 
 @description('Container image tag.')
-param imageTag string = '1.0.13-live-test'
+param imageTag string = '1.0.14-live-test'
 
 @allowed([
   'DELETE'
@@ -101,6 +101,18 @@ param seedReferenceData bool = true
 @description('Seed demo/sample data on startup. Keep false for live-test customer data capture.')
 param seedDemoData bool = false
 
+@description('KRA LLM provider mode. Use disabled for deterministic local-only operation, or openai_direct for the approved live-demo OpenAI route.')
+param kraLlmProvider string = 'disabled'
+
+@description('KRA LLM model name for AI-assisted summaries.')
+param kraModel string = ''
+
+@description('KRA MCP/agent runtime mode label shown in the UI.')
+param kraMcpMode string = 'local_registry'
+
+@description('Key Vault secret name containing the KRA/OpenAI API key. Leave blank to run KRA without AI-assisted summaries.')
+param kraApiKeySecretName string = ''
+
 resource dedicatedResourceGroup 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name: resourceGroupName
   location: resourceGroupLocation
@@ -140,6 +152,10 @@ module portalStack './main.rg.bicep' = {
     entraStandardGroupId: entraStandardGroupId
     seedReferenceData: seedReferenceData
     seedDemoData: seedDemoData
+    kraLlmProvider: kraLlmProvider
+    kraModel: kraModel
+    kraMcpMode: kraMcpMode
+    kraApiKeySecretName: kraApiKeySecretName
   }
 }
 

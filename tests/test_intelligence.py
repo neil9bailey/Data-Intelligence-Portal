@@ -12,6 +12,7 @@ from app.intelligence import (
     run_source_check,
     source_allowed,
 )
+from app.llm import llm_enabled
 from app.models import (
     Customer,
     ExtractedQualityQuestion,
@@ -25,6 +26,7 @@ from app.models import (
     SourceCheckSnapshot,
 )
 from app.reports import create_report
+from app.settings import get_settings
 
 
 def test_source_allowlist():
@@ -88,6 +90,40 @@ def test_kra_run_creates_findings_opportunity_and_requirements(seeded_session):
     assert seeded_session.exec(select(KRAFinding)).first() is not None
     assert seeded_session.exec(select(Opportunity).where(Opportunity.notice_identifier == "notice-1")).first() is not None
     assert seeded_session.exec(select(ExtractedRequirement)).first() is not None
+
+
+def test_kra_run_adds_ai_summary_when_llm_enabled(seeded_session, monkeypatch):
+    source = seeded_session.exec(select(ProcurementSource).where(ProcurementSource.active == True)).first()  # noqa: E712
+    payload = {
+        "releases": [
+            {
+                "id": "notice-ai",
+                "ocid": "ocds-test-ai",
+                "date": "2026-05-17T12:00:00Z",
+                "tag": ["tender"],
+                "buyer": {"name": "National Highways"},
+                "tender": {
+                    "title": "National Highways roadside data service",
+                    "description": "Roadside operational technology and real-time data services.",
+                    "status": "active",
+                },
+                "links": {"self": "https://www.find-tender.service.gov.uk/Notice/ai"},
+            }
+        ]
+    }
+
+    def fake_fetcher(url):
+        return FetchResult(True, 200, url, json.dumps(payload), "application/json")
+
+    monkeypatch.setattr("app.intelligence.llm_enabled", lambda: True)
+    monkeypatch.setattr("app.intelligence.generate_llm_text", lambda *args, **kwargs: "AI summary for review.")
+
+    run = run_kra_research(seeded_session, source_id=source.id, query="National Highways", fetcher=fake_fetcher)
+
+    finding = seeded_session.exec(select(KRAFinding).where(KRAFinding.finding_type == "ai_research_summary")).first()
+    assert run.status == "completed"
+    assert finding is not None
+    assert "Requires human review" in finding.summary
 
 
 def test_customer_scoped_kra_filters_irrelevant_buyer_and_marks_award(seeded_session):
@@ -197,7 +233,32 @@ def test_report_generation_contains_kra_runtime(seeded_session):
 
     assert report.id is not None
     assert "KRA runtime" in report.markdown
+    assert "AI-Assisted Executive Brief" in report.markdown
     assert "not a bid/no-bid" in report.markdown
+
+
+def test_report_generation_uses_ai_brief_when_llm_enabled(seeded_session, monkeypatch):
+    monkeypatch.setattr("app.reports.llm_enabled", lambda: True)
+    monkeypatch.setattr("app.reports.generate_llm_text", lambda *args, **kwargs: "Executive AI briefing text.")
+
+    report = create_report(seeded_session, "AI report")
+
+    assert "Executive AI briefing text." in report.markdown
+    assert "Requires human review before onward use." in report.markdown
+
+
+def test_llm_enabled_requires_provider_model_and_key(monkeypatch):
+    get_settings.cache_clear()
+    monkeypatch.setenv("KRA_LLM_PROVIDER", "openai_direct")
+    monkeypatch.setenv("KRA_API_KEY", "test-key")
+    monkeypatch.setenv("KRA_MODEL", "gpt-5.4")
+
+    assert llm_enabled()
+
+    monkeypatch.setenv("KRA_API_KEY", "")
+    get_settings.cache_clear()
+    assert not llm_enabled()
+    get_settings.cache_clear()
 
 
 def test_reference_seed_keeps_customer_and_content_tables_clean(reference_session):

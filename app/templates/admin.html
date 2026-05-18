@@ -74,6 +74,7 @@
     <div class="badges">
       <span class="badge weak">{{ health.kra.mcp_mode }}</span>
       <span class="badge {{ 'green' if health.kra.api_key_configured else 'amber' }}">API key {{ 'configured' if health.kra.api_key_configured else 'not configured' }}</span>
+      <span class="badge {{ 'green' if health.kra.ai_enabled else 'amber' }}">AI {{ 'enabled' if health.kra.ai_enabled else 'local only' }}</span>
     </div>
   </div>
 </section>

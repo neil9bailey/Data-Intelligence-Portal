@@ -4,6 +4,7 @@ from sqlmodel import Session, col, select
 
 from app.audit import log_event
 from app.intelligence import kra_runtime_status
+from app.llm import LLMError, generate_llm_text, kra_system_prompt, llm_enabled
 from app.models import (
     BusinessUnit,
     Customer,
@@ -92,17 +93,49 @@ def generate_intelligence_report_markdown(
         f"- {item.title}: {item.summary} ({item.human_review_status})"
         for item in findings
     ] or ["- No KRA findings recorded."]
+    deterministic_brief = (
+        "No AI-assisted executive brief was generated because the KRA LLM provider is not enabled."
+    )
+    if llm_enabled():
+        try:
+            deterministic_brief = generate_llm_text(
+                kra_system_prompt(),
+                "\n".join(
+                    [
+                        f"Report: {report_name}",
+                        f"Customer: {customer.customer_name if customer else 'All customers'}",
+                        f"Business unit: {unit.name if unit else 'All business units'}",
+                        "Opportunities:",
+                        *opportunity_lines[:15],
+                        "Requirements:",
+                        *requirement_lines[:12],
+                        "KRA findings:",
+                        *finding_lines[:10],
+                        "",
+                        "Write a concise executive intelligence brief for a live demo. Include public-source caveats, data gaps, and next human actions.",
+                    ]
+                ),
+                max_output_tokens=800,
+            )
+        except LLMError as exc:
+            deterministic_brief = f"AI-assisted executive brief unavailable: {str(exc)[:220]}"
     return f"""# {report_name}
 
 **Generated at:** {generated_at}  
 **Customer:** {customer.customer_name if customer else 'All customers'}  
 **Business unit:** {unit.name if unit else 'All business units'}  
 **Rules:** {rules_version_summary()}  
-**KRA runtime:** provider {runtime['provider']}; mode {runtime['mcp_mode']}; API key configured {runtime['api_key_configured']}
+**KRA runtime:** provider {runtime['provider']}; mode {runtime['mcp_mode']}; model {runtime['model']}; API key configured {runtime['api_key_configured']}; AI enabled {runtime['ai_enabled']}
 
 ## Purpose
 
 This report consolidates customer, source, portal, opportunity, document and requirement intelligence for human review. It is not a bid/no-bid, legal, procurement, compliance or customer-commitment decision.
+
+## AI-Assisted Executive Brief
+
+{deterministic_brief}
+
+Requires human review before onward use.
 
 ## KRA Findings
 {chr(10).join(finding_lines)}

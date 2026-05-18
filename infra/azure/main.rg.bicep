@@ -49,7 +49,7 @@ param managedCertificateName string = ''
 param imageRepositoryPrefix string = 'dip'
 
 @description('Container image tag.')
-param imageTag string = '1.0.13-live-test'
+param imageTag string = '1.0.14-live-test'
 
 @allowed([
   'DELETE'
@@ -97,6 +97,18 @@ param seedReferenceData bool = true
 
 @description('Seed demo/sample data on startup. Keep false for live-test customer data capture.')
 param seedDemoData bool = false
+
+@description('KRA LLM provider mode. Use disabled for deterministic local-only operation, or openai_direct for the approved live-demo OpenAI route.')
+param kraLlmProvider string = 'disabled'
+
+@description('KRA LLM model name for AI-assisted summaries. Only used when KRA_LLM_PROVIDER is openai_direct and an API key secret is configured.')
+param kraModel string = ''
+
+@description('KRA MCP/agent runtime mode label shown in the UI.')
+param kraMcpMode string = 'local_registry'
+
+@description('Key Vault secret name containing the KRA/OpenAI API key. Leave blank to run KRA without AI-assisted summaries.')
+param kraApiKeySecretName string = ''
 
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: managedIdentityName
@@ -202,6 +214,110 @@ var allowedGroups = [
   entraAdminGroupId
   entraStandardGroupId
 ]
+var appSecrets = concat(
+  entraAuthEnabled
+    ? [
+        {
+          name: entraClientSecretName
+          keyVaultUrl: '${secretBaseUrl}/${entraClientSecretName}'
+          identity: managedIdentity.id
+        }
+      ]
+    : [],
+  !empty(kraApiKeySecretName)
+    ? [
+        {
+          name: 'kra-api-key'
+          keyVaultUrl: '${secretBaseUrl}/${kraApiKeySecretName}'
+          identity: managedIdentity.id
+        }
+      ]
+    : []
+)
+var appEnvironment = concat(
+  [
+    {
+      name: 'APP_NAME'
+      value: 'Data Intelligence Portal'
+    }
+    {
+      name: 'DATABASE_URL'
+      value: 'sqlite:////tmp/dip/data-intelligence-portal.sqlite'
+    }
+    {
+      name: 'SQLITE_JOURNAL_MODE'
+      value: sqliteJournalMode
+    }
+    {
+      name: 'SQLITE_PERSISTENT_COPY_PATH'
+      value: '/app/data/data-intelligence-portal.sqlite'
+    }
+    {
+      name: 'DIP_OUTBOX_DIR'
+      value: '/app/data/outbox'
+    }
+    {
+      name: 'DIP_PUBLIC_DOMAIN'
+      value: publicDomain
+    }
+    {
+      name: 'DIP_REMOTE_HEALTH_URL'
+      value: 'https://${publicDomain}/healthz'
+    }
+    {
+      name: 'DIP_DEPLOYMENT_LABEL'
+      value: 'azure-live-test'
+    }
+    {
+      name: 'SEED_REFERENCE_DATA'
+      value: seedReferenceData ? 'true' : 'false'
+    }
+    {
+      name: 'SEED_DEMO_DATA'
+      value: seedDemoData ? 'true' : 'false'
+    }
+    {
+      name: 'ENTRA_AUTH_ENABLED'
+      value: entraAuthEnabled ? 'true' : 'false'
+    }
+    {
+      name: 'ENTRA_ADMIN_GROUP_ID'
+      value: entraAdminGroupId
+    }
+    {
+      name: 'ENTRA_STANDARD_GROUP_ID'
+      value: entraStandardGroupId
+    }
+    {
+      name: 'KRA_LLM_PROVIDER'
+      value: kraLlmProvider
+    }
+    {
+      name: 'KRA_MODEL'
+      value: kraModel
+    }
+    {
+      name: 'KRA_MCP_MODE'
+      value: kraMcpMode
+    }
+  ],
+  !empty(kraApiKeySecretName)
+    ? [
+        {
+          name: 'KRA_API_KEY'
+          secretRef: 'kra-api-key'
+        }
+        {
+          name: 'OPENAI_API_KEY'
+          secretRef: 'kra-api-key'
+        }
+        {
+          name: 'OPENAI_MODEL'
+          value: kraModel
+        }
+      ]
+    : []
+)
 
 resource existingManagedCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2024-03-01' existing = if (deployApps && customDomainBindingEnabled) {
   parent: containerAppsEnvironment
@@ -242,83 +358,14 @@ resource portalApp 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
           identity: managedIdentity.id
         }
       ]
-      secrets: entraAuthEnabled
-        ? [
-            {
-              name: entraClientSecretName
-              keyVaultUrl: '${secretBaseUrl}/${entraClientSecretName}'
-              identity: managedIdentity.id
-            }
-          ]
-        : []
+      secrets: appSecrets
     }
     template: {
       containers: [
         {
           name: 'data-intelligence-portal'
           image: '${containerRegistry.properties.loginServer}/${imageRepositoryPrefix}/app:${imageTag}'
-          env: [
-            {
-              name: 'APP_NAME'
-              value: 'Data Intelligence Portal'
-            }
-            {
-              name: 'DATABASE_URL'
-              value: 'sqlite:////tmp/dip/data-intelligence-portal.sqlite'
-            }
-            {
-              name: 'SQLITE_JOURNAL_MODE'
-              value: sqliteJournalMode
-            }
-            {
-              name: 'SQLITE_PERSISTENT_COPY_PATH'
-              value: '/app/data/data-intelligence-portal.sqlite'
-            }
-            {
-              name: 'DIP_OUTBOX_DIR'
-              value: '/app/data/outbox'
-            }
-            {
-              name: 'DIP_PUBLIC_DOMAIN'
-              value: publicDomain
-            }
-            {
-              name: 'DIP_REMOTE_HEALTH_URL'
-              value: 'https://${publicDomain}/healthz'
-            }
-            {
-              name: 'DIP_DEPLOYMENT_LABEL'
-              value: 'azure-live-test'
-            }
-            {
-              name: 'SEED_REFERENCE_DATA'
-              value: seedReferenceData ? 'true' : 'false'
-            }
-            {
-              name: 'SEED_DEMO_DATA'
-              value: seedDemoData ? 'true' : 'false'
-            }
-            {
-              name: 'ENTRA_AUTH_ENABLED'
-              value: entraAuthEnabled ? 'true' : 'false'
-            }
-            {
-              name: 'ENTRA_ADMIN_GROUP_ID'
-              value: entraAdminGroupId
-            }
-            {
-              name: 'ENTRA_STANDARD_GROUP_ID'
-              value: entraStandardGroupId
-            }
-            {
-              name: 'KRA_LLM_PROVIDER'
-              value: 'disabled'
-            }
-            {
-              name: 'KRA_MCP_MODE'
-              value: 'local_registry'
-            }
-          ]
+          env: appEnvironment
           probes: [
             {
               type: 'Liveness'

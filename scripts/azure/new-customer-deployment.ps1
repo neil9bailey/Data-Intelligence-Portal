@@ -16,6 +16,10 @@ param(
     [string]$SharedKeyVaultResourceGroupName,
     [string]$Location = "uksouth",
     [string]$ImageTag = "",
+    [string]$KraLlmProvider = "disabled",
+    [string]$KraModel = "",
+    [string]$KraMcpMode = "local_registry",
+    [string]$KraApiKeySecretName = "",
     [string]$ContainerRegistryName = "",
     [string]$StorageAccountName = "",
     [string]$GeneratedDirectory = "infra/azure/generated",
@@ -65,7 +69,7 @@ $suffix = "$customer-$environment"
 $compact = Convert-ToToken -Value "$customer$environment" -MaxLength 13 -LettersOnlyPrefix
 
 if ([string]::IsNullOrWhiteSpace($ImageTag)) {
-    $ImageTag = "1.0.13-$environment"
+    $ImageTag = "1.0.14-$environment"
 }
 if ([string]::IsNullOrWhiteSpace($ContainerRegistryName)) {
     $ContainerRegistryName = "acrdip$compact"
@@ -126,6 +130,11 @@ param entraStandardGroupId = '00000000-0000-0000-0000-000000000000'
 
 param seedReferenceData = true
 param seedDemoData = false
+
+param kraLlmProvider = '$KraLlmProvider'
+param kraModel = '$KraModel'
+param kraMcpMode = '$KraMcpMode'
+param kraApiKeySecretName = '$KraApiKeySecretName'
 "@
 
 Set-Content -Path $parameterFile -Value $parameterContent -Encoding UTF8
@@ -142,6 +151,8 @@ Write-Host "  Container App: $containerAppName"
 Write-Host "  Environment: $containerAppsEnvironmentName"
 Write-Host "  Public domain: $PublicDomain"
 Write-Host "  Image tag: $ImageTag"
+Write-Host "  KRA provider: $KraLlmProvider"
+Write-Host "  KRA model: $KraModel"
 
 $shouldPrepareEntra = $PrepareEntra -or $RunAll
 $shouldDeployInfra = $DeployInfra -or $RunAll

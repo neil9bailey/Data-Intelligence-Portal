@@ -82,11 +82,12 @@ Vendorlogic live-test currently uses:
 | Public URL | https://dip.vendorlogic.io |
 | Resource group | RG_DIP_VENDORLOGIC_TEST |
 | Container App | ca-dip-vl-test |
-| Container image | acrdipvltest01.azurecr.io/dip/app:1.0.9-live-test |
+| Container image | acrdipvltest01.azurecr.io/dip/app:1.0.14-live-test |
 | Auth | Container Apps built-in Microsoft Entra auth |
 | Admin group | Data Intelligence Portal Admin Users |
 | Standard group | Data Intelligence Portal Standard Users |
 | Persistence | SQLite active DB on `/tmp/dip`, snapshot and outbox on Azure Files `/app/data` |
+| KRA live-demo AI | `openai_direct`, model `gpt-5.4`, Key Vault secret `diiac-openai-api-key` |
 
 ## Standard Deployment Order
 
@@ -104,7 +105,8 @@ For a new customer or environment, generate a customer parameter file and reusab
   -TenantId "<tenant-id>" `
   -PublicDomain "dip.acme.example" `
   -SharedKeyVaultName "<existing-key-vault-name>" `
-  -SharedKeyVaultResourceGroupName "<key-vault-resource-group>"
+  -SharedKeyVaultResourceGroupName "<key-vault-resource-group>" `
+  -KraLlmProvider "disabled"
 ```
 
 This creates files under `infra/azure/generated/`, which are ignored by Git.
@@ -256,6 +258,24 @@ Generate, prepare Entra, deploy infra, build/push image, deploy app and show DNS
 
 The script does not bind DNS unless you pass `-BindDomain`, because DNS records must exist first.
 
+To enable AI-assisted KRA summaries for an approved demo or pilot, pass a Key Vault secret name that already exists in the shared vault:
+
+```powershell
+.\scripts\azure\new-customer-deployment.ps1 `
+  -CustomerCode "acme" `
+  -EnvironmentCode "test" `
+  -SubscriptionId "<subscription-id>" `
+  -TenantId "<tenant-id>" `
+  -PublicDomain "dip.acme.example" `
+  -SharedKeyVaultName "<existing-key-vault-name>" `
+  -SharedKeyVaultResourceGroupName "<key-vault-resource-group>" `
+  -KraLlmProvider "openai_direct" `
+  -KraModel "gpt-5.4" `
+  -KraApiKeySecretName "<openai-api-key-secret-name>"
+```
+
+The actual key value is never written to the parameter file or report output. Azure Container Apps receives it as a Key Vault secret reference through the managed identity.
+
 ## Operational Settings
 
 Container environment variables include:
@@ -274,6 +294,10 @@ Container environment variables include:
 | `ENTRA_STANDARD_GROUP_ID` | Standard security group object ID |
 | `SEED_REFERENCE_DATA` | Keeps source/platform/KRA reference data seeded |
 | `SEED_DEMO_DATA` | Should remain false for live customer environments |
+| `KRA_LLM_PROVIDER` | `disabled` for deterministic local-only KRA, or `openai_direct` for approved AI-assisted summaries |
+| `KRA_MODEL` | AI model used for KRA summaries when enabled |
+| `KRA_MCP_MODE` | Runtime mode label shown in Admin/KRA |
+| `KRA_API_KEY` | Secret reference only; never store the raw key in code or parameter files |
 
 ## Admin Health Dashboard
 

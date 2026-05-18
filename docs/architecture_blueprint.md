@@ -58,7 +58,8 @@ flowchart LR
 | --- | --- |
 | `app/main.py` | Routes, page rendering and orchestration. |
 | `app/models.py` | Data model for customers, sources, portals, opportunities, documents, reports and audit. |
-| `app/intelligence.py` | Source checks, KRA runs, deterministic parsing and extraction. |
+| `app/intelligence.py` | Source checks, KRA runs, deterministic parsing, extraction and optional AI-assisted summaries. |
+| `app/llm.py` | Small guarded OpenAI Responses API client used only when KRA live-demo settings are enabled. |
 | `app/portal_connectors.py` | Read-only connector guardrails and retrieval runs. |
 | `app/reports.py` | Markdown report generation. |
 | `app/email_service.py` | Local outbox and SMTP delivery. |

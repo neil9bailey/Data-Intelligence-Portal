@@ -13,6 +13,7 @@ import httpx
 from sqlmodel import Session, col, select
 
 from app.audit import compact_snapshot, log_event
+from app.llm import LLMError, generate_llm_text, kra_system_prompt, llm_enabled
 from app.models import (
     BusinessUnit,
     Customer,
@@ -757,6 +758,7 @@ def run_kra_research(
     session.flush()
     terms = split_terms(query) + watch_profile_terms(session, customer=customer)
     findings_created = 0
+    candidate_brief_items: list[str] = []
     for source in sources:
         run.sources_checked += 1
         url = source_query_url(source, terms)
@@ -801,7 +803,43 @@ def run_kra_research(
                     customer_id=customer_id,
                     business_unit_id=customer.business_unit_id if customer else None,
                 )
+                candidate_brief_items.append(
+                    f"{candidate.title} | buyer {candidate.buyer_name or 'not detected'} | "
+                    f"stage {candidate.procurement_stage or candidate.notice_type or 'not detected'} | "
+                    f"relevance {relevance:g}"
+                )
                 create_requirements_for_opportunity(session, opportunity, textish(f"{candidate.title}. {candidate.summary}. {candidate.cpv_codes}"))
+    if llm_enabled():
+        try:
+            summary = generate_llm_text(
+                kra_system_prompt(),
+                "\n".join(
+                    [
+                        f"Customer: {customer.customer_name if customer else 'All customers'}",
+                        f"Research query: {query or 'No query supplied'}",
+                        f"Sources checked: {run.sources_checked}",
+                        "Candidate opportunities:",
+                        *candidate_brief_items[:15],
+                        "",
+                        "Create a concise live-demo briefing with: key signals, data-quality warnings, likely next human actions, and report readiness.",
+                    ]
+                ),
+                max_output_tokens=650,
+            )
+            finding = KRAFinding(
+                run_id=run.id,
+                customer_id=customer_id,
+                finding_type="ai_research_summary",
+                title="KRA AI briefing summary",
+                summary=f"{summary}\n\nRequires human review before onward use.",
+                confidence="medium",
+                change_status="ai_assisted",
+                human_review_status="pending",
+            )
+            session.add(finding)
+            findings_created += 1
+        except LLMError as exc:
+            run.error_summary = f"AI summary unavailable: {str(exc)[:220]}"
     run.status = "completed"
     run.findings_created = findings_created
     run.finished_at = datetime.now(UTC)
@@ -819,4 +857,5 @@ def kra_runtime_status() -> dict:
         "model": settings.kra_model or "deterministic-local",
         "api_key_configured": bool(settings.kra_api_key),
         "mcp_mode": settings.kra_mcp_mode,
+        "ai_enabled": llm_enabled(),
     }

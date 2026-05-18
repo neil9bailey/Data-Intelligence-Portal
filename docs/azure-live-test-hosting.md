@@ -7,11 +7,12 @@ The Data Intelligence Portal live-test stack is designed to sit alongside existi
 ## Target
 
 - Hostname: `dip.vendorlogic.io`
-- Current image: `acrdipvltest01.azurecr.io/dip/app:1.0.13-live-test`
+- Current image: `acrdipvltest01.azurecr.io/dip/app:1.0.14-live-test`
 - Azure model: isolated resource group plus Azure Container Apps
 - Auth: Microsoft Entra ID via Azure Container Apps built-in auth
 - Roles: `Data Intelligence Portal Admin Users` and `Data Intelligence Portal Standard Users`
-- Secrets: existing Key Vault `kv-diiac-vendorlogic`, DIP-specific secret names only
+- Secrets: existing Key Vault `kv-diiac-vendorlogic`, including `dip-entra-client-secret` and the shared DIIaC OpenAI secret reference `diiac-openai-api-key`
+- KRA live-demo AI: `openai_direct` using model `gpt-5.4`; summaries remain human-review-required
 - Persistence: Azure Files mounted at `/app/data` for the live-test SQLite snapshot and email outbox
 - SQLite live-test tuning: the active MVP database runs on local container storage, with a compact snapshot copied to Azure Files after write operations
 
@@ -93,4 +94,5 @@ Expected smoke result:
 - Add immutable audit log export.
 - Add private networking and WAF/front-door decisions where required.
 - Add Key Vault-backed SMTP/API connector secrets for production KRA integrations.
+- Decide whether customer production environments should reuse a shared AI secret or receive customer-specific keys, budgets and audit controls.
 - Add deployment approvals and environment-specific parameter files.

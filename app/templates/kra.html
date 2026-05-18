@@ -3,6 +3,11 @@
 {% block content %}
 <div class="page-head">
   <div><h1>KRA Knowledge Research Agent</h1><p>MCP-style local agents for source research, change tracking, customer memory, document extraction and briefing generation.</p></div>
+  <div class="badges">
+    <span class="badge weak">{{ kra_runtime.provider }}</span>
+    <span class="badge {{ 'green' if kra_runtime.ai_enabled else 'amber' }}">AI {{ 'enabled' if kra_runtime.ai_enabled else 'local only' }}</span>
+    <span class="badge weak">{{ kra_runtime.model }}</span>
+  </div>
 </div>
 <section class="grid two">
   <div class="panel">
