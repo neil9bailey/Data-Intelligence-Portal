@@ -52,7 +52,7 @@ param managedCertificateName string = ''
 param imageRepositoryPrefix string = 'dip'
 
 @description('Container image tag.')
-param imageTag string = '1.0.20-live-test'
+param imageTag string = '1.0.21-live-test'
 
 @allowed([
   'DELETE'
@@ -116,6 +116,36 @@ param kraMcpMode string = 'local_registry'
 @description('Key Vault secret name containing the KRA/OpenAI API key. Leave blank to run KRA without AI-assisted summaries.')
 param kraApiKeySecretName string = ''
 
+@description('Default email delivery mode for the demo. Use file_outbox until an approved SMTP sender is configured.')
+param emailDeliveryMode string = 'file_outbox'
+
+@description('Default sender display name used by the report email workflow.')
+param emailSenderName string = 'Data Intelligence Portal'
+
+@description('Default sender address used by the report email workflow.')
+param emailSender string = 'no-reply@vendorlogic.io'
+
+@description('Default report recipients for the autonomous workflow.')
+param emailDefaultRecipients string = ''
+
+@description('SMTP host for live email delivery when enabled.')
+param smtpHost string = ''
+
+@description('SMTP port for live email delivery when enabled.')
+param smtpPort string = '587'
+
+@description('SMTP username for live email delivery when enabled.')
+param smtpUsername string = ''
+
+@description('Key Vault secret name containing the SMTP password/API key. Leave blank for file-outbox demo mode.')
+param smtpPasswordSecretName string = ''
+
+@description('Whether SMTP should use STARTTLS.')
+param smtpUseTls bool = true
+
+@description('Whether SMTP sending is enabled. Keep false unless SMTP credentials are configured and approved.')
+param smtpEnabled bool = false
+
 resource dedicatedResourceGroup 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name: resourceGroupName
   location: resourceGroupLocation
@@ -160,6 +190,16 @@ module portalStack './main.rg.bicep' = {
     kraModel: kraModel
     kraMcpMode: kraMcpMode
     kraApiKeySecretName: kraApiKeySecretName
+    emailDeliveryMode: emailDeliveryMode
+    emailSenderName: emailSenderName
+    emailSender: emailSender
+    emailDefaultRecipients: emailDefaultRecipients
+    smtpHost: smtpHost
+    smtpPort: smtpPort
+    smtpUsername: smtpUsername
+    smtpPasswordSecretName: smtpPasswordSecretName
+    smtpUseTls: smtpUseTls
+    smtpEnabled: smtpEnabled
   }
 }
 

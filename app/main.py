@@ -835,7 +835,7 @@ async def run_admin_automation(
         run.id,
         user.username,
         str(form.get("email_recipients") or ""),
-        str(form.get("export_format") or "md"),
+        str(form.get("export_format") or "pdf"),
     )
     return redirect(f"/admin?automation=queued&run_id={run.id}")
 
@@ -1728,7 +1728,7 @@ def report_detail(report_id: int, request: Request, format: str | None = None, s
     report = session.get(IntelligenceReport, report_id)
     if not report:
         return redirect("/reports")
-    if format in {"md", "html", "json", "txt"}:
+    if format in {"md", "html", "json", "txt", "pdf"}:
         payload, media_type, filename = report_export(report, format)
         return Response(payload, media_type=media_type, headers={"Content-Disposition": f'attachment; filename="{filename}"'})
     email_config = get_email_configuration(session)
@@ -1754,7 +1754,7 @@ async def send_report_email(report_id: int, request: Request, session: Session =
         report=report,
         sender_name=str(form.get("sender_name") or config.sender_name),
         sender_email=str(form.get("sender_email") or config.sender_email),
-        export_format=str(form.get("export_format") or "md"),
+        export_format=str(form.get("export_format") or "pdf"),
     )
     return redirect(f"/reports/{report_id}")
 

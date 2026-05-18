@@ -49,7 +49,7 @@ flowchart LR
 | Opportunities | Opportunity catalogue linked to customers, sources, business units and documents. |
 | Documents | Document metadata and permitted text extraction. |
 | Requirements | Extracted requirement themes and quality questions pending review. |
-| Reports | Markdown/HTML/JSON/text exports and controlled email delivery. |
+| Reports | PDF/Markdown/HTML/JSON/text exports and controlled email delivery. |
 | Audit | MVP event log for key create/update/delete and automation events. |
 
 ## Key Code Modules
@@ -62,7 +62,7 @@ flowchart LR
 | `app/llm.py` | Small guarded OpenAI Responses API client used only when KRA live-demo settings are enabled. |
 | `app/automation.py` | Admin-side full-cycle automation for packs, source refresh, KRA, review preparation, approved retrieval, report export, email and audit logging. |
 | `app/portal_connectors.py` | Read-only connector guardrails and retrieval runs. |
-| `app/reports.py` | Markdown report generation. |
+| `app/reports.py` | Report content generation for PDF, Markdown, HTML, JSON and text export. |
 | `app/email_service.py` | Local outbox and SMTP delivery. |
 | `app/auth.py` | Local user mode and Container Apps EasyAuth/Entra header handling. |
 | `app/audit.py` | Audit event creation and compact snapshots. |

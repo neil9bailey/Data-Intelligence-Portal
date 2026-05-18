@@ -29,7 +29,7 @@
     <div class="actions">
       <a class="button secondary" href="/admin">Refresh status</a>
       <form method="post" action="/admin/automation/run">
-        <input type="hidden" name="export_format" value="md">
+        <input type="hidden" name="export_format" value="pdf">
         <input type="hidden" name="email_recipients" value="{{ email_config.default_recipients }}">
         <button type="submit">Run full cycle</button>
       </form>
@@ -53,7 +53,7 @@
   </div>
   {% endif %}
   <div class="automation-grid">
-    {% set labels = ['Apply or update customer packs', 'Refresh official news feeds', 'Refresh public sources', 'Run KRA checks', 'Review opportunities and requirements', 'Run approved portal retrieval', 'Prepare retrieved intelligence for review', 'Confirm portal tasks are complete', 'Generate a report', 'Download the report for file storage', 'Email the report', 'Check the audit log'] %}
+    {% set labels = ['Apply or update customer packs', 'Refresh official news feeds', 'Refresh public sources', 'Run KRA checks', 'Review opportunities and requirements', 'Run approved portal retrieval', 'Prepare retrieved intelligence for review', 'Confirm portal tasks are complete', 'Generate a report', 'Generate branded report export', 'Email the report', 'Check the audit log'] %}
     {% for label in labels %}
     {% set current = namespace(step=None) %}
     {% for step in automation.latest_steps %}

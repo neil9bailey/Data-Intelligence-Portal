@@ -241,7 +241,7 @@ The workflow covers:
 - one ingestion pipeline with OCDS/eForms normalisation and dedupe by OCID or stable notice reference
 - customer matching using watch profiles, aliases, keywords, sectors, regions, CPV codes and value bands
 - a human review gate at `/review` for approve, hold, reject and reassign actions
-- branded report generation with local downloads in Markdown, HTML, JSON and text
+- branded report generation with local downloads in PDF, Markdown, HTML, JSON and text
 - email delivery through `/admin`, using local `.eml` outbox mode by default or SMTP when configured
 - a phase-2 style `/client-portal` interest tracker for "I'm interested" signals and pipeline follow-up
 
@@ -272,12 +272,13 @@ Default mode is `file_outbox`, which creates `.eml` files in `.outbox` for safe 
 
 Report export options:
 
+- PDF
 - Markdown
 - HTML
 - JSON
 - Text
 
-Report emails allow a local sender override and recipient input for now. Future production flow should move recipient selection and sender identity to Entra ID / RBAC.
+Report emails default to PDF attachments for the autonomous workflow. They allow a local sender override and recipient input for now. Future production flow should move recipient selection and sender identity to Entra ID / RBAC.
 
 ## Official Intelligence Feed
 

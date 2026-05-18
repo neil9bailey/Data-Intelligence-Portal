@@ -140,6 +140,7 @@ def test_report_download_formats_and_local_email(reference_session):
     client = client_for(reference_session)
     try:
         html_response = client.get(f"/reports/{report.id}?format=html")
+        pdf_response = client.get(f"/reports/{report.id}?format=pdf")
         json_response = client.get(f"/reports/{report.id}?format=json")
         email_response = client.post(
             f"/reports/{report.id}/send-email",
@@ -151,6 +152,9 @@ def test_report_download_formats_and_local_email(reference_session):
 
     assert html_response.status_code == 200
     assert "text/html" in html_response.headers["content-type"]
+    assert pdf_response.status_code == 200
+    assert "application/pdf" in pdf_response.headers["content-type"]
+    assert pdf_response.content.startswith(b"%PDF-")
     assert json_response.status_code == 200
     assert json_response.json()["report_name"] == "Export test"
     assert email_response.status_code == 303
@@ -208,8 +212,9 @@ def test_admin_full_cycle_automation_preconfigures_and_exports(reference_session
 
     assert run.status == "completed"
     assert run.report_id is not None
-    assert run.stored_report_path.endswith(".md")
+    assert run.stored_report_path.endswith(".pdf")
     assert "Apply or update customer packs" in run.steps_json
+    assert "Generate branded report export" in run.steps_json
     assert reference_session.exec(select(AutomationRun)).first() is not None
     assert reference_session.exec(select(IntelligenceReport)).first() is not None
     assert reference_session.exec(select(EmailDeliveryLog)).first().status == "stored"

@@ -159,6 +159,7 @@ Treat the report as review-required until the responsible team has approved it.
 
 On the report detail page, use the download buttons at the top:
 
+- **Download PDF**
 - **Download Markdown**
 - **Download HTML**
 - **Download JSON**
@@ -166,7 +167,7 @@ On the report detail page, use the download buttons at the top:
 
 The Reports list also provides the same download formats for each generated report.
 
-Use Markdown or HTML for human review, JSON for system handoff, and Text for simple notes or email bodies.
+Use PDF for client-style packs, Markdown or HTML for human review, JSON for system handoff, and Text for simple notes or email bodies.
 
 ## 12. Admin: Email The Report
 
@@ -184,6 +185,8 @@ Complete:
 Select **Send / store email**.
 
 In local safe mode, the portal stores an `.eml` file in the local outbox instead of sending externally. In SMTP mode, it sends using the configuration in **Admin**.
+
+The live-demo Azure configuration preloads the default recipient as `neil.bailey@gmail.com` and stores messages in the Azure Files outbox until an approved SMTP sender secret is added. When SMTP is enabled, the same test form performs a real delivery test and the delivery log should show `sent`.
 
 ## 13. Admin: Check Email Configuration
 

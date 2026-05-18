@@ -49,7 +49,7 @@ param managedCertificateName string = ''
 param imageRepositoryPrefix string = 'dip'
 
 @description('Container image tag.')
-param imageTag string = '1.0.20-live-test'
+param imageTag string = '1.0.21-live-test'
 
 @allowed([
   'DELETE'
@@ -112,6 +112,36 @@ param kraMcpMode string = 'local_registry'
 
 @description('Key Vault secret name containing the KRA/OpenAI API key. Leave blank to run KRA without AI-assisted summaries.')
 param kraApiKeySecretName string = ''
+
+@description('Default email delivery mode for the demo. Use file_outbox until an approved SMTP sender is configured.')
+param emailDeliveryMode string = 'file_outbox'
+
+@description('Default sender display name used by the report email workflow.')
+param emailSenderName string = 'Data Intelligence Portal'
+
+@description('Default sender address used by the report email workflow.')
+param emailSender string = 'no-reply@vendorlogic.io'
+
+@description('Default report recipients for the autonomous workflow.')
+param emailDefaultRecipients string = ''
+
+@description('SMTP host for live email delivery when enabled.')
+param smtpHost string = ''
+
+@description('SMTP port for live email delivery when enabled.')
+param smtpPort string = '587'
+
+@description('SMTP username for live email delivery when enabled.')
+param smtpUsername string = ''
+
+@description('Key Vault secret name containing the SMTP password/API key. Leave blank for file-outbox demo mode.')
+param smtpPasswordSecretName string = ''
+
+@description('Whether SMTP should use STARTTLS.')
+param smtpUseTls bool = true
+
+@description('Whether SMTP sending is enabled. Keep false unless SMTP credentials are configured and approved.')
+param smtpEnabled bool = false
 
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: managedIdentityName
@@ -235,6 +265,15 @@ var appSecrets = concat(
           identity: managedIdentity.id
         }
       ]
+    : [],
+  !empty(smtpPasswordSecretName)
+    ? [
+        {
+          name: 'dip-smtp-password'
+          keyVaultUrl: '${secretBaseUrl}/${smtpPasswordSecretName}'
+          identity: managedIdentity.id
+        }
+      ]
     : []
 )
 var appEnvironment = concat(
@@ -307,6 +346,42 @@ var appEnvironment = concat(
       name: 'KRA_MCP_MODE'
       value: kraMcpMode
     }
+    {
+      name: 'DIP_EMAIL_DELIVERY_MODE'
+      value: emailDeliveryMode
+    }
+    {
+      name: 'DIP_EMAIL_SENDER_NAME'
+      value: emailSenderName
+    }
+    {
+      name: 'DIP_EMAIL_SENDER'
+      value: emailSender
+    }
+    {
+      name: 'DIP_EMAIL_DEFAULT_RECIPIENTS'
+      value: emailDefaultRecipients
+    }
+    {
+      name: 'DIP_SMTP_HOST'
+      value: smtpHost
+    }
+    {
+      name: 'DIP_SMTP_PORT'
+      value: smtpPort
+    }
+    {
+      name: 'DIP_SMTP_USERNAME'
+      value: smtpUsername
+    }
+    {
+      name: 'DIP_SMTP_USE_TLS'
+      value: smtpUseTls ? 'true' : 'false'
+    }
+    {
+      name: 'DIP_SMTP_ENABLED'
+      value: smtpEnabled ? 'true' : 'false'
+    }
   ],
   !empty(kraApiKeySecretName)
     ? [
@@ -321,6 +396,14 @@ var appEnvironment = concat(
         {
           name: 'OPENAI_MODEL'
           value: kraModel
+        }
+      ]
+    : [],
+  !empty(smtpPasswordSecretName)
+    ? [
+        {
+          name: 'DIP_SMTP_PASSWORD'
+          secretRef: 'dip-smtp-password'
         }
       ]
     : []

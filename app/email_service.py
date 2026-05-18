@@ -16,12 +16,51 @@ from app.settings import get_settings
 def get_email_configuration(session: Session) -> EmailConfiguration:
     config = session.exec(select(EmailConfiguration).order_by(EmailConfiguration.id)).first()
     if config:
+        if apply_email_environment_defaults(config):
+            session.add(config)
+            session.commit()
+            session.refresh(config)
         return config
     config = EmailConfiguration()
+    apply_email_environment_defaults(config)
     session.add(config)
     session.commit()
     session.refresh(config)
     return config
+
+
+def apply_email_environment_defaults(config: EmailConfiguration) -> bool:
+    settings = get_settings()
+    changed = False
+
+    def set_if_blank(attr: str, value: str) -> None:
+        nonlocal changed
+        if value and not str(getattr(config, attr) or "").strip():
+            setattr(config, attr, value)
+            changed = True
+
+    set_if_blank("delivery_mode", settings.email_delivery_mode)
+    set_if_blank("sender_name", settings.email_sender_name)
+    if config.sender_email in {"", "no-reply@local.test"}:
+        set_if_blank("sender_email", settings.email_sender)
+    set_if_blank("default_recipients", settings.email_default_recipients)
+    set_if_blank("smtp_host", settings.smtp_host)
+    set_if_blank("smtp_username", settings.smtp_username)
+    set_if_blank("smtp_password", settings.smtp_password)
+    if settings.smtp_port and config.smtp_port == 587:
+        try:
+            config.smtp_port = int(settings.smtp_port)
+            changed = True
+        except ValueError:
+            pass
+    if settings.email_delivery_mode and config.delivery_mode in {"", "file_outbox"} and config.delivery_mode != settings.email_delivery_mode:
+        config.delivery_mode = settings.email_delivery_mode
+        changed = True
+    if settings.smtp_enabled and (not config.enabled or config.use_tls != settings.smtp_use_tls):
+        config.enabled = True
+        config.use_tls = settings.smtp_use_tls
+        changed = True
+    return changed
 
 
 def split_recipients(value: str) -> list[str]:
@@ -41,7 +80,7 @@ def build_message(
     recipients: list[str],
     subject: str,
     message_body: str,
-    export_format: str = "md",
+    export_format: str = "pdf",
 ) -> EmailMessage:
     msg = EmailMessage()
     sender_label = sender_name or config.sender_name or "Data Intelligence Portal"
@@ -66,7 +105,7 @@ def send_or_store_email(
     report: IntelligenceReport | None = None,
     sender_name: str = "",
     sender_email: str = "",
-    export_format: str = "md",
+    export_format: str = "pdf",
 ) -> EmailDeliveryLog:
     msg = build_message(report, config, sender_name, sender_email, recipients, subject, body, export_format)
     log = EmailDeliveryLog(

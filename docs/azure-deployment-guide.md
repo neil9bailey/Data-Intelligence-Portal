@@ -82,7 +82,7 @@ Vendorlogic live-test currently uses:
 | Public URL | https://dip.vendorlogic.io |
 | Resource group | RG_DIP_VENDORLOGIC_TEST |
 | Container App | ca-dip-vl-test |
-| Container image | acrdipvltest01.azurecr.io/dip/app:1.0.20-live-test |
+| Container image | acrdipvltest01.azurecr.io/dip/app:1.0.21-live-test |
 | Auth | Container Apps built-in Microsoft Entra auth |
 | Admin group | Data Intelligence Portal Admin Users |
 | Standard group | Data Intelligence Portal Standard Users |
@@ -300,6 +300,14 @@ Container environment variables include:
 | `KRA_MODEL` | AI model used for KRA summaries when enabled |
 | `KRA_MCP_MODE` | Runtime mode label shown in Admin/KRA |
 | `KRA_API_KEY` | Secret reference only; never store the raw key in code or parameter files |
+| `DIP_EMAIL_DELIVERY_MODE` | `file_outbox` for safe demo storage or `smtp` for approved live sending |
+| `DIP_EMAIL_SENDER_NAME` | Default report sender display name |
+| `DIP_EMAIL_SENDER` | Default report sender email address |
+| `DIP_EMAIL_DEFAULT_RECIPIENTS` | Default autonomous workflow report recipients |
+| `DIP_SMTP_HOST` / `DIP_SMTP_PORT` | SMTP endpoint for approved live sending |
+| `DIP_SMTP_USERNAME` | SMTP username for approved live sending |
+| `DIP_SMTP_PASSWORD` | Secret reference only; never store the raw value in code or parameter files |
+| `DIP_SMTP_ENABLED` | Enables real SMTP sending when credentials are configured |
 
 ## Admin Health Dashboard
 

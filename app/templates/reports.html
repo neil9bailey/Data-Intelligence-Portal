@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Reports - {{ app_name }}{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Reports</h1><p>Generate Markdown briefings from customer, source, portal, opportunity and KRA intelligence.</p></div></div>
+<div class="page-head"><div><h1>Reports</h1><p>Generate PDF and Markdown briefings from customer, source, portal, opportunity and KRA intelligence.</p></div></div>
 <section class="grid two">
   <div class="panel">
     <h2>Generated Reports</h2>
@@ -16,6 +16,7 @@
         </div>
         <p class="hint">{{ report.report_type }} | {{ report.generated_at.strftime('%Y-%m-%d %H:%M') }}</p>
         <div class="badges">
+          <a class="badge weak" href="/reports/{{ report.id }}?format=pdf">Download PDF</a>
           <a class="badge weak" href="/reports/{{ report.id }}?format=md">Download Markdown</a>
           <a class="badge weak" href="/reports/{{ report.id }}?format=html">Download HTML</a>
           <a class="badge weak" href="/reports/{{ report.id }}?format=json">Download JSON</a>

@@ -21,6 +21,7 @@ from app.models import (
     DocumentRetrievalTask,
     ExtractedRequirement,
     IntelligenceReport,
+    KRAResearchRun,
     Opportunity,
     PortalRetrievalRun,
     ProcurementSource,
@@ -47,7 +48,7 @@ def run_admin_full_cycle(
     session: Session,
     actor: str = "local-user",
     email_recipients: str = "",
-    export_format: str = "md",
+    export_format: str = "pdf",
     source_fetcher=None,
     connector_fetcher=None,
     run_id: int | None = None,
@@ -88,7 +89,14 @@ def run_admin_full_cycle(
 
         repair_count = repair_mismatched_customer_assignments(session)
         kra_runs = run_customer_kra_checks(session, fetcher=source_fetcher)
-        step("Run KRA checks", "completed", f"{len(kra_runs)} KRA runs completed; {repair_count} mismatched assignments repaired.")
+        kra_run_rows = [item for item in (session.get(KRAResearchRun, run_id) for run_id in kra_runs) if item]
+        kra_warnings = [item for item in kra_run_rows if item.error_summary]
+        step(
+            "Run KRA checks",
+            "warning" if kra_warnings else "completed",
+            f"{len(kra_runs)} KRA runs completed; {repair_count} mismatched assignments repaired; {len(kra_warnings)} AI/runtime warnings.",
+            warnings=[item.error_summary for item in kra_warnings[:5]],
+        )
 
         review_result = auto_prepare_review_queue(session)
         step(
@@ -125,7 +133,7 @@ def run_admin_full_cycle(
         step("Generate a report", "completed", f"Report {report.id} generated.", report_id=report.id)
 
         stored_path = store_report_export(report, export_format)
-        step("Download the report for file storage", "completed", f"Report export stored at {stored_path}.")
+        step("Generate branded report export", "completed", f"{export_format.upper()} report export stored at {stored_path}.")
 
         config = get_email_configuration(session)
         recipients = split_recipients(email_recipients or config.default_recipients)
@@ -183,7 +191,7 @@ def create_queued_automation_run(session: Session, actor: str = "local-user") ->
     return run
 
 
-def run_admin_full_cycle_background(run_id: int, actor: str, email_recipients: str = "", export_format: str = "md") -> None:
+def run_admin_full_cycle_background(run_id: int, actor: str, email_recipients: str = "", export_format: str = "pdf") -> None:
     try:
         with Session(engine) as session:
             run_admin_full_cycle(

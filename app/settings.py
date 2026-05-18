@@ -34,6 +34,16 @@ class Settings:
         self.public_domain: str = os.getenv("DIP_PUBLIC_DOMAIN", "dip.vendorlogic.io")
         self.remote_health_url: str = os.getenv("DIP_REMOTE_HEALTH_URL", "https://dip.vendorlogic.io/healthz")
         self.deployment_label: str = os.getenv("DIP_DEPLOYMENT_LABEL", "local")
+        self.email_delivery_mode: str = os.getenv("DIP_EMAIL_DELIVERY_MODE", "")
+        self.email_sender_name: str = os.getenv("DIP_EMAIL_SENDER_NAME", "")
+        self.email_sender: str = os.getenv("DIP_EMAIL_SENDER", "")
+        self.email_default_recipients: str = os.getenv("DIP_EMAIL_DEFAULT_RECIPIENTS", "")
+        self.smtp_host: str = os.getenv("DIP_SMTP_HOST", "")
+        self.smtp_port: str = os.getenv("DIP_SMTP_PORT", "")
+        self.smtp_username: str = os.getenv("DIP_SMTP_USERNAME", "")
+        self.smtp_password: str = os.getenv("DIP_SMTP_PASSWORD", "")
+        self.smtp_use_tls: bool = env_bool("DIP_SMTP_USE_TLS", "true")
+        self.smtp_enabled: bool = env_bool("DIP_SMTP_ENABLED", "false")
 
 
 @lru_cache

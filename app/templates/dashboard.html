@@ -102,6 +102,7 @@
         <h3><a href="/reports/{{ report.id }}">{{ report.report_name }}</a></h3>
         <p class="hint">{{ report.generated_at.strftime('%Y-%m-%d %H:%M') }} | {{ report.report_type }}</p>
         <div class="badges">
+          <a class="badge weak" href="/reports/{{ report.id }}?format=pdf">PDF</a>
           <a class="badge weak" href="/reports/{{ report.id }}?format=md">Markdown</a>
           <a class="badge weak" href="/reports/{{ report.id }}?format=html">HTML</a>
         </div>

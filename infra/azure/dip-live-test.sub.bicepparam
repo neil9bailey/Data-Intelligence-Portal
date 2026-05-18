@@ -19,7 +19,7 @@ param customDomainBindingEnabled = true
 param managedCertificateName = 'mc-acae-dip-vl-te-dip-vendorlogic--9882'
 
 param imageRepositoryPrefix = 'dip'
-param imageTag = '1.0.20-live-test'
+param imageTag = '1.0.21-live-test'
 param sqliteJournalMode = 'DELETE'
 param minReplicas = 1
 
@@ -38,3 +38,14 @@ param kraLlmProvider = 'openai_direct'
 param kraModel = 'gpt-5.4'
 param kraMcpMode = 'local_registry'
 param kraApiKeySecretName = 'diiac-openai-api-key'
+
+param emailDeliveryMode = 'file_outbox'
+param emailSenderName = 'Data Intelligence Portal'
+param emailSender = 'no-reply@vendorlogic.io'
+param emailDefaultRecipients = 'neil.bailey@gmail.com'
+param smtpHost = ''
+param smtpPort = '587'
+param smtpUsername = ''
+param smtpPasswordSecretName = ''
+param smtpUseTls = true
+param smtpEnabled = false

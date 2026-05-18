@@ -14,7 +14,7 @@ This page records the current MVP delivery state and the next sensible epics.
 | Read-only connectors | Delivered MVP | Public/API-key connector pattern with guardrails and retrieval runs. |
 | Document and requirement intelligence | Delivered MVP | Permitted text extraction into requirements and quality questions. |
 | KRA Knowledge Research Agent | Delivered MVP | Local deterministic agent profiles and controlled source runs. |
-| Reporting and exports | Delivered | Markdown, HTML, JSON, text, local download and email sending. |
+| Reporting and exports | Delivered | PDF, Markdown, HTML, JSON, text, local download and email sending. |
 | Admin health dashboard | Delivered | Local/remote health, Entra status, DB status, source/portal/KRA/email health. |
 | Admin autonomous COF workflow | Delivered MVP | One-click admin cycle for preconfigured packs, public-source refresh, KRA, review preparation, approved retrieval, report export, email and audit logging. |
 | Audit log | Delivered MVP | Event log for key user and automation changes. |
