@@ -10,9 +10,9 @@
       <article class="list-item">
         <div class="list-heading">
           <h3><a href="/reports/{{ report.id }}">{{ report.report_name }}</a></h3>
-          <form method="post" action="/reports/{{ report.id }}/delete" onsubmit="return confirm('Delete this report? Email logs will keep their delivery record but lose the report link.');">
+          {% if current_user.is_admin %}<form method="post" action="/reports/{{ report.id }}/delete" onsubmit="return confirm('Delete this report? Email logs will keep their delivery record but lose the report link.');">
             <button class="danger compact" type="submit">Delete</button>
-          </form>
+          </form>{% endif %}
         </div>
         <p class="hint">{{ report.report_type }} | {{ report.generated_at.strftime('%Y-%m-%d %H:%M') }}</p>
         <div class="badges">
@@ -21,7 +21,7 @@
           <a class="badge weak" href="/reports/{{ report.id }}?format=json">Download JSON</a>
           <a class="badge weak" href="/reports/{{ report.id }}?format=txt">Download Text</a>
         </div>
-        <details class="edit-drawer">
+        {% if current_user.is_admin %}<details class="edit-drawer">
           <summary>Edit report metadata</summary>
           <form method="post" action="/reports/{{ report.id }}/update">
             <div class="form-grid">
@@ -34,11 +34,12 @@
             </div>
             <button type="submit">Save changes</button>
           </form>
-        </details>
+        </details>{% endif %}
       </article>
       {% else %}<p>No reports generated yet.</p>{% endfor %}
     </div>
   </div>
+  {% if current_user.is_admin %}
   <div class="panel">
     <h2>Create Report</h2>
     <form method="post" action="/reports">
@@ -50,5 +51,12 @@
       <button type="submit">Generate report</button>
     </form>
   </div>
+  {% else %}
+  <div class="panel">
+    <h2>Report Access</h2>
+    <p>Reports are produced by the Admin automation workflow and published here for review and download.</p>
+    <p class="hint">No bid/no-bid, legal, procurement or compliance decision is made by this portal.</p>
+  </div>
+  {% endif %}
 </section>
 {% endblock %}

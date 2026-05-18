@@ -19,7 +19,7 @@ param customDomainBindingEnabled = true
 param managedCertificateName = 'mc-acae-dip-vl-te-dip-vendorlogic--9882'
 
 param imageRepositoryPrefix = 'dip'
-param imageTag = '1.0.14-live-test'
+param imageTag = '1.0.16-live-test'
 param sqliteJournalMode = 'DELETE'
 param minReplicas = 1
 
@@ -32,6 +32,7 @@ param entraStandardGroupId = '00000000-0000-0000-0000-000000000000'
 
 param seedReferenceData = true
 param seedDemoData = false
+param autoApplyCustomerPacks = true
 
 param kraLlmProvider = 'openai_direct'
 param kraModel = 'gpt-5.4'

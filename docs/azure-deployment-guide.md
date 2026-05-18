@@ -82,12 +82,13 @@ Vendorlogic live-test currently uses:
 | Public URL | https://dip.vendorlogic.io |
 | Resource group | RG_DIP_VENDORLOGIC_TEST |
 | Container App | ca-dip-vl-test |
-| Container image | acrdipvltest01.azurecr.io/dip/app:1.0.14-live-test |
+| Container image | acrdipvltest01.azurecr.io/dip/app:1.0.16-live-test |
 | Auth | Container Apps built-in Microsoft Entra auth |
 | Admin group | Data Intelligence Portal Admin Users |
 | Standard group | Data Intelligence Portal Standard Users |
 | Persistence | SQLite active DB on `/tmp/dip`, snapshot and outbox on Azure Files `/app/data` |
 | KRA live-demo AI | `openai_direct`, model `gpt-5.4`, Key Vault secret `diiac-openai-api-key` |
+| Live-demo preconfiguration | `AUTO_APPLY_CUSTOMER_PACKS=true` |
 
 ## Standard Deployment Order
 
@@ -294,6 +295,7 @@ Container environment variables include:
 | `ENTRA_STANDARD_GROUP_ID` | Standard security group object ID |
 | `SEED_REFERENCE_DATA` | Keeps source/platform/KRA reference data seeded |
 | `SEED_DEMO_DATA` | Should remain false for live customer environments |
+| `AUTO_APPLY_CUSTOMER_PACKS` | Applies built-in customer packs at startup for a preconfigured live demo |
 | `KRA_LLM_PROVIDER` | `disabled` for deterministic local-only KRA, or `openai_direct` for approved AI-assisted summaries |
 | `KRA_MODEL` | AI model used for KRA summaries when enabled |
 | `KRA_MCP_MODE` | Runtime mode label shown in Admin/KRA |

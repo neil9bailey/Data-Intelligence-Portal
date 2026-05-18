@@ -40,9 +40,9 @@ flowchart LR
 
 | Area | Current Implementation |
 | --- | --- |
-| Command View | Dashboard with customer/source/connector/news/opportunity summary. |
+| Opportunity Inbox | Simplified user-facing source-to-inbox dashboard with matched opportunities, KRA signals and report downloads. |
 | Workflow | Live operating workflow with source, portal, review and report metrics. |
-| Admin | Consolidated health dashboard, source/KRA/audit links and email configuration. |
+| Admin | Consolidated health dashboard, autonomous workflow runner, source/KRA/audit links and email configuration. |
 | Customers | Customer records, business-unit links, aliases, buying entities and notes. |
 | Sources | Approved public source catalogue and source-change snapshots. |
 | Portals | Buyer portal instances, retrieval mode, account reference, tasks and connectors. |
@@ -60,6 +60,7 @@ flowchart LR
 | `app/models.py` | Data model for customers, sources, portals, opportunities, documents, reports and audit. |
 | `app/intelligence.py` | Source checks, KRA runs, deterministic parsing, extraction and optional AI-assisted summaries. |
 | `app/llm.py` | Small guarded OpenAI Responses API client used only when KRA live-demo settings are enabled. |
+| `app/automation.py` | Admin-side full-cycle automation for packs, source refresh, KRA, review preparation, approved retrieval, report export, email and audit logging. |
 | `app/portal_connectors.py` | Read-only connector guardrails and retrieval runs. |
 | `app/reports.py` | Markdown report generation. |
 | `app/email_service.py` | Local outbox and SMTP delivery. |

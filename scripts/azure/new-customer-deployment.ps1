@@ -20,6 +20,7 @@ param(
     [string]$KraModel = "",
     [string]$KraMcpMode = "local_registry",
     [string]$KraApiKeySecretName = "",
+    [bool]$AutoApplyCustomerPacks = $false,
     [string]$ContainerRegistryName = "",
     [string]$StorageAccountName = "",
     [string]$GeneratedDirectory = "infra/azure/generated",
@@ -69,7 +70,7 @@ $suffix = "$customer-$environment"
 $compact = Convert-ToToken -Value "$customer$environment" -MaxLength 13 -LettersOnlyPrefix
 
 if ([string]::IsNullOrWhiteSpace($ImageTag)) {
-    $ImageTag = "1.0.14-$environment"
+    $ImageTag = "1.0.16-$environment"
 }
 if ([string]::IsNullOrWhiteSpace($ContainerRegistryName)) {
     $ContainerRegistryName = "acrdip$compact"
@@ -130,6 +131,7 @@ param entraStandardGroupId = '00000000-0000-0000-0000-000000000000'
 
 param seedReferenceData = true
 param seedDemoData = false
+param autoApplyCustomerPacks = $($AutoApplyCustomerPacks.ToString().ToLowerInvariant())
 
 param kraLlmProvider = '$KraLlmProvider'
 param kraModel = '$KraModel'

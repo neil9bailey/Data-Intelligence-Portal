@@ -44,7 +44,8 @@ def test_national_highways_pack_applies_expected_records(reference_session):
     assert portal.customer_id == customer.id
     assert source is not None
     assert connector is not None
-    assert connector.enabled is False
+    assert connector.enabled is True
+    assert connector.integration_method == "public_api_no_key"
     assert any("Customer: National Highways" in item for item in result["created"])
     assert reference_session.exec(select(AuditEvent).where(AuditEvent.entity_type == "IntelligencePack")).first() is not None
 

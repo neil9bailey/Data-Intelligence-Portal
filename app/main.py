@@ -12,6 +12,7 @@ from sqlmodel import Session, col, select
 
 from app.audit import compact_snapshot, log_event
 from app.auth import get_current_user, require_admin
+from app.automation import apply_all_preconfigured_packs, automation_steps, automation_summary, run_admin_full_cycle
 from app.database import (
     backup_sqlite_persistent_copy,
     engine,
@@ -44,6 +45,7 @@ from app.intelligence import (
 )
 from app.models import (
     AuditEvent,
+    AutomationRun,
     BusinessUnit,
     BuyerPortalInstance,
     ClientInterestSignal,
@@ -91,6 +93,8 @@ async def lifespan(app: FastAPI):
             retry_sqlite_locked(lambda: run_seed(seed_reference_data))
         if settings.seed_demo_data:
             retry_sqlite_locked(lambda: run_seed(seed_demo_data))
+        if settings.auto_apply_customer_packs:
+            retry_sqlite_locked(lambda: run_seed(lambda session: apply_all_preconfigured_packs(session, actor="startup-preconfigure")))
         retry_sqlite_locked(lambda: run_seed(repair_mismatched_customer_assignments))
         backup_sqlite_persistent_copy()
     try:
@@ -218,12 +222,12 @@ def reference_context(session: Session) -> dict:
 
 
 @app.get("/business-units", response_class=HTMLResponse)
-def business_units(request: Request, session: Session = Depends(get_session)):
+def business_units(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     return templates.TemplateResponse(request, "business_units.html", context(request, **reference_context(session)))
 
 
 @app.post("/business-units")
-async def create_business_unit(request: Request, session: Session = Depends(get_session)):
+async def create_business_unit(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     form = await request.form()
     errors: list[str] = []
     name = str(form.get("name") or "").strip()
@@ -243,7 +247,7 @@ async def create_business_unit(request: Request, session: Session = Depends(get_
 
 
 @app.post("/business-units/{unit_id}")
-async def update_business_unit(unit_id: int, request: Request, session: Session = Depends(get_session)):
+async def update_business_unit(unit_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     unit = session.get(BusinessUnit, unit_id)
     if not unit:
         return redirect("/business-units")
@@ -267,7 +271,7 @@ async def update_business_unit(unit_id: int, request: Request, session: Session 
 
 
 @app.post("/business-units/{unit_id}/delete")
-def delete_business_unit(unit_id: int, session: Session = Depends(get_session)):
+def delete_business_unit(unit_id: int, session: Session = Depends(get_session), _user=Depends(require_admin)):
     unit = session.get(BusinessUnit, unit_id)
     if not unit:
         return redirect("/business-units")
@@ -567,6 +571,8 @@ def dashboard(request: Request, session: Session = Depends(get_session)):
     findings = list(session.exec(select(KRAFinding).order_by(col(KRAFinding.created_at).desc()).limit(6)))
     snapshots = list(session.exec(select(SourceCheckSnapshot).order_by(col(SourceCheckSnapshot.checked_at).desc()).limit(5)))
     news_items = list(session.exec(select(NewsFeedItem).order_by(col(NewsFeedItem.published_at).desc()).limit(6)))
+    reports = list(session.exec(select(IntelligenceReport).order_by(col(IntelligenceReport.generated_at).desc()).limit(4)))
+    tasks = list(session.exec(select(DocumentRetrievalTask).order_by(col(DocumentRetrievalTask.created_at).desc()).limit(5)))
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -577,19 +583,23 @@ def dashboard(request: Request, session: Session = Depends(get_session)):
             findings=findings,
             snapshots=snapshots,
             news_items=news_items,
+            reports=reports,
+            tasks=tasks,
+            workflow=load_rule_file("workflow.yml"),
+            automation_steps=automation_steps,
             **reference_context(session),
         ),
     )
 
 
 @app.post("/news/refresh")
-def refresh_news(session: Session = Depends(get_session)):
+def refresh_news(session: Session = Depends(get_session), _user=Depends(require_admin)):
     refresh_news_feeds(session)
     return redirect("/")
 
 
 @app.get("/workflow", response_class=HTMLResponse)
-def workflow(request: Request, session: Session = Depends(get_session)):
+def workflow(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     workflow_rules = load_rule_file("workflow.yml")
     opportunities = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(5)))
     recent_runs = list(session.exec(select(PortalRetrievalRun).order_by(col(PortalRetrievalRun.started_at).desc()).limit(5)))
@@ -609,7 +619,7 @@ def workflow(request: Request, session: Session = Depends(get_session)):
 
 
 @app.get("/intelligence-packs", response_class=HTMLResponse)
-def intelligence_packs(request: Request, session: Session = Depends(get_session)):
+def intelligence_packs(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     return templates.TemplateResponse(
         request,
         "intelligence_packs.html",
@@ -626,7 +636,7 @@ def intelligence_packs(request: Request, session: Session = Depends(get_session)
 
 
 @app.post("/intelligence-packs/preview", response_class=HTMLResponse)
-async def preview_intelligence_pack(request: Request, session: Session = Depends(get_session)):
+async def preview_intelligence_pack(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     form = await request.form()
     form_values = {key: str(value) for key, value in form.items()}
     try:
@@ -649,7 +659,7 @@ async def preview_intelligence_pack(request: Request, session: Session = Depends
 
 
 @app.post("/intelligence-packs/apply", response_class=HTMLResponse)
-async def apply_intelligence_pack_route(request: Request, session: Session = Depends(get_session)):
+async def apply_intelligence_pack_route(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     form = await request.form()
     form_values = {key: str(value) for key, value in form.items()}
     try:
@@ -684,7 +694,7 @@ def _pack_from_form(form_values: dict[str, str]) -> dict:
 
 
 @app.get("/review", response_class=HTMLResponse)
-def review_queue(request: Request, session: Session = Depends(get_session)):
+def review_queue(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     opportunities = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(200)))
     return templates.TemplateResponse(
         request,
@@ -694,7 +704,7 @@ def review_queue(request: Request, session: Session = Depends(get_session)):
 
 
 @app.post("/opportunities/{opportunity_id}/review")
-async def update_opportunity_review(opportunity_id: int, request: Request, session: Session = Depends(get_session)):
+async def update_opportunity_review(opportunity_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     opportunity = session.get(Opportunity, opportunity_id)
     if not opportunity:
         return redirect("/review")
@@ -796,6 +806,7 @@ def delete_interest_signal(signal_id: int, session: Session = Depends(get_sessio
 def admin(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     email_config = get_email_configuration(session)
     email_logs = list(session.exec(select(EmailDeliveryLog).order_by(col(EmailDeliveryLog.created_at).desc()).limit(50)))
+    automation = automation_summary(session)
     return templates.TemplateResponse(
         request,
         "admin.html",
@@ -804,9 +815,22 @@ def admin(request: Request, session: Session = Depends(get_session), _user=Depen
             email_config=email_config,
             email_logs=email_logs,
             health=health_dashboard_context(session, request),
+            automation=automation,
             **reference_context(session),
         ),
     )
+
+
+@app.post("/admin/automation/run")
+async def run_admin_automation(request: Request, session: Session = Depends(get_session), user=Depends(require_admin)):
+    form = await request.form()
+    run_admin_full_cycle(
+        session,
+        actor=user.username,
+        email_recipients=str(form.get("email_recipients") or ""),
+        export_format=str(form.get("export_format") or "md"),
+    )
+    return redirect("/admin")
 
 
 @app.post("/admin/email")
@@ -858,12 +882,12 @@ async def send_test_email(request: Request, session: Session = Depends(get_sessi
 
 
 @app.get("/customers", response_class=HTMLResponse)
-def customers(request: Request, session: Session = Depends(get_session)):
+def customers(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     return templates.TemplateResponse(request, "customers.html", context(request, **reference_context(session)))
 
 
 @app.post("/customers")
-async def create_customer(request: Request, session: Session = Depends(get_session)):
+async def create_customer(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     form = await request.form()
     errors: list[str] = []
     name = str(form.get("customer_name") or "").strip()
@@ -889,7 +913,7 @@ async def create_customer(request: Request, session: Session = Depends(get_sessi
 
 
 @app.post("/customers/{customer_id}")
-async def update_customer(customer_id: int, request: Request, session: Session = Depends(get_session)):
+async def update_customer(customer_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     customer = session.get(Customer, customer_id)
     if not customer:
         return redirect("/customers")
@@ -917,7 +941,7 @@ async def update_customer(customer_id: int, request: Request, session: Session =
 
 
 @app.post("/customers/{customer_id}/delete")
-def delete_customer(customer_id: int, session: Session = Depends(get_session)):
+def delete_customer(customer_id: int, session: Session = Depends(get_session), _user=Depends(require_admin)):
     customer = session.get(Customer, customer_id)
     if not customer:
         return redirect("/customers")
@@ -933,13 +957,13 @@ def delete_customer(customer_id: int, session: Session = Depends(get_session)):
 
 
 @app.get("/sources", response_class=HTMLResponse)
-def sources(request: Request, session: Session = Depends(get_session)):
+def sources(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     snapshots = list(session.exec(select(SourceCheckSnapshot).order_by(col(SourceCheckSnapshot.checked_at).desc()).limit(100)))
     return templates.TemplateResponse(request, "sources.html", context(request, snapshots=snapshots, **reference_context(session)))
 
 
 @app.post("/sources/{source_id}/check")
-def check_source(source_id: int, session: Session = Depends(get_session)):
+def check_source(source_id: int, session: Session = Depends(get_session), _user=Depends(require_admin)):
     try:
         run_source_check(session, source_id)
     except ValueError as exc:
@@ -948,7 +972,7 @@ def check_source(source_id: int, session: Session = Depends(get_session)):
 
 
 @app.post("/sources")
-async def create_source(request: Request, session: Session = Depends(get_session)):
+async def create_source(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     form = await request.form()
     errors: list[str] = []
     name = str(form.get("name") or "").strip()
@@ -979,7 +1003,7 @@ async def create_source(request: Request, session: Session = Depends(get_session
 
 
 @app.post("/sources/{source_id}")
-async def update_source(source_id: int, request: Request, session: Session = Depends(get_session)):
+async def update_source(source_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     source = session.get(ProcurementSource, source_id)
     if not source:
         return redirect("/sources")
@@ -1013,7 +1037,7 @@ async def update_source(source_id: int, request: Request, session: Session = Dep
 
 
 @app.post("/sources/{source_id}/delete")
-def delete_source(source_id: int, session: Session = Depends(get_session)):
+def delete_source(source_id: int, session: Session = Depends(get_session), _user=Depends(require_admin)):
     source = session.get(ProcurementSource, source_id)
     if not source:
         return redirect("/sources")
@@ -1026,7 +1050,7 @@ def delete_source(source_id: int, session: Session = Depends(get_session)):
 
 
 @app.get("/opportunities", response_class=HTMLResponse)
-def opportunities(request: Request, session: Session = Depends(get_session)):
+def opportunities(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     items = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(200)))
     documents = list(session.exec(select(OpportunityDocument)))
     doc_counts: dict[int, int] = {}
@@ -1036,7 +1060,7 @@ def opportunities(request: Request, session: Session = Depends(get_session)):
 
 
 @app.post("/opportunities")
-async def create_opportunity(request: Request, session: Session = Depends(get_session)):
+async def create_opportunity(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     form = await request.form()
     errors: list[str] = []
     title = str(form.get("title") or "").strip()
@@ -1074,7 +1098,7 @@ async def create_opportunity(request: Request, session: Session = Depends(get_se
 
 
 @app.post("/opportunities/{opportunity_id}")
-async def update_opportunity(opportunity_id: int, request: Request, session: Session = Depends(get_session)):
+async def update_opportunity(opportunity_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     opportunity = session.get(Opportunity, opportunity_id)
     if not opportunity:
         return redirect("/opportunities")
@@ -1115,7 +1139,7 @@ async def update_opportunity(opportunity_id: int, request: Request, session: Ses
 
 
 @app.post("/opportunities/{opportunity_id}/delete")
-def delete_opportunity(opportunity_id: int, session: Session = Depends(get_session)):
+def delete_opportunity(opportunity_id: int, session: Session = Depends(get_session), _user=Depends(require_admin)):
     opportunity = session.get(Opportunity, opportunity_id)
     if not opportunity:
         return redirect("/opportunities")
@@ -1133,7 +1157,7 @@ def delete_opportunity(opportunity_id: int, session: Session = Depends(get_sessi
 
 
 @app.get("/opportunities/{opportunity_id}/documents", response_class=HTMLResponse)
-def opportunity_documents(opportunity_id: int, request: Request, session: Session = Depends(get_session)):
+def opportunity_documents(opportunity_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     opportunity = session.get(Opportunity, opportunity_id)
     if not opportunity:
         return redirect("/opportunities")
@@ -1156,7 +1180,7 @@ def opportunity_documents(opportunity_id: int, request: Request, session: Sessio
 
 
 @app.post("/opportunities/{opportunity_id}/documents")
-async def create_document(opportunity_id: int, request: Request, session: Session = Depends(get_session)):
+async def create_document(opportunity_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     opportunity = session.get(Opportunity, opportunity_id)
     if not opportunity:
         return redirect("/opportunities")
@@ -1183,7 +1207,7 @@ async def create_document(opportunity_id: int, request: Request, session: Sessio
 
 
 @app.post("/opportunities/{opportunity_id}/documents/{document_id}")
-async def update_document(opportunity_id: int, document_id: int, request: Request, session: Session = Depends(get_session)):
+async def update_document(opportunity_id: int, document_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     document = session.get(OpportunityDocument, document_id)
     if not document or document.opportunity_id != opportunity_id:
         return redirect(f"/opportunities/{opportunity_id}/documents")
@@ -1205,7 +1229,7 @@ async def update_document(opportunity_id: int, document_id: int, request: Reques
 
 
 @app.post("/opportunities/{opportunity_id}/documents/{document_id}/delete")
-def delete_document(opportunity_id: int, document_id: int, session: Session = Depends(get_session)):
+def delete_document(opportunity_id: int, document_id: int, session: Session = Depends(get_session), _user=Depends(require_admin)):
     document = session.get(OpportunityDocument, document_id)
     if not document or document.opportunity_id != opportunity_id:
         return redirect(f"/opportunities/{opportunity_id}/documents")
@@ -1215,7 +1239,7 @@ def delete_document(opportunity_id: int, document_id: int, session: Session = De
 
 
 @app.post("/opportunities/{opportunity_id}/tasks")
-async def create_document_task(opportunity_id: int, request: Request, session: Session = Depends(get_session)):
+async def create_document_task(opportunity_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     form = await request.form()
     errors: list[str] = []
     portal_id = parse_optional_int(form.get("portal_instance_id"), "Portal instance", errors)
@@ -1235,7 +1259,7 @@ async def create_document_task(opportunity_id: int, request: Request, session: S
 
 
 @app.post("/tasks/{task_id}")
-async def update_task(task_id: int, request: Request, session: Session = Depends(get_session)):
+async def update_task(task_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     task = session.get(DocumentRetrievalTask, task_id)
     if not task:
         return redirect("/portals")
@@ -1263,7 +1287,7 @@ async def update_task(task_id: int, request: Request, session: Session = Depends
 
 
 @app.post("/tasks/{task_id}/delete")
-async def delete_task(task_id: int, request: Request, session: Session = Depends(get_session)):
+async def delete_task(task_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     task = session.get(DocumentRetrievalTask, task_id)
     form = await request.form()
     return_to = str(form.get("return_to") or "/portals")
@@ -1274,7 +1298,7 @@ async def delete_task(task_id: int, request: Request, session: Session = Depends
 
 
 @app.get("/portals", response_class=HTMLResponse)
-def portals(request: Request, session: Session = Depends(get_session)):
+def portals(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     return templates.TemplateResponse(
         request,
         "portals.html",
@@ -1283,7 +1307,7 @@ def portals(request: Request, session: Session = Depends(get_session)):
 
 
 @app.post("/portals")
-async def create_portal(request: Request, session: Session = Depends(get_session)):
+async def create_portal(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     form = await request.form()
     errors: list[str] = []
     platform_id = parse_optional_int(form.get("platform_id"), "Platform", errors)
@@ -1310,7 +1334,7 @@ async def create_portal(request: Request, session: Session = Depends(get_session
 
 
 @app.post("/portals/{portal_id}")
-async def update_portal(portal_id: int, request: Request, session: Session = Depends(get_session)):
+async def update_portal(portal_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     portal = session.get(BuyerPortalInstance, portal_id)
     if not portal:
         return redirect("/portals")
@@ -1339,7 +1363,7 @@ async def update_portal(portal_id: int, request: Request, session: Session = Dep
 
 
 @app.post("/portals/{portal_id}/delete")
-def delete_portal(portal_id: int, session: Session = Depends(get_session)):
+def delete_portal(portal_id: int, session: Session = Depends(get_session), _user=Depends(require_admin)):
     portal = session.get(BuyerPortalInstance, portal_id)
     if not portal:
         return redirect("/portals")
@@ -1351,7 +1375,7 @@ def delete_portal(portal_id: int, session: Session = Depends(get_session)):
 
 
 @app.post("/portal-connectors")
-async def create_portal_connector(request: Request, session: Session = Depends(get_session)):
+async def create_portal_connector(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     form = await request.form()
     errors: list[str] = []
     name = str(form.get("connector_name") or "").strip()
@@ -1386,13 +1410,13 @@ async def create_portal_connector(request: Request, session: Session = Depends(g
 
 
 @app.post("/portal-connectors/run-all")
-def run_all_portal_connectors(session: Session = Depends(get_session)):
+def run_all_portal_connectors(session: Session = Depends(get_session), _user=Depends(require_admin)):
     run_enabled_portal_connectors(session)
     return redirect("/portals")
 
 
 @app.post("/portal-connectors/{connector_id}")
-async def update_portal_connector(connector_id: int, request: Request, session: Session = Depends(get_session)):
+async def update_portal_connector(connector_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     connector = session.get(PortalInformationConnector, connector_id)
     if not connector:
         return redirect("/portals")
@@ -1429,7 +1453,7 @@ async def update_portal_connector(connector_id: int, request: Request, session: 
 
 
 @app.post("/portal-connectors/{connector_id}/delete")
-def delete_portal_connector(connector_id: int, session: Session = Depends(get_session)):
+def delete_portal_connector(connector_id: int, session: Session = Depends(get_session), _user=Depends(require_admin)):
     connector = session.get(PortalInformationConnector, connector_id)
     if not connector:
         return redirect("/portals")
@@ -1439,7 +1463,7 @@ def delete_portal_connector(connector_id: int, session: Session = Depends(get_se
 
 
 @app.post("/portal-connectors/{connector_id}/run")
-def run_single_portal_connector(connector_id: int, session: Session = Depends(get_session)):
+def run_single_portal_connector(connector_id: int, session: Session = Depends(get_session), _user=Depends(require_admin)):
     try:
         run_portal_connector(session, connector_id)
     except ValueError as exc:
@@ -1448,7 +1472,7 @@ def run_single_portal_connector(connector_id: int, session: Session = Depends(ge
 
 
 @app.post("/portals/{portal_id}/tasks")
-async def create_portal_task(portal_id: int, request: Request, session: Session = Depends(get_session)):
+async def create_portal_task(portal_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     portal = session.get(BuyerPortalInstance, portal_id)
     if not portal:
         return redirect("/portals")
@@ -1475,7 +1499,7 @@ async def create_portal_task(portal_id: int, request: Request, session: Session 
 
 
 @app.get("/requirements", response_class=HTMLResponse)
-def requirements(request: Request, session: Session = Depends(get_session)):
+def requirements(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     reqs = list(session.exec(select(ExtractedRequirement).order_by(col(ExtractedRequirement.created_at).desc()).limit(300)))
     questions = list(session.exec(select(ExtractedQualityQuestion).order_by(col(ExtractedQualityQuestion.created_at).desc()).limit(300)))
     opportunities = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(300)))
@@ -1488,7 +1512,7 @@ def requirements(request: Request, session: Session = Depends(get_session)):
 
 
 @app.post("/requirements")
-async def create_requirement(request: Request, session: Session = Depends(get_session)):
+async def create_requirement(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     form = await request.form()
     errors: list[str] = []
     customer_id = parse_optional_int(form.get("customer_id"), "Customer", errors)
@@ -1513,7 +1537,7 @@ async def create_requirement(request: Request, session: Session = Depends(get_se
 
 
 @app.post("/requirements/{requirement_id}")
-async def update_requirement(requirement_id: int, request: Request, session: Session = Depends(get_session)):
+async def update_requirement(requirement_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     requirement = session.get(ExtractedRequirement, requirement_id)
     if not requirement:
         return redirect("/requirements")
@@ -1541,7 +1565,7 @@ async def update_requirement(requirement_id: int, request: Request, session: Ses
 
 
 @app.post("/requirements/{requirement_id}/delete")
-async def delete_requirement(requirement_id: int, request: Request, session: Session = Depends(get_session)):
+async def delete_requirement(requirement_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     requirement = session.get(ExtractedRequirement, requirement_id)
     form = await request.form()
     return_to = str(form.get("return_to") or "/requirements")
@@ -1552,7 +1576,7 @@ async def delete_requirement(requirement_id: int, request: Request, session: Ses
 
 
 @app.post("/quality-questions")
-async def create_quality_question(request: Request, session: Session = Depends(get_session)):
+async def create_quality_question(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     form = await request.form()
     errors: list[str] = []
     opportunity_id = parse_optional_int(form.get("opportunity_id"), "Opportunity", errors)
@@ -1579,7 +1603,7 @@ async def create_quality_question(request: Request, session: Session = Depends(g
 
 
 @app.post("/quality-questions/{question_id}")
-async def update_quality_question(question_id: int, request: Request, session: Session = Depends(get_session)):
+async def update_quality_question(question_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     question = session.get(ExtractedQualityQuestion, question_id)
     if not question:
         return redirect("/requirements")
@@ -1607,7 +1631,7 @@ async def update_quality_question(question_id: int, request: Request, session: S
 
 
 @app.post("/quality-questions/{question_id}/delete")
-async def delete_quality_question(question_id: int, request: Request, session: Session = Depends(get_session)):
+async def delete_quality_question(question_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     question = session.get(ExtractedQualityQuestion, question_id)
     form = await request.form()
     return_to = str(form.get("return_to") or "/requirements")
@@ -1618,14 +1642,14 @@ async def delete_quality_question(question_id: int, request: Request, session: S
 
 
 @app.get("/kra", response_class=HTMLResponse)
-def kra(request: Request, session: Session = Depends(get_session)):
+def kra(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     runs = list(session.exec(select(KRAResearchRun).order_by(col(KRAResearchRun.started_at).desc()).limit(100)))
     findings = list(session.exec(select(KRAFinding).order_by(col(KRAFinding.created_at).desc()).limit(200)))
     return templates.TemplateResponse(request, "kra.html", context(request, runs=runs, findings=findings, **reference_context(session)))
 
 
 @app.post("/kra/run")
-async def run_kra(request: Request, session: Session = Depends(get_session)):
+async def run_kra(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     form = await request.form()
     errors: list[str] = []
     agent_id = parse_optional_int(form.get("agent_profile_id"), "Agent", errors)
@@ -1644,7 +1668,7 @@ def reports(request: Request, session: Session = Depends(get_session)):
 
 
 @app.post("/reports")
-async def create_intelligence_report(request: Request, session: Session = Depends(get_session)):
+async def create_intelligence_report(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     form = await request.form()
     errors: list[str] = []
     customer_id = parse_optional_int(form.get("customer_id"), "Customer", errors)
@@ -1659,7 +1683,7 @@ async def create_intelligence_report(request: Request, session: Session = Depend
 
 
 @app.post("/reports/{report_id}/update")
-async def update_report(report_id: int, request: Request, session: Session = Depends(get_session)):
+async def update_report(report_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     report = session.get(IntelligenceReport, report_id)
     if not report:
         return redirect("/reports")
@@ -1683,7 +1707,7 @@ async def update_report(report_id: int, request: Request, session: Session = Dep
 
 
 @app.post("/reports/{report_id}/delete")
-def delete_report(report_id: int, session: Session = Depends(get_session)):
+def delete_report(report_id: int, session: Session = Depends(get_session), _user=Depends(require_admin)):
     report = session.get(IntelligenceReport, report_id)
     if not report:
         return redirect("/reports")
@@ -1705,7 +1729,7 @@ def report_detail(report_id: int, request: Request, format: str | None = None, s
 
 
 @app.post("/reports/{report_id}/send-email")
-async def send_report_email(report_id: int, request: Request, session: Session = Depends(get_session)):
+async def send_report_email(report_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     report = session.get(IntelligenceReport, report_id)
     if not report:
         return redirect("/reports")

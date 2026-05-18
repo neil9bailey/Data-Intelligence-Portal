@@ -52,7 +52,7 @@ param managedCertificateName string = ''
 param imageRepositoryPrefix string = 'dip'
 
 @description('Container image tag.')
-param imageTag string = '1.0.14-live-test'
+param imageTag string = '1.0.16-live-test'
 
 @allowed([
   'DELETE'
@@ -100,6 +100,9 @@ param seedReferenceData bool = true
 
 @description('Seed demo/sample data on startup. Keep false for live-test customer data capture.')
 param seedDemoData bool = false
+
+@description('Apply all built-in customer intelligence packs on startup to preconfigure the live-demo catalogue.')
+param autoApplyCustomerPacks bool = false
 
 @description('KRA LLM provider mode. Use disabled for deterministic local-only operation, or openai_direct for the approved live-demo OpenAI route.')
 param kraLlmProvider string = 'disabled'
@@ -152,6 +155,7 @@ module portalStack './main.rg.bicep' = {
     entraStandardGroupId: entraStandardGroupId
     seedReferenceData: seedReferenceData
     seedDemoData: seedDemoData
+    autoApplyCustomerPacks: autoApplyCustomerPacks
     kraLlmProvider: kraLlmProvider
     kraModel: kraModel
     kraMcpMode: kraMcpMode

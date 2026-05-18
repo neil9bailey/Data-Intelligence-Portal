@@ -20,6 +20,38 @@
   <div class="metric"><span class="value">{{ health.email.last_status }}</span><span class="label">latest email status</span></div>
 </section>
 
+<section class="panel automation-panel" style="margin-top:18px;">
+  <div class="panel-title">
+    <div>
+      <h2>Autonomous COF Workflow</h2>
+      <p class="hint">Runs the full admin-side cycle: customer packs, public sources, KRA, review preparation, approved read-only retrieval, report export, email and audit check.</p>
+    </div>
+    <form method="post" action="/admin/automation/run">
+      <input type="hidden" name="export_format" value="md">
+      <input type="hidden" name="email_recipients" value="{{ email_config.default_recipients }}">
+      <button type="submit">Run full cycle</button>
+    </form>
+  </div>
+  <div class="automation-grid">
+    {% set labels = ['Apply or update customer packs', 'Refresh official news feeds', 'Refresh public sources', 'Run KRA checks', 'Review opportunities and requirements', 'Run approved portal retrieval', 'Prepare retrieved intelligence for review', 'Confirm portal tasks are complete', 'Generate a report', 'Download the report for file storage', 'Email the report', 'Check the audit log'] %}
+    {% for label in labels %}
+    {% set current = namespace(step=None) %}
+    {% for step in automation.latest_steps %}
+      {% if step.name == label %}{% set current.step = step %}{% endif %}
+    {% endfor %}
+    <article class="automation-step">
+      <span>{{ loop.index }}</span>
+      <strong>{{ label }}</strong>
+      <p>{{ current.step.detail if current.step else "Ready to run." }}</p>
+      <em class="badge {{ 'green' if current.step and current.step.status in ['completed','stored','sent'] else 'red' if current.step and current.step.status in ['failed'] else 'amber' }}">{{ current.step.status if current.step else "pending" }}</em>
+    </article>
+    {% endfor %}
+  </div>
+  {% if automation.latest %}
+  <p class="hint">Latest automation: {{ automation.latest.created_at.strftime('%Y-%m-%d %H:%M') }} | {{ automation.latest.status }} | {{ automation.latest.summary }}{% if automation.latest.stored_report_path %} | stored at {{ automation.latest.stored_report_path }}{% endif %}</p>
+  {% endif %}
+</section>
+
 <section class="grid three" style="margin-top:18px;">
   <div class="panel">
     <div class="panel-title"><h2>Local Runtime</h2><span class="badge green">ok</span></div>
@@ -52,12 +84,19 @@
   <div class="panel">
     <h2>Admin Setup</h2>
     <div class="setup-steps">
+      <a href="/workflow">Workflow</a>
+      <a href="/intelligence-packs">Customer packs</a>
+      <a href="/customers">Customers</a>
       <a href="/sources">Sources</a>
       <a href="/portals">Portals / connectors</a>
       <a href="/business-units">Business units</a>
+      <a href="/opportunities">Opportunities</a>
+      <a href="/requirements">Requirements</a>
+      <a href="/reports">Reports</a>
       <a href="/kra">KRA agents</a>
       <a href="/audit">Audit</a>
     </div>
+    <p class="hint">Detailed setup and data-entry screens are Admin-only. Standard users see the simplified opportunity inbox, client feed and report downloads.</p>
   </div>
   <div class="panel">
     <h2>Portal Retrieval Health</h2>

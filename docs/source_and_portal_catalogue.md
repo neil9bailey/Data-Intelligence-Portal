@@ -1,6 +1,6 @@
 # Source And Portal Catalogue
 
-Checked on 2026-05-17 against official/public source routes where available.
+Checked on 2026-05-18 against official/public source routes where available.
 
 ## Official Notice Sources
 
@@ -11,6 +11,8 @@ Checked on 2026-05-17 against official/public source routes where available.
 | Public Contracts Scotland | Scottish public-sector procurement notices | OCDS API | Configurable connector |
 | Sell2Wales | Welsh public-sector procurement notices | Web/bulk/OCDS route to validate | Configurable source |
 | TED / eForms | EU and Ireland horizon scanning where relevant | eForms/TED developer tooling | Future connector |
+
+These five public sources are now preconfigured as the live-demo source-to-inbox baseline. Buyer portals that require supplier accounts remain tracked as portal tasks unless the provider exposes an approved read-only public/API route.
 
 ## Commercial Backup Sources
 
@@ -54,4 +56,6 @@ Commercial aggregators such as Tenders Direct can be configured only if the orga
 - [Find a Tender developer documentation](https://www.find-tender.service.gov.uk/Developer/Documentation)
 - [Contracts Finder API documentation](https://www.contractsfinder.service.gov.uk/apidocumentation)
 - [Public Contracts Scotland API](https://api.publiccontractsscotland.gov.uk/)
+- [Sell2Wales OCDS data access](https://www.sell2wales.gov.wales/helpandresources/ocds/dataaccessinfo)
 - [TED eForms](https://ted.europa.eu/en/simap/eforms)
+- [TED Search API documentation](https://docs.ted.europa.eu/api/latest/search.html)

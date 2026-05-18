@@ -11,11 +11,41 @@ Open the portal:
 - Local: `http://localhost:8091`
 - Live test: `https://dip.vendorlogic.io`
 
-Start from **Command View** to see current customers, source checks, opportunities, KRA findings and reports.
+Start from **Opportunity Inbox** to see the current source-to-inbox pipeline, matched opportunities, KRA findings and downloadable reports.
 
-## 2. Add Or Configure A Customer
+## 2. Standard User Flow
 
-Go to **Packs**.
+Standard users use the simplified front door:
+
+1. Open **Opportunity Inbox**.
+2. Review the latest matched opportunities and KRA signals.
+3. Open **Client Feed** to view approved opportunities and record interest where enabled.
+4. Open **Reports** to download the latest reviewed report packs.
+
+Standard users do not configure sources, customers, portals, KRA or email delivery.
+
+## 3. Admin: Run The Automated COF Cycle
+
+Go to **Admin**.
+
+Use **Run full cycle** to automate the normal operating rhythm:
+
+1. Apply or update preconfigured customer packs.
+2. Refresh public sources and official feeds.
+3. Run KRA checks.
+4. Prepare opportunities and requirements for review.
+5. Run approved read-only portal/source retrieval connectors.
+6. Confirm only automated retrieval tasks where a completed run exists.
+7. Generate a report.
+8. Store the report export in the configured outbox/report folder.
+9. Email or locally store the report email using the Admin email configuration.
+10. Record the audit trail.
+
+The automation does not log into buyer portals, submit expressions of interest, send portal messages or make bid/no-bid decisions.
+
+## 4. Admin: Add Or Configure A Customer
+
+Go to **Admin** then **Customer packs**.
 
 Use one of these options:
 
@@ -33,9 +63,9 @@ After applying the pack, review:
 
 Correct anything that is missing or wrong.
 
-## 3. Confirm Portal Access
+## 5. Admin: Confirm Portal Access
 
-Go to **Portals**.
+Go to **Admin** then **Portals / connectors**.
 
 For each portal record, confirm:
 
@@ -50,7 +80,7 @@ Do not store usernames, passwords, MFA secrets or recovery codes in the portal.
 
 If the portal needs human login, create a retrieval task for the authorised portal owner.
 
-## 4. Run Source And KRA Checks
+## 6. Admin: Run Source And KRA Checks
 
 Go to **Admin** or **KRA**.
 
@@ -66,7 +96,7 @@ Use KRA to:
 
 KRA findings stay review-required until a user reviews them.
 
-## 5. Review Opportunities And Requirements
+## 7. Admin: Review Opportunities And Requirements
 
 Go to **Review Queue**.
 
@@ -83,7 +113,7 @@ Then go to **Requirements** and review extracted requirement themes and quality 
 
 Only approved and reviewed intelligence should be used in reports.
 
-## 6. Add Document Extracts If Needed
+## 8. Admin: Add Document Extracts If Needed
 
 Go to **Opportunities** and open **Docs** for the relevant opportunity.
 
@@ -98,7 +128,7 @@ Add permitted text from:
 
 Do not paste restricted information unless your organisation has permission to store and process it in DIP.
 
-## 7. Create A Report
+## 9. Admin: Create A Report
 
 Go to **Reports**.
 
@@ -113,7 +143,7 @@ In **Create Report**:
 
 The report opens after generation.
 
-## 8. Review The Report
+## 10. Review The Report
 
 On the report page:
 
@@ -123,7 +153,7 @@ On the report page:
 
 Treat the report as review-required until the responsible team has approved it.
 
-## 9. Download The Report
+## 11. Download The Report
 
 On the report detail page, use the download buttons at the top:
 
@@ -136,7 +166,7 @@ The Reports list also provides the same download formats for each generated repo
 
 Use Markdown or HTML for human review, JSON for system handoff, and Text for simple notes or email bodies.
 
-## 10. Email The Report
+## 12. Admin: Email The Report
 
 On the report detail page, use **Send Report Email**.
 
@@ -153,7 +183,7 @@ Select **Send / store email**.
 
 In local safe mode, the portal stores an `.eml` file in the local outbox instead of sending externally. In SMTP mode, it sends using the configuration in **Admin**.
 
-## 11. Check Email Configuration
+## 13. Admin: Check Email Configuration
 
 Go to **Admin**.
 
@@ -167,7 +197,7 @@ Review **Email Configuration**:
 
 Use the test email function before relying on SMTP sending.
 
-## 12. Keep The Audit Trail
+## 14. Admin: Keep The Audit Trail
 
 Go to **Admin** then **Audit**.
 
@@ -193,4 +223,3 @@ Use this weekly or before a bid review:
 7. Download the report for file storage.
 8. Email the report to the agreed recipients.
 9. Check the audit log.
-

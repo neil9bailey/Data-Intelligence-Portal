@@ -49,7 +49,7 @@ param managedCertificateName string = ''
 param imageRepositoryPrefix string = 'dip'
 
 @description('Container image tag.')
-param imageTag string = '1.0.14-live-test'
+param imageTag string = '1.0.16-live-test'
 
 @allowed([
   'DELETE'
@@ -97,6 +97,9 @@ param seedReferenceData bool = true
 
 @description('Seed demo/sample data on startup. Keep false for live-test customer data capture.')
 param seedDemoData bool = false
+
+@description('Apply all built-in customer intelligence packs on startup to preconfigure the live-demo catalogue.')
+param autoApplyCustomerPacks bool = false
 
 @description('KRA LLM provider mode. Use disabled for deterministic local-only operation, or openai_direct for the approved live-demo OpenAI route.')
 param kraLlmProvider string = 'disabled'
@@ -275,6 +278,10 @@ var appEnvironment = concat(
     {
       name: 'SEED_DEMO_DATA'
       value: seedDemoData ? 'true' : 'false'
+    }
+    {
+      name: 'AUTO_APPLY_CUSTOMER_PACKS'
+      value: autoApplyCustomerPacks ? 'true' : 'false'
     }
     {
       name: 'ENTRA_AUTH_ENABLED'

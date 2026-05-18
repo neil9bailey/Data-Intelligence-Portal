@@ -18,9 +18,25 @@ from app.rule_loader import load_rule_file
 
 
 def seed_sources(session: Session) -> None:
-    existing = {source.source_key or source.name for source in session.exec(select(ProcurementSource))}
+    existing = {source.source_key or source.name: source for source in session.exec(select(ProcurementSource))}
     for item in load_rule_file("sources.yml").get("sources") or []:
-        if item["key"] in existing or item["name"] in existing:
+        source = existing.get(item["key"]) or existing.get(item["name"])
+        if source:
+            source.source_key = item["key"]
+            source.name = item["name"]
+            source.source_family = item.get("source_family", source.source_family)
+            source.source_type = item.get("source_type", source.source_type)
+            source.base_url = item["base_url"]
+            source.query_url = item["query_url"]
+            source.official = bool(item.get("official", True))
+            source.active = bool(item.get("active", True))
+            source.coverage = item.get("coverage", "")
+            source.auth_model = item.get("auth_model", "none")
+            source.data_format = item.get("data_format", "")
+            source.dedupe_strategy = item.get("dedupe_strategy", source.dedupe_strategy)
+            source.connector_status = item.get("connector_status", "configured")
+            source.notes = item.get("notes", "")
+            session.add(source)
             continue
         session.add(
             ProcurementSource(
@@ -44,9 +60,20 @@ def seed_sources(session: Session) -> None:
 
 
 def seed_platforms(session: Session) -> None:
-    existing = {platform.name for platform in session.exec(select(ProcurementPlatform))}
+    existing = {platform.name: platform for platform in session.exec(select(ProcurementPlatform))}
     for item in load_rule_file("platforms.yml").get("platforms") or []:
-        if item["name"] in existing:
+        platform = existing.get(item["name"])
+        if platform:
+            platform.platform_type = item.get("platform_type", platform.platform_type)
+            platform.login_model = item.get("login_model", platform.login_model)
+            platform.supported_actions = "; ".join(item.get("supported_actions") or [])
+            platform.requires_credentials = bool(item.get("requires_credentials", True))
+            platform.human_approval_required = bool(item.get("human_approval_required", True))
+            platform.active = bool(item.get("active", True))
+            platform.connector_status = item.get("connector_status", platform.connector_status)
+            platform.platform_domains = item.get("platform_domains", platform.platform_domains)
+            platform.notes = item.get("notes", "")
+            session.add(platform)
             continue
         session.add(
             ProcurementPlatform(

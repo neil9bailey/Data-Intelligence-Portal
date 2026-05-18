@@ -1,21 +1,136 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="hero">
-  <div>
-    <span class="eyebrow">Command View</span>
-    <h1>Live opportunity command view</h1>
-    <p>Track the current customer and framework pipeline, clear portal/account blockers, review source changes, and generate report packs when the intelligence is ready for human review.</p>
+<section class="cof-hero">
+  <div class="cof-hero-copy">
+    <span class="eyebrow">Source to inbox</span>
+    <h1>Opportunity intelligence, ready for review.</h1>
+    <p>Public opportunity sources flow into one pipeline, match against configured customer memory, and produce review-ready reports for the right teams.</p>
     <div class="actions">
-      <a class="button secondary" href="/review">Open review queue</a>
-      <a class="button" href="/reports">Generate report pack</a>
+      <a class="button" href="/client-portal">Open client feed</a>
+      <a class="button secondary" href="/reports">View reports</a>
+      {% if current_user.is_admin %}<a class="button secondary" href="/admin">Run admin automation</a>{% endif %}
     </div>
   </div>
-  <aside class="readiness">
+  <aside class="inbox-card">
     <div class="panel-title">
-      <h2>Official Intelligence Feed</h2>
-      <form method="post" action="/news/refresh"><button class="secondary compact" type="submit">Refresh</button></form>
+      <h2>Live Inbox</h2>
+      <span class="badge {{ 'green' if metrics.review_queue == 0 else 'amber' }}">{{ metrics.review_queue }} to review</span>
     </div>
-    <div class="news-list">
+    <div class="signal-row"><span>Matched opportunities</span><strong>{{ metrics.opportunities }}</strong></div>
+    <div class="signal-row"><span>Requirement themes</span><strong>{{ metrics.requirements }}</strong></div>
+    <div class="signal-row"><span>KRA findings pending</span><strong>{{ metrics.pending_findings }}</strong></div>
+    <div class="signal-row"><span>Generated reports</span><strong>{{ reports|length }}</strong></div>
+  </aside>
+</section>
+
+<section class="source-strip">
+  <div class="source-label">Five public sources</div>
+  {% set shown_sources = 0 %}
+  {% for source in sources %}
+    {% if source.source_key in ['find_a_tender', 'contracts_finder', 'public_contracts_scotland', 'sell2wales', 'ted_eforms'] %}
+      {% set shown_sources = shown_sources + 1 %}
+      <article class="source-tile">
+        <strong>{{ source.name.replace(' OCDS release package API','').replace(' OCDS search API','').replace(' public procurement source','').replace(' notice data','') }}</strong>
+        <span>{{ source.source_type }} | {{ source.connector_status }}</span>
+      </article>
+    {% endif %}
+  {% endfor %}
+</section>
+
+<section class="cof-flow">
+  <article>
+    <span>01</span>
+    <h2>Daily ingestion</h2>
+    <p>Public sources are checked, hashed and retained as source-change evidence.</p>
+    <strong>{{ metrics.active_sources }} active sources</strong>
+  </article>
+  <article>
+    <span>02</span>
+    <h2>OCDS normalise</h2>
+    <p>Supported public payloads are parsed into opportunities and deduped on stable notice references.</p>
+    <strong>{{ metrics.source_changes }} source changes</strong>
+  </article>
+  <article>
+    <span>03</span>
+    <h2>Customer match</h2>
+    <p>Aliases, sectors, CPV themes and watch terms match opportunities to the right account.</p>
+    <strong>{{ metrics.customers }} customer memories</strong>
+  </article>
+  <article>
+    <span>04</span>
+    <h2>Review queue</h2>
+    <p>KRA prepares candidates for review, with no bid/no-bid or compliance decision made by the system.</p>
+    <strong>{{ metrics.review_queue }} items</strong>
+  </article>
+  <article>
+    <span>05</span>
+    <h2>Report output</h2>
+    <p>Reports can be downloaded, stored and emailed using the configured delivery route.</p>
+    <strong>{{ reports|length }} recent reports</strong>
+  </article>
+</section>
+
+<section class="grid two" style="margin-top:18px;">
+  <div class="panel">
+    <div class="panel-title">
+      <h2>Opportunity Inbox</h2>
+      <a class="badge weak" href="/client-portal">Client feed</a>
+    </div>
+    <div class="stack">
+      {% for item in opportunities %}
+      <article class="list-item">
+        <div class="list-heading">
+          <h3>{{ item.title }}</h3>
+          <span class="badge {{ 'green' if item.status in ['approved','review_required'] else 'amber' if item.status not in ['rejected'] else 'red' }}">{{ item.status }}</span>
+        </div>
+        <p class="hint">{{ item.buyer_name or "Buyer not detected" }} | relevance {{ item.relevance_score|round(0) }}</p>
+        <p>{{ item.summary[:220] }}</p>
+      </article>
+      {% else %}
+      <p>No opportunities captured yet. Admin automation will apply customer packs, refresh public sources and run KRA checks.</p>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">
+      <h2>Latest Reports</h2>
+      <a class="badge weak" href="/reports">All reports</a>
+    </div>
+    <div class="stack">
+      {% for report in reports %}
+      <article class="list-item">
+        <h3><a href="/reports/{{ report.id }}">{{ report.report_name }}</a></h3>
+        <p class="hint">{{ report.generated_at.strftime('%Y-%m-%d %H:%M') }} | {{ report.report_type }}</p>
+        <div class="badges">
+          <a class="badge weak" href="/reports/{{ report.id }}?format=md">Markdown</a>
+          <a class="badge weak" href="/reports/{{ report.id }}?format=html">HTML</a>
+        </div>
+      </article>
+      {% else %}
+      <p>No reports generated yet. Admin automation can create the first pack.</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="grid two" style="margin-top:18px;">
+  <div class="panel">
+    <h2>KRA Signals</h2>
+    <div class="stack">
+      {% for finding in findings %}
+      <article class="list-item">
+        <h3>{{ finding.title }}</h3>
+        <div class="badges"><span class="badge weak">{{ finding.finding_type }}</span><span class="badge amber">{{ finding.human_review_status }}</span></div>
+        <p>{{ finding.summary[:260] }}</p>
+      </article>
+      {% else %}
+      <p>No KRA findings yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Official Intelligence Feed</h2>
+    <div class="news-list light">
       {% for item in news_items %}
       {% set feed = news_feed_map.get(item.feed_source_id) %}
       <article class="news-item">
@@ -23,92 +138,9 @@
         <span>{{ feed.publisher if feed else "Official source" }}{% if item.published_at %} | {{ item.published_at.strftime('%Y-%m-%d') }}{% endif %}</span>
       </article>
       {% else %}
-      <p>No feed items loaded yet. Refresh to pull the configured GOV.UK feeds, or continue setup offline.</p>
+      <p>No feed items loaded yet. Admin automation refreshes the configured public feeds.</p>
       {% endfor %}
     </div>
-  </aside>
-</section>
-
-<section class="grid metrics">
-  <div class="metric"><span class="value">{{ metrics.customers }}</span><span class="label">tracked customers</span></div>
-  <div class="metric"><span class="value">{{ metrics.active_sources }}</span><span class="label">active public sources</span></div>
-  <div class="metric"><span class="value">{{ metrics.enabled_portal_connectors }}</span><span class="label">enabled retrieval connectors</span></div>
-  <div class="metric"><span class="value">{{ metrics.news_items }}</span><span class="label">official feed items</span></div>
-  <div class="metric"><span class="value">{{ metrics.requirements }}</span><span class="label">requirement themes</span></div>
-</section>
-
-<section class="panel setup-panel" style="margin-top:18px;">
-  <div>
-    <h2>Clean Setup Sequence</h2>
-    <p class="hint">Create the account structure, confirm portal account ownership, run only approved read-only retrieval, then export reviewed reports.</p>
-  </div>
-  <div class="setup-steps">
-    <a href="/intelligence-packs">1. Apply intelligence pack</a>
-    <a href="/business-units">2. Confirm business units</a>
-    <a href="/customers">3. Review customers</a>
-    <a href="/portals">4. Set portal access</a>
-    <a href="/review">5. Human gate</a>
-    <a href="/reports">6. Export / email</a>
-  </div>
-</section>
-
-<section class="grid two" style="margin-top:18px;">
-  <div class="panel">
-    <h2>Recent Opportunities</h2>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Opportunity</th><th>Buyer</th><th>Status</th><th>Relevance</th></tr></thead>
-        <tbody>
-          {% for item in opportunities %}
-          <tr>
-            <td><strong>{{ item.title }}</strong><p class="hint">{{ item.summary[:180] }}</p></td>
-            <td>{{ item.buyer_name or "Not detected" }}</td>
-            <td><span class="badge {{ 'green' if item.status == 'watching' else 'amber' }}">{{ item.status }}</span></td>
-            <td>{{ item.relevance_score|round(0) }}</td>
-          </tr>
-          {% else %}
-          <tr><td colspan="4">No opportunities captured yet.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-  <div class="panel">
-    <h2>KRA Findings</h2>
-    <div class="stack">
-      {% for finding in findings %}
-      <article class="list-item">
-        <h3>{{ finding.title }}</h3>
-        <div class="badges"><span class="badge weak">{{ finding.finding_type }}</span><span class="badge amber">{{ finding.human_review_status }}</span></div>
-        <p>{{ finding.summary }}</p>
-      </article>
-      {% else %}
-      <p>No KRA findings yet. Run a KRA source check to begin.</p>
-      {% endfor %}
-    </div>
-  </div>
-</section>
-
-<section class="panel" style="margin-top:18px;">
-  <h2>Latest Source Checks</h2>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Source</th><th>Change</th><th>Schema</th><th>Status</th><th>Checked</th></tr></thead>
-      <tbody>
-        {% for snapshot in snapshots %}
-        {% set source = source_map.get(snapshot.source_id) %}
-        <tr>
-          <td>{{ source.name if source else snapshot.source_id }}</td>
-          <td><span class="badge {{ 'red' if snapshot.change_type == 'failed' else 'amber' if snapshot.change_type == 'changed' else 'green' }}">{{ snapshot.change_type }}</span></td>
-          <td>{{ snapshot.detected_schema }}</td>
-          <td>{{ snapshot.status_code or snapshot.notes }}</td>
-          <td>{{ snapshot.checked_at.strftime('%Y-%m-%d %H:%M') }}</td>
-        </tr>
-        {% else %}
-        <tr><td colspan="5">No source checks yet.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
   </div>
 </section>
 {% endblock %}

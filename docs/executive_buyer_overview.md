@@ -57,7 +57,7 @@ The platform provides a structured way to capture and analyse:
 - audit events
 - exportable intelligence reports
 
-It gives users a practical command view of what is known, what changed, what needs review and where the next action should focus.
+It gives users a practical opportunity inbox showing what is known, what changed, what needs review and where the next action should focus.
 
 ---
 
@@ -111,7 +111,7 @@ This gives the platform a clean path to future agent orchestration, where approv
 
 ## Typical Walkthrough For A Buyer
 
-### 1. Command View
+### 1. Opportunity Inbox
 
 The buyer starts on the dashboard. This shows:
 
@@ -366,7 +366,7 @@ Useful questions to ask an MD or buyer:
 
 ## Suggested Demonstration Flow
 
-1. Open the dashboard and show the command view.
+1. Open the dashboard and show the opportunity inbox.
 2. Show the customer catalogue and explain the shared account memory.
 3. Open Admin, then Sources, and explain approved public-source monitoring and health.
 4. Open portals and explain manual-safe portal tracking.

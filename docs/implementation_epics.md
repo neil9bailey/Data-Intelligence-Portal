@@ -16,6 +16,7 @@ This page records the current MVP delivery state and the next sensible epics.
 | KRA Knowledge Research Agent | Delivered MVP | Local deterministic agent profiles and controlled source runs. |
 | Reporting and exports | Delivered | Markdown, HTML, JSON, text, local download and email sending. |
 | Admin health dashboard | Delivered | Local/remote health, Entra status, DB status, source/portal/KRA/email health. |
+| Admin autonomous COF workflow | Delivered MVP | One-click admin cycle for preconfigured packs, public-source refresh, KRA, review preparation, approved retrieval, report export, email and audit logging. |
 | Audit log | Delivered MVP | Event log for key user and automation changes. |
 | Azure live-test IaC | Delivered MVP | Container Apps, Entra auth, Key Vault reference, Azure Files and custom domain path. |
 

@@ -8,14 +8,14 @@
     <a class="button secondary" href="/reports/{{ report.id }}?format=html">Download HTML</a>
     <a class="button secondary" href="/reports/{{ report.id }}?format=json">Download JSON</a>
     <a class="button" href="/reports/{{ report.id }}?format=txt">Download Text</a>
-    <form method="post" action="/reports/{{ report.id }}/delete" onsubmit="return confirm('Delete this report?');">
+    {% if current_user.is_admin %}<form method="post" action="/reports/{{ report.id }}/delete" onsubmit="return confirm('Delete this report?');">
       <button class="danger" type="submit">Delete</button>
-    </form>
+    </form>{% endif %}
   </div>
 </div>
 <section class="grid two">
   <div class="panel">
-    <details class="edit-drawer" style="margin-top:0;">
+    {% if current_user.is_admin %}<details class="edit-drawer" style="margin-top:0;">
       <summary>Edit report</summary>
       <form method="post" action="/reports/{{ report.id }}/update">
         <div class="form-grid">
@@ -29,9 +29,10 @@
         <div class="field"><label>Markdown</label><textarea name="markdown" class="large-textarea">{{ report.markdown }}</textarea></div>
         <button type="submit">Save report</button>
       </form>
-    </details>
+    </details>{% endif %}
     <pre class="report-body">{{ report.markdown }}</pre>
   </div>
+  {% if current_user.is_admin %}
   <div class="panel">
     <h2>Send Report Email</h2>
     <form method="post" action="/reports/{{ report.id }}/send-email">
@@ -47,5 +48,12 @@
     </form>
     <p class="hint">Email uses the Admin configuration. In local outbox mode it creates an `.eml` file instead of sending externally.</p>
   </div>
+  {% else %}
+  <div class="panel">
+    <h2>Download</h2>
+    <p>Use the download buttons above to store the reviewed report in the agreed file location.</p>
+    <p class="hint">Email delivery is handled by Admin automation and configured delivery settings.</p>
+  </div>
+  {% endif %}
 </section>
 {% endblock %}

@@ -155,9 +155,9 @@ packs:
         integration_method: public_api_no_key
         endpoint_url: https://www.contractsfinder.service.gov.uk/Published/Notices/OCDS/Search?stages=planning,tender,award&limit=50
         auth_type: none
-        enabled: false
+        enabled: true
         allowed_operations: retrieve_metadata; retrieve_documents; detect_changes
-        notes: Keep disabled until endpoint format and review flow are accepted. The official Contracts Finder OCDS search endpoint is broad; DIP must filter results for National Highways, National Highways Limited and Highways England before assignment.
+        notes: Enabled for read-only live-demo retrieval. The official Contracts Finder OCDS search endpoint is broad; DIP must filter results for National Highways, National Highways Limited and Highways England before assignment.
     kra_queries:
       - agent: Official Source Scout
         query: National Highways highways operational technology roadside technology cyber resilience asset management service management SCADA network communications maintenance response framework
@@ -170,3 +170,330 @@ packs:
       - Confirm MFA ownership and backup owner outside DIP.
       - Confirm live opportunity references from Find a Tender, Contracts Finder or Jaggaer.
       - Paste only permitted document extracts into opportunity documents for requirement extraction.
+
+  - key: transport_for_london
+    display_name: Transport for London
+    description: Preconfigures TfL customer memory, multimodal transport watch terms, official public notice searches and portal tracking.
+    template_key: transport_authority
+    business_unit:
+      name: TfL
+      parent: Transport
+      description: London multimodal transport, passenger systems, ticketing, operational technology, asset management and cyber resilience opportunities.
+    customer:
+      name: Transport for London
+      sector: Public sector transport
+      domain: rail; bus; highways; multimodal transport; passenger information; ticketing
+      customer_type: transport authority
+      region: London / UK
+      aliases: [Transport for London, TfL, London Underground, Surface Transport, TfL Group]
+      buying_entities: [Transport for London, London Underground Limited, TfL Surface Transport, TfL Commercial]
+      strategic_notes:
+        - TfL operates and coordinates major London transport modes and associated digital, operational and customer-facing services.
+        - Intelligence themes include real-time passenger information, smart ticketing, asset renewals, cyber resilience, network operations, service reliability, accessibility and multimodal data.
+    watch_profile:
+      name: Transport for London public sector watch
+      keywords: [Transport for London, TfL, London Underground, passenger information, ticketing, smart ticketing, operational technology, cyber resilience, asset management, real-time data, service management, multimodal]
+      cpv_codes: ["72000000 - IT services", "48813000 - Passenger information system", "34980000 - Transport tickets", "72250000 - System and support services"]
+      domains: [multimodal transport, passenger systems, rail, bus, ticketing]
+    sources:
+      - key: find_a_tender_tfl
+        name: Find a Tender - Transport for London
+        source_family: official_notice
+        source_type: web_page
+        base_url: https://www.find-tender.service.gov.uk
+        query_url: https://www.find-tender.service.gov.uk/Search/Results?Keywords=Transport%20for%20London
+        official: true
+        active: true
+        coverage: UK public procurement notices mentioning Transport for London or TfL.
+        auth_model: none
+        data_format: HTML / OCDS links
+        connector_status: configured
+        review_frequency: daily
+        notes: Official public notice source. KRA must filter buyer aliases before assignment.
+      - key: contracts_finder_tfl
+        name: Contracts Finder - Transport for London
+        source_family: official_notice
+        source_type: web_page
+        base_url: https://www.contractsfinder.service.gov.uk
+        query_url: https://www.contractsfinder.service.gov.uk/Search/Results?Keywords=Transport%20for%20London
+        official: true
+        active: true
+        coverage: UK lower-value opportunities and notices mentioning Transport for London or TfL.
+        auth_model: none
+        data_format: HTML / OCDS links
+        connector_status: configured
+        review_frequency: daily
+        notes: Official public notice source.
+    portals:
+      - name: TfL - Supplier portal tracking
+        platform_name: SAP Ariba / TfL supplier portal
+        portal_url: https://tfl.gov.uk/info-for/suppliers-and-contractors/
+        access_status: unknown
+        document_retrieval_mode: account_required_manual
+        account_reference: Account owner to confirm. Credentials must stay outside DIP.
+        notes: Track portal ownership and retrieval tasks only. No automated portal login.
+    connectors: []
+    kra_queries:
+      - agent: Official Source Scout
+        query: Transport for London TfL passenger information ticketing operational technology cyber resilience asset management data platform
+      - agent: Customer Memory Curator
+        query: Transport for London supplier requirements procurement framework cyber data service management transport
+    missing_actions:
+      - Confirm TfL portal route and supplier account owner.
+      - Confirm current framework and lot eligibility.
+      - Review extracted notices before client-facing reports.
+
+  - key: network_rail
+    display_name: Network Rail
+    description: Preconfigures Network Rail customer memory, Rail business unit, official notice searches and rail infrastructure watch terms.
+    template_key: regulated_infrastructure
+    business_unit:
+      name: Rail
+      parent: Transport
+      description: Rail infrastructure, operational communications, telecoms, signalling support, stations, asset management and cyber resilience.
+    customer:
+      name: Network Rail
+      sector: Public sector transport
+      domain: rail infrastructure; operational technology; telecoms; asset management
+      customer_type: public corporation
+      region: Great Britain
+      aliases: [Network Rail, Network Rail Infrastructure Limited, NR]
+      buying_entities: [Network Rail, Network Rail Infrastructure Limited, regional route teams]
+      strategic_notes:
+        - Network Rail is a major rail infrastructure owner/operator with recurring requirements around telecoms, operational systems, stations, asset management and service continuity.
+        - Intelligence themes include rail operational communications, cyber resilience, SCADA, asset data, field service, safety critical operations and high availability.
+    watch_profile:
+      name: Network Rail public sector watch
+      keywords: [Network Rail, rail infrastructure, telecoms, operational technology, SCADA, cyber resilience, asset management, station systems, signalling support, field service, high availability]
+      cpv_codes: ["72000000 - IT services", "64200000 - Telecommunications services", "50330000 - Communications equipment maintenance", "72250000 - System and support services"]
+      domains: [rail, critical infrastructure, operational technology]
+    sources:
+      - key: find_a_tender_network_rail
+        name: Find a Tender - Network Rail
+        source_family: official_notice
+        source_type: web_page
+        base_url: https://www.find-tender.service.gov.uk
+        query_url: https://www.find-tender.service.gov.uk/Search/Results?Keywords=Network%20Rail
+        official: true
+        active: true
+        coverage: UK public procurement notices mentioning Network Rail.
+        auth_model: none
+        data_format: HTML / OCDS links
+        connector_status: configured
+        review_frequency: daily
+        notes: Official public notice source.
+      - key: contracts_finder_network_rail
+        name: Contracts Finder - Network Rail
+        source_family: official_notice
+        source_type: web_page
+        base_url: https://www.contractsfinder.service.gov.uk
+        query_url: https://www.contractsfinder.service.gov.uk/Search/Results?Keywords=Network%20Rail
+        official: true
+        active: true
+        coverage: UK notices mentioning Network Rail.
+        auth_model: none
+        data_format: HTML / OCDS links
+        connector_status: configured
+        review_frequency: daily
+        notes: Official public notice source.
+    portals:
+      - name: Network Rail - procurement portal tracking
+        platform_name: BravoSolution / Jaggaer
+        portal_url: https://networkrail.bravosolution.co.uk/
+        access_status: unknown
+        document_retrieval_mode: account_required_manual
+        account_reference: Account owner to confirm. Credentials must stay outside DIP.
+        notes: Manual-assisted tracking only unless a documented public read-only API is approved.
+    connectors: []
+    kra_queries:
+      - agent: Official Source Scout
+        query: Network Rail telecoms operational technology cyber resilience asset management service management framework
+    missing_actions:
+      - Confirm Network Rail portal registration and account owner.
+      - Confirm route/programme buying entity for each opportunity.
+
+  - key: department_for_transport
+    display_name: Department for Transport
+    description: Preconfigures DfT central-government transport watch terms and public source monitoring.
+    template_key: central_government_department
+    business_unit:
+      name: Transport
+      parent: ""
+      description: Public transport, highways, rail, aviation, maritime and strategic transport policy/opportunity intelligence.
+    customer:
+      name: Department for Transport
+      sector: Central government transport
+      domain: transport policy; rail; highways; aviation; maritime; digital services
+      customer_type: UK Government department
+      region: UK
+      aliases: [Department for Transport, DfT, Department for Transport Group]
+      buying_entities: [Department for Transport, DfT Group, executive agencies and arm's-length bodies to be confirmed]
+      strategic_notes:
+        - DfT is the central government transport department and sponsor context for multiple transport bodies.
+        - Intelligence themes include digital services, data platforms, transport decarbonisation, cyber resilience, national transport programmes and supplier frameworks.
+    watch_profile:
+      name: Department for Transport public sector watch
+      keywords: [Department for Transport, DfT, transport data, rail reform, highways, aviation, maritime, digital services, cyber security, service management, data platform]
+      cpv_codes: ["72000000 - IT services", "72300000 - Data services", "72250000 - System and support services"]
+      domains: [central government, transport, digital services]
+    sources:
+      - key: find_a_tender_dft
+        name: Find a Tender - Department for Transport
+        source_family: official_notice
+        source_type: web_page
+        base_url: https://www.find-tender.service.gov.uk
+        query_url: https://www.find-tender.service.gov.uk/Search/Results?Keywords=Department%20for%20Transport
+        official: true
+        active: true
+        coverage: UK public procurement notices mentioning Department for Transport or DfT.
+        auth_model: none
+        data_format: HTML / OCDS links
+        connector_status: configured
+        review_frequency: daily
+        notes: Official public notice source.
+      - key: contracts_finder_dft
+        name: Contracts Finder - Department for Transport
+        source_family: official_notice
+        source_type: web_page
+        base_url: https://www.contractsfinder.service.gov.uk
+        query_url: https://www.contractsfinder.service.gov.uk/Search/Results?Keywords=Department%20for%20Transport
+        official: true
+        active: true
+        coverage: UK lower-value opportunities and notices mentioning Department for Transport or DfT.
+        auth_model: none
+        data_format: HTML / OCDS links
+        connector_status: configured
+        review_frequency: daily
+        notes: Official public notice source.
+    portals: []
+    connectors: []
+    kra_queries:
+      - agent: Official Source Scout
+        query: Department for Transport DfT digital services transport data cyber security framework
+    missing_actions:
+      - Confirm whether the opportunity is DfT core, agency or arm's-length body led.
+      - Confirm portal route for each live opportunity.
+
+  - key: crown_commercial_service
+    display_name: Crown Commercial Service
+    description: Preconfigures CCS as a framework and market-route intelligence customer/source.
+    template_key: central_government_department
+    business_unit:
+      name: Core
+      parent: ""
+      description: Central commercial frameworks, public-sector routes to market and strategic procurement intelligence.
+    customer:
+      name: Crown Commercial Service
+      sector: Central government commercial
+      domain: public procurement frameworks; digital marketplace; commercial agreements
+      customer_type: UK Government department / executive agency
+      region: UK
+      aliases: [Crown Commercial Service, CCS, CCS Commercial Agreements]
+      buying_entities: [Crown Commercial Service, Cabinet Office sponsor context]
+      strategic_notes:
+        - CCS is a key public-sector commercial framework route and market signal source.
+        - Intelligence themes include technology frameworks, network services, digital outcomes, cloud, cyber, professional services and supplier route-to-market changes.
+    watch_profile:
+      name: Crown Commercial Service public sector watch
+      keywords: [Crown Commercial Service, CCS, framework, commercial agreement, digital outcomes, network services, cloud services, cyber security, technology services]
+      cpv_codes: ["72000000 - IT services", "72200000 - Software programming and consultancy", "72700000 - Computer network services"]
+      domains: [frameworks, commercial agreements, central government]
+    sources:
+      - key: find_a_tender_ccs
+        name: Find a Tender - Crown Commercial Service
+        source_family: official_notice
+        source_type: web_page
+        base_url: https://www.find-tender.service.gov.uk
+        query_url: https://www.find-tender.service.gov.uk/Search/Results?Keywords=Crown%20Commercial%20Service
+        official: true
+        active: true
+        coverage: UK public procurement notices mentioning Crown Commercial Service or CCS.
+        auth_model: none
+        data_format: HTML / OCDS links
+        connector_status: configured
+        review_frequency: daily
+        notes: Official public notice source.
+      - key: contracts_finder_ccs
+        name: Contracts Finder - Crown Commercial Service
+        source_family: official_notice
+        source_type: web_page
+        base_url: https://www.contractsfinder.service.gov.uk
+        query_url: https://www.contractsfinder.service.gov.uk/Search/Results?Keywords=Crown%20Commercial%20Service
+        official: true
+        active: true
+        coverage: UK lower-value opportunities and framework notices mentioning CCS.
+        auth_model: none
+        data_format: HTML / OCDS links
+        connector_status: configured
+        review_frequency: daily
+        notes: Official public notice source.
+    portals: []
+    connectors: []
+    kra_queries:
+      - agent: Official Source Scout
+        query: Crown Commercial Service CCS technology framework network services digital outcomes cyber cloud
+    missing_actions:
+      - Confirm framework relevance and supplier status.
+      - Confirm whether a notice is CCS-owned or a buyer call-off.
+
+  - key: nhs_england
+    display_name: NHS England
+    description: Preconfigures NHS England and health-sector digital infrastructure watch terms.
+    template_key: nhs_body
+    business_unit:
+      name: Health
+      parent: Core
+      description: NHS, health bodies, clinical digital, network services, cyber and data platform opportunities.
+    customer:
+      name: NHS England
+      sector: Health
+      domain: digital health; clinical systems; cyber security; data platforms; network services
+      customer_type: NHS or other public body
+      region: England / UK
+      aliases: [NHS England, NHSE, NHS Digital, NHS England and NHS Improvement]
+      buying_entities: [NHS England, regional teams, NHS supply/procurement hubs to be confirmed]
+      strategic_notes:
+        - NHS England is a major national health customer and signal source for digital, cyber, network and data requirements.
+        - Intelligence themes include digital health, clinical safety, integration, cyber resilience, cloud, data platforms, service desk and managed network services.
+    watch_profile:
+      name: NHS England public sector watch
+      keywords: [NHS England, NHSE, NHS Digital, digital health, cyber security, data platform, clinical system integration, network services, service desk, cloud services]
+      cpv_codes: ["72000000 - IT services", "48814000 - Medical information systems", "72250000 - System and support services"]
+      domains: [health, digital health, cyber, data]
+    sources:
+      - key: find_a_tender_nhs_england
+        name: Find a Tender - NHS England
+        source_family: official_notice
+        source_type: web_page
+        base_url: https://www.find-tender.service.gov.uk
+        query_url: https://www.find-tender.service.gov.uk/Search/Results?Keywords=NHS%20England
+        official: true
+        active: true
+        coverage: UK public procurement notices mentioning NHS England.
+        auth_model: none
+        data_format: HTML / OCDS links
+        connector_status: configured
+        review_frequency: daily
+        notes: Official public notice source.
+      - key: contracts_finder_nhs_england
+        name: Contracts Finder - NHS England
+        source_family: official_notice
+        source_type: web_page
+        base_url: https://www.contractsfinder.service.gov.uk
+        query_url: https://www.contractsfinder.service.gov.uk/Search/Results?Keywords=NHS%20England
+        official: true
+        active: true
+        coverage: UK lower-value opportunities and notices mentioning NHS England.
+        auth_model: none
+        data_format: HTML / OCDS links
+        connector_status: configured
+        review_frequency: daily
+        notes: Official public notice source.
+    portals: []
+    connectors: []
+    kra_queries:
+      - agent: Official Source Scout
+        query: NHS England digital health cyber security data platform network services service management
+    missing_actions:
+      - Confirm procurement hub/portal route for each opportunity.
+      - Confirm clinical safety and data governance requirements before reporting.

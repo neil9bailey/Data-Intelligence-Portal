@@ -19,6 +19,8 @@ Data Intelligence Portal is a configurable information-gathering workspace for:
 - executive summaries and exportable intelligence reports
 - COF-style source-to-inbox workflow, review queue, local downloads and controlled email delivery
 - Intelligence Packs that preconfigure public-sector customers, watch profiles, source monitors and portal assumptions from one guided screen
+- Admin-side autonomous workflow that can apply packs, refresh public sources, run KRA, prepare review queues, run approved read-only retrieval, generate/store/email a report and log the cycle
+- simplified user-facing opportunity inbox, client feed and report download experience
 - a built-in KRA Knowledge Research Agent for guarded source checks, source-change tracking, customer memory and requirement extraction
 - MCP-style local agent/tool profiles ready for future connector orchestration
 
@@ -91,6 +93,7 @@ The default local run is now a clean operational baseline:
 
 - `SEED_REFERENCE_DATA=true` keeps configurable source definitions, portal platform families, KRA agent profiles and official feed sources available.
 - `SEED_DEMO_DATA=false` prevents demo customers, opportunities, extracted requirements and findings from being created.
+- `AUTO_APPLY_CUSTOMER_PACKS=true` applies the built-in customer packs automatically at startup for a live demo. Set it to `false` when you need a clean-start workspace.
 
 To reset local captured content completely:
 
@@ -135,6 +138,7 @@ Admin and configuration tasks are consolidated under `/admin`.
 
 The Admin Control Centre shows:
 
+- one-click autonomous COF workflow runner
 - local runtime/database persistence status
 - remote `/healthz` status for the configured public domain
 - Entra/local auth status and group configuration signals
@@ -143,6 +147,8 @@ The Admin Control Centre shows:
 - KRA runtime configuration
 - email profile, local outbox/SMTP test sending and delivery logs
 - links to source configuration, portal setup, KRA runs and audit events
+
+Detailed setup and data-entry screens are Admin-only when Entra authentication is enabled. Standard users see the simplified Opportunity Inbox, Client Feed and report downloads.
 
 Local Docker uses `DIP_DEPLOYMENT_LABEL=local-docker` by default. Azure live-test should set `DIP_DEPLOYMENT_LABEL=azure-live-test`, `DIP_PUBLIC_DOMAIN=dip.vendorlogic.io` and `DIP_REMOTE_HEALTH_URL=https://dip.vendorlogic.io/healthz`.
 
@@ -171,11 +177,11 @@ KRA can:
 
 ## Intelligence Packs
 
-Open `/intelligence-packs` to reduce manual customer setup.
+Open `/admin`, then **Customer packs**, to reduce manual customer setup.
 
 The page supports:
 
-- preconfigured customer packs, currently including National Highways
+- preconfigured customer packs for live-demo public-sector accounts including National Highways, Transport for London, Network Rail, Department for Transport, Crown Commercial Service and NHS England
 - semi-configured packs for any public-sector organisation using templates such as local authority, transport authority, NHS body, emergency services, education, housing and regulated infrastructure
 - one-action creation of the customer, business unit, watch profile, official public-source searches, portal assumptions and KRA prompt guidance
 - idempotent apply behaviour, so reapplying a pack updates or skips existing records instead of duplicating them
@@ -206,7 +212,7 @@ Supported MVP auth modes:
 - API key in header
 - API key in query string
 
-Use `/portals` to add a connector, link it to a buyer portal and optionally link it to a default opportunity. When linked to an opportunity, a successful retrieval creates or updates an opportunity document and runs requirement extraction. When not linked to an opportunity, the retrieval creates a KRA finding for review.
+Use `/admin`, then **Portals / connectors**, to add a connector, link it to a buyer portal and optionally link it to a default opportunity. When linked to an opportunity, a successful retrieval creates or updates an opportunity document and runs requirement extraction. When not linked to an opportunity, the retrieval creates a KRA finding for review.
 
 Reports can automatically run enabled read-only retrieval connectors before generation, so end-user briefing packs can include the latest retrieved information where provider permissions and guardrails allow it.
 
@@ -227,7 +233,7 @@ The optimal workflow is to configure portal access before an opportunity lands, 
 
 ## COF Source-To-Inbox Workflow
 
-Pages 2 and 3 of the COF design draft have been mapped into the product as a configurable workflow at `/workflow`.
+Pages 2 and 3 of the COF design draft have been mapped into the product as the user-facing Opportunity Inbox and the Admin configurable workflow at `/workflow`.
 
 The workflow covers:
 
@@ -239,7 +245,7 @@ The workflow covers:
 - email delivery through `/admin`, using local `.eml` outbox mode by default or SMTP when configured
 - a phase-2 style `/client-portal` interest tracker for "I'm interested" signals and pipeline follow-up
 
-The MVP keeps the important COF guardrail: nothing should reach a client or recipient without human review.
+The Admin automation can run the full operating rhythm in one cycle, but the MVP keeps the important COF guardrail: generated intelligence remains review-required and no portal login, expression of interest, submission or customer contact is automated.
 
 ## Data Maintenance
 

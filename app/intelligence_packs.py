@@ -405,7 +405,33 @@ def _ensure_source(session: Session, data: dict, result: dict) -> ProcurementSou
         session.flush()
         result["created"].append(f"Source: {source.name}")
     else:
-        result["skipped"].append(f"Source already configured: {source.name}")
+        before = compact_snapshot(source)
+        changed = False
+        updates = {
+            "source_key": key or source.source_key,
+            "source_family": data.get("source_family", source.source_family),
+            "source_type": data.get("source_type", source.source_type),
+            "base_url": data.get("base_url", source.base_url),
+            "query_url": data.get("query_url", source.query_url),
+            "official": bool(data.get("official", source.official)),
+            "active": bool(data.get("active", source.active)),
+            "coverage": data.get("coverage", source.coverage),
+            "auth_model": data.get("auth_model", source.auth_model),
+            "data_format": data.get("data_format", source.data_format),
+            "connector_status": data.get("connector_status", source.connector_status),
+            "review_frequency": data.get("review_frequency", source.review_frequency),
+            "notes": data.get("notes", source.notes),
+        }
+        for field_name, value in updates.items():
+            if getattr(source, field_name) != value:
+                setattr(source, field_name, value)
+                changed = True
+        if changed:
+            session.add(source)
+            log_event(session, entity_type="ProcurementSource", entity_id=source.id, action="update", summary=f"Updated source from pack: {source.name}", before=before, after=source)
+            result["updated"].append(f"Source: {source.name}")
+        else:
+            result["skipped"].append(f"Source already configured: {source.name}")
     return source
 
 
@@ -498,7 +524,29 @@ def _ensure_connector(session: Session, data: dict, portal_by_name: dict[str, Bu
         session.flush()
         result["created"].append(f"Connector: {connector.connector_name}")
         return connector
-    result["skipped"].append(f"Connector already configured: {connector.connector_name}")
+    before = compact_snapshot(connector)
+    portal_id = portal.id if portal else connector.portal_instance_id
+    updates = {
+        "portal_instance_id": portal_id,
+        "integration_method": data.get("integration_method", connector.integration_method),
+        "endpoint_url": data.get("endpoint_url", connector.endpoint_url),
+        "auth_type": data.get("auth_type", connector.auth_type),
+        "enabled": bool(data.get("enabled", connector.enabled)),
+        "read_only": True,
+        "allowed_operations": data.get("allowed_operations", connector.allowed_operations),
+        "notes": data.get("notes", connector.notes),
+    }
+    changed = False
+    for field_name, value in updates.items():
+        if getattr(connector, field_name) != value:
+            setattr(connector, field_name, value)
+            changed = True
+    if changed:
+        session.add(connector)
+        log_event(session, entity_type="PortalInformationConnector", entity_id=connector.id, action="update", summary=f"Updated connector from pack: {connector.connector_name}", before=before, after=connector)
+        result["updated"].append(f"Connector: {connector.connector_name}")
+    else:
+        result["skipped"].append(f"Connector already configured: {connector.connector_name}")
     return connector
 
 

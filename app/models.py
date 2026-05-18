@@ -367,6 +367,20 @@ class ClientInterestSignal(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utc_now)
 
 
+class AutomationRun(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+    finished_at: Optional[datetime] = None
+    actor: str = "local-user"
+    run_type: str = "admin_full_cycle"
+    status: str = "started"
+    report_id: Optional[int] = Field(default=None, foreign_key="intelligencereport.id")
+    summary: str = ""
+    steps_json: str = ""
+    stored_report_path: str = ""
+    email_log_id: Optional[int] = Field(default=None, foreign_key="emaildeliverylog.id")
+
+
 class AuditEvent(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=utc_now, index=True)

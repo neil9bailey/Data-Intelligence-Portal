@@ -62,3 +62,75 @@ platforms:
     connector_status: manual_assisted
     platform_domains: delta-esourcing.com; delta-esourcing.co.uk
     notes: UK public-sector eSourcing portal family.
+  - key: find_a_tender_api
+    name: Find a Tender API
+    platform_type: official_source_api
+    login_model: public_api
+    supported_actions:
+      - public notice retrieval
+      - metadata retrieval
+      - detect changes
+      - OCDS extraction
+    requires_credentials: false
+    human_approval_required: true
+    active: true
+    connector_status: public_api_no_key
+    platform_domains: find-tender.service.gov.uk; www.find-tender.service.gov.uk
+    notes: Official UK above-threshold notice source. Read-only public retrieval only.
+  - key: contracts_finder_api
+    name: Contracts Finder API
+    platform_type: official_source_api
+    login_model: public_api
+    supported_actions:
+      - public notice retrieval
+      - metadata retrieval
+      - detect changes
+      - OCDS extraction
+    requires_credentials: false
+    human_approval_required: true
+    active: true
+    connector_status: public_api_no_key
+    platform_domains: contractsfinder.service.gov.uk; www.contractsfinder.service.gov.uk
+    notes: Official UK below-threshold, future opportunity and award notice source. Read-only public retrieval only.
+  - key: public_contracts_scotland_api
+    name: Public Contracts Scotland API
+    platform_type: official_source_api
+    login_model: public_api
+    supported_actions:
+      - public notice retrieval
+      - metadata retrieval
+      - detect changes
+    requires_credentials: false
+    human_approval_required: true
+    active: true
+    connector_status: public_api_no_key
+    platform_domains: api.publiccontractsscotland.gov.uk; publiccontractsscotland.gov.uk; www.publiccontractsscotland.gov.uk
+    notes: Official Scotland OCDS source. Date-scoped retrieval should be configured per watch profile.
+  - key: sell2wales_ocds
+    name: Sell2Wales OCDS
+    platform_type: official_source_api
+    login_model: public_bulk
+    supported_actions:
+      - public notice retrieval
+      - bulk OCDS download
+      - detect changes
+    requires_credentials: false
+    human_approval_required: true
+    active: true
+    connector_status: public_api_no_key
+    platform_domains: sell2wales.gov.wales; www.sell2wales.gov.wales
+    notes: Official Wales OCDS/open contracting source. Use only public reusable data routes.
+  - key: ted_search_api
+    name: TED Search API
+    platform_type: official_source_api
+    login_model: public_or_api_key
+    supported_actions:
+      - public notice search
+      - eForms metadata retrieval
+      - detect changes
+    requires_credentials: false
+    human_approval_required: true
+    active: true
+    connector_status: public_api_no_key
+    platform_domains: ted.europa.eu; docs.ted.europa.eu; op.europa.eu
+    notes: Official TED search/eForms route for EU horizon scanning. Submission or eSender actions are out of scope.

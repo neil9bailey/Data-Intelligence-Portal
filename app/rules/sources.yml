@@ -1,6 +1,18 @@
-version: 2026.05.17
-last_reviewed: 2026-05-17
+version: 2026.05.18
+last_reviewed: 2026-05-18
 purpose: Configurable source catalogue for public-sector opportunity and customer intelligence.
+source_metadata:
+  checked_against:
+    - name: Find a Tender API documentation
+      url: https://www.find-tender.service.gov.uk/Developer/Documentation
+    - name: Contracts Finder API documentation
+      url: https://www.contractsfinder.service.gov.uk/apidocumentation
+    - name: Public Contracts Scotland OCDS API help
+      url: https://api.publiccontractsscotland.gov.uk/
+    - name: Sell2Wales OCDS guide
+      url: https://www.sell2wales.gov.wales/helpandresources/ocds/dataaccessinfo
+    - name: TED API developer documentation
+      url: https://docs.ted.europa.eu/api/latest/search.html
 guardrails:
   approved_domains:
     - www.gov.uk
@@ -59,38 +71,52 @@ sources:
     base_url: https://api.publiccontractsscotland.gov.uk
     query_url: https://api.publiccontractsscotland.gov.uk/v1/Notices
     official: true
-    active: false
+    active: true
     coverage: Scotland public-sector procurement notices
     auth_model: none
     data_format: REST OCDS JSON
     dedupe_strategy: ocid_or_notice_reference
-    connector_status: configured_pending_live_validation
-    notes: Activate after validating query parameters for the required watch profile.
+    connector_status: live_public_source
+    notes: Official OCDS API endpoint is active for source tracking; date-scoped notice retrieval can be configured once customer watch ranges are agreed.
   - key: sell2wales
     name: Sell2Wales public procurement source
     source_family: official_notice
     source_type: bulk_ocds
     base_url: https://www.sell2wales.gov.wales
-    query_url: https://www.sell2wales.gov.wales/search/search_mainpage.aspx
+    query_url: https://www.sell2wales.gov.wales/helpandresources/ocds/dataaccessinfo
     official: true
-    active: false
+    active: true
     coverage: Wales public-sector procurement notices
     auth_model: none for browsing; connector validation required
     data_format: Web/bulk/OCDS route to confirm
     dedupe_strategy: notice_reference_or_content_hash
-    connector_status: configuration_review_required
-    notes: Configurable source; leave inactive until endpoint behaviour is confirmed.
+    connector_status: live_public_source
+    notes: Official OCDS guide confirms public reusable formats and API/bulk download route. Use source check for change tracking until date-scoped retrieval is configured.
   - key: ted_eforms
     name: TED eForms notice data
     source_family: official_notice
     source_type: eforms_api
     base_url: https://ted.europa.eu
-    query_url: https://ted.europa.eu/api/v3/notices/search
+    query_url: https://docs.ted.europa.eu/api/latest/search.html
     official: true
-    active: false
+    active: true
     coverage: EU and Ireland procurement notices where relevant
     auth_model: public reads
     data_format: REST/eForms XML
     dedupe_strategy: notice_id_or_publication_reference
-    connector_status: configured_pending_eforms_normaliser
-    notes: Included for EU/Ireland horizon scanning.
+    connector_status: live_public_source
+    notes: Official TED API developer documentation confirms Search API access. Use documentation/source change tracking until the eForms normaliser is productionised.
+  - key: tenders_direct_backup
+    name: Tenders Direct backup aggregator
+    source_family: commercial_aggregator
+    source_type: commercial_aggregator
+    base_url: https://www.tendersdirect.co.uk
+    query_url: https://www.tendersdirect.co.uk/
+    official: false
+    active: false
+    coverage: Optional commercial belt-and-braces source where licensed by the customer.
+    auth_model: commercial account required
+    data_format: provider-specific
+    dedupe_strategy: provider_reference_or_content_hash
+    connector_status: disabled_requires_contract
+    notes: Included as an inactive configuration placeholder only. Do not activate without provider terms, account approval and secret handling.

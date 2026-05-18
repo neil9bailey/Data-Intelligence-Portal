@@ -1,3 +1,5 @@
+import json
+
 from fastapi.testclient import TestClient
 from sqlmodel import select
 
@@ -6,6 +8,7 @@ from app.intelligence import FetchResult
 from app.main import app
 from app.models import (
     AuditEvent,
+    AutomationRun,
     BusinessUnit,
     BuyerPortalInstance,
     ClientInterestSignal,
@@ -23,6 +26,7 @@ from app.models import (
     ProcurementPlatform,
     ProcurementSource,
 )
+from app.automation import run_admin_full_cycle
 from app.portal_connectors import run_portal_connector
 from app.reports import create_report
 
@@ -125,7 +129,7 @@ def test_dashboard_uses_clean_setup_homepage(reference_session):
         app.dependency_overrides.clear()
 
     assert response.status_code == 200
-    assert "Live opportunity command view" in response.text
+    assert "Opportunity intelligence, ready for review." in response.text
     assert "One customer memory for every source, portal and requirement." not in response.text
     assert "Official Intelligence Feed" in response.text
 
@@ -165,6 +169,49 @@ def test_admin_email_test_route(reference_session):
 
     assert response.status_code == 303
     assert reference_session.exec(select(EmailDeliveryLog)).first() is not None
+
+
+def test_admin_full_cycle_automation_preconfigures_and_exports(reference_session, monkeypatch):
+    monkeypatch.setattr("app.automation.refresh_news_feeds", lambda session: 0)
+
+    def fake_source_fetcher(url):
+        payload = {
+            "releases": [
+                {
+                    "id": "auto-nh-1",
+                    "ocid": "ocds-auto-nh-1",
+                    "date": "2026-05-18T09:00:00Z",
+                    "tag": ["tender"],
+                    "buyer": {"name": "National Highways"},
+                    "tender": {
+                        "title": "National Highways roadside operational technology services",
+                        "description": "Cyber resilience, traffic operations and roadside technology support.",
+                        "status": "active",
+                    },
+                    "links": {"self": "https://www.find-tender.service.gov.uk/Notice/auto-nh-1"},
+                }
+            ]
+        }
+        return FetchResult(True, 200, url, json.dumps(payload), "application/json")
+
+    def fake_connector_fetcher(connector):
+        return FetchResult(True, 200, connector.endpoint_url, "Automated public connector payload for human review.", "text/plain")
+
+    run = run_admin_full_cycle(
+        reference_session,
+        actor="test-admin",
+        email_recipients="review@example.com",
+        source_fetcher=fake_source_fetcher,
+        connector_fetcher=fake_connector_fetcher,
+    )
+
+    assert run.status == "completed"
+    assert run.report_id is not None
+    assert run.stored_report_path.endswith(".md")
+    assert "Apply or update customer packs" in run.steps_json
+    assert reference_session.exec(select(AutomationRun)).first() is not None
+    assert reference_session.exec(select(IntelligenceReport)).first() is not None
+    assert reference_session.exec(select(EmailDeliveryLog)).first().status == "stored"
 
 
 def test_portal_connector_run_all_route_is_not_parsed_as_connector_id(reference_session):

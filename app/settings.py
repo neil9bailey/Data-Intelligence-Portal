@@ -20,6 +20,7 @@ class Settings:
         self.sqlite_persistent_copy_path: str = os.getenv("SQLITE_PERSISTENT_COPY_PATH", "")
         self.seed_reference_data: bool = env_bool("SEED_REFERENCE_DATA", "true")
         self.seed_demo_data: bool = env_bool("SEED_DEMO_DATA", "false")
+        self.auto_apply_customer_packs: bool = env_bool("AUTO_APPLY_CUSTOMER_PACKS", "false")
         self.kra_llm_provider: str = os.getenv("KRA_LLM_PROVIDER", "disabled")
         self.kra_api_key: str = os.getenv("KRA_API_KEY", "")
         self.kra_model: str = os.getenv("KRA_MODEL", "")

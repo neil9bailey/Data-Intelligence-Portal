@@ -22,6 +22,7 @@ docs/*.docx
 docs/*.pdf
 *.log
 .outbox/
+.tmp/
 .tmp_pdf_pages/
 infra/azure/generated/
 infra/azure/*.json
