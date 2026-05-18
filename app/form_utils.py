@@ -1,6 +1,5 @@
 from datetime import date
 
-from fastapi import Request
 from fastapi.responses import HTMLResponse
 
 

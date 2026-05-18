@@ -19,6 +19,7 @@ This page records the current MVP delivery state and the next sensible epics.
 | Admin autonomous COF workflow | Delivered MVP | One-click admin cycle for preconfigured packs, public-source refresh, KRA, review preparation, approved retrieval, report export, email and audit logging. |
 | Audit log | Delivered MVP | Event log for key user and automation changes. |
 | Azure live-test IaC | Delivered MVP | Container Apps, Entra auth, Key Vault reference, Azure Files and custom domain path. |
+| CI quality gates | Delivered | GitHub Actions runs Python 3.12 pytest and conservative ruff linting on push and pull request. |
 
 ## Next Delivery Epics
 

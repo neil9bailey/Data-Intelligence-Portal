@@ -81,6 +81,14 @@ Run tests:
 docker compose run --rm app pytest -q
 ```
 
+Run the CI-style Python checks locally:
+
+```powershell
+python -m pip install -r requirements.txt -r requirements-dev.txt
+pytest -q
+python -m ruff check .
+```
+
 Stop:
 
 ```powershell

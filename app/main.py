@@ -45,14 +45,12 @@ from app.intelligence import (
 )
 from app.models import (
     AuditEvent,
-    AutomationRun,
     BusinessUnit,
     BuyerPortalInstance,
     ClientInterestSignal,
     Customer,
     CustomerWatchProfile,
     DocumentRetrievalTask,
-    EmailConfiguration,
     EmailDeliveryLog,
     ExtractedQualityQuestion,
     ExtractedRequirement,

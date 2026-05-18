@@ -34,7 +34,7 @@ from app.models import (
     PortalRetrievalRun,
     ProcurementSource,
 )
-from app.portal_connectors import AUTOMATED_METHODS, run_enabled_portal_connectors
+from app.portal_connectors import run_enabled_portal_connectors
 from app.reports import create_report
 from app.settings import get_settings
 

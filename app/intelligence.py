@@ -15,10 +15,8 @@ from sqlmodel import Session, col, select
 from app.audit import compact_snapshot, log_event
 from app.llm import LLMError, generate_llm_text, kra_system_prompt, llm_enabled
 from app.models import (
-    BusinessUnit,
     Customer,
     CustomerWatchProfile,
-    DocumentRetrievalTask,
     ExtractedQualityQuestion,
     ExtractedRequirement,
     KRAAgentProfile,

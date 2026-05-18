@@ -451,8 +451,6 @@ def _readiness_assessment(
     active_sources = [source for source in context["sources"] if source.active]
     latest = context["latest_snapshots_by_source"]
     ok_sources = [source for source in active_sources if _snapshot_ok(latest.get(source.id or 0)) or str(source.last_status).lower() in {"ok", "200"}]
-    review_statuses = Counter(item.human_review_status or "unknown" for item in requirements)
-    document_statuses = Counter(item.human_review_status or item.retrieval_status or "unknown" for item in documents)
     high_relevance = [item for item in opportunities if item.relevance_score >= 70]
     gaps: list[str] = []
     if not opportunities:

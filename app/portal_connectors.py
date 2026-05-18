@@ -5,7 +5,7 @@ import os
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import httpx
-from sqlmodel import Session, col, select
+from sqlmodel import Session, select
 
 from app.audit import compact_snapshot, log_event
 from app.intelligence import FetchResult, content_hash, extract_document_intelligence, source_allowed, textish
