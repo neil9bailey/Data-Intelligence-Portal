@@ -11,7 +11,16 @@ from app.audit import compact_snapshot, log_event
 from app.database import backup_sqlite_persistent_copy, engine
 from app.email_service import get_email_configuration, send_or_store_email, split_recipients
 from app.export_service import report_export, report_filename
-from app.intelligence import FetchResult, fetch_source_url, refresh_news_feeds, repair_mismatched_customer_assignments, run_kra_research, run_source_check
+from app.intelligence import (
+    FetchResult,
+    fetch_source_url,
+    refresh_news_feeds,
+    repair_low_quality_market_opportunities,
+    repair_mismatched_customer_assignments,
+    run_kra_research,
+    run_public_market_keyword_sweep,
+    run_source_check,
+)
 from app.intelligence_packs import apply_intelligence_pack, get_preconfigured_customer_pack, list_preconfigured_customer_packs
 from app.models import (
     AuditEvent,
@@ -98,6 +107,22 @@ def run_admin_full_cycle(
             "warning" if kra_warnings else "completed",
             f"{len(kra_runs)} KRA runs completed; {repair_count} mismatched assignments repaired; {len(kra_warnings)} AI/runtime warnings.",
             warnings=[item.error_summary for item in kra_warnings[:5]],
+        )
+
+        market_result = run_public_market_keyword_sweep(session)
+        market_repair_count = repair_low_quality_market_opportunities(session)
+        market_errors = list(market_result.get("errors") or [])
+        step(
+            "Run public opportunity keyword sweep",
+            "warning" if market_errors else "completed",
+            (
+                f"{market_result.get('keywords', 0)} keyword families searched; "
+                f"{market_result.get('created', 0)} opportunities created; "
+                f"{market_result.get('updated', 0)} updated; "
+                f"{market_result.get('skipped', 0)} filtered out; "
+                f"{market_repair_count} existing market record(s) quality-gated."
+            ),
+            warnings=market_errors,
         )
 
         review_result = auto_prepare_review_queue(session)

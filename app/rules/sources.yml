@@ -45,7 +45,7 @@ sources:
     source_family: official_notice
     source_type: ocds_api
     base_url: https://www.find-tender.service.gov.uk
-    query_url: https://www.find-tender.service.gov.uk/api/1.0/ocdsReleasePackages?limit=50
+    query_url: https://www.find-tender.service.gov.uk/api/1.0/ocdsReleasePackages?updatedFrom={updated_from}&updatedTo={updated_to}&stages=planning,tender&limit={limit}
     official: true
     active: true
     coverage: UK above-threshold public and utilities procurement notices
@@ -59,7 +59,7 @@ sources:
     source_family: official_notice
     source_type: ocds_api
     base_url: https://www.contractsfinder.service.gov.uk
-    query_url: https://www.contractsfinder.service.gov.uk/Published/Notices/OCDS/Search?limit=50
+    query_url: https://www.contractsfinder.service.gov.uk/Published/Notices/OCDS/Search?publishedFrom={published_from}&publishedTo={published_to}&stages=planning,tender&limit={limit}
     official: true
     active: true
     coverage: UK below-threshold, future, live, early engagement and award notices

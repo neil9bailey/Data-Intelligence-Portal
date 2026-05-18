@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from hashlib import sha256
 from html import unescape
 import json
 import re
-from urllib.parse import quote_plus, urljoin, urlparse
+from urllib.parse import parse_qsl, quote_plus, urlencode, urljoin, urlparse, urlunparse
 from xml.etree import ElementTree
 
 import httpx
@@ -37,7 +37,130 @@ from app.settings import get_settings
 
 MANAGED_STATUSES = {"", "new", "award_notice", "early_engagement", "needs_review"}
 GENERIC_CUSTOMER_TERM_MARKERS = {"context", "to be confirmed", "programme teams", "regional", "sponsor"}
-SHORT_ALIAS_ALLOWLIST = {"tfl"}
+SHORT_ALIAS_ALLOWLIST = {"tfl", "iot", "5g"}
+GENERIC_MATCH_TERMS = {
+    "he",
+    "nh",
+    "nr",
+    "uk",
+    "it",
+    "the",
+    "and",
+    "for",
+    "other",
+    "public",
+    "sector",
+    "services",
+    "service",
+    "transport",
+}
+DEFAULT_NOTICE_LOOKBACK_DAYS = 180
+DEFAULT_NOTICE_PAGE_LIMIT = 100
+DEFAULT_NOTICE_MAX_PAGES = 8
+MARKET_RELEVANCE_THRESHOLD = 44
+CONTRACTS_FINDER_V2_SEARCH_URL = "https://www.contractsfinder.service.gov.uk/api/rest/2/search_notices/json"
+PUBLIC_MARKET_SEARCH_KEYWORDS = [
+    "cyber security",
+    "IT services",
+    "managed IT support",
+    "service desk",
+    "network services",
+    "operational technology",
+    "SCADA",
+    "communications infrastructure",
+    "mass communication",
+    "telecommunications",
+    "traffic management",
+    "roadside technology",
+    "passenger information",
+    "ticketing",
+    "CCTV",
+    "security systems",
+    "fleet telemetry",
+    "IoT telemetry",
+]
+GLOBAL_CAPABILITY_TERMS = [
+    "asset management system",
+    "communications infrastructure",
+    "cyber security",
+    "cctv",
+    "digital services",
+    "fare collection",
+    "fleet telemetry",
+    "high availability",
+    "it services",
+    "it support",
+    "iot telemetry",
+    "managed it support",
+    "mass communication",
+    "microsoft 365",
+    "network communications",
+    "network services",
+    "operational technology",
+    "passenger information",
+    "roadside technology",
+    "scada",
+    "service management platform",
+    "service desk",
+    "security systems",
+    "telecommunications",
+    "ticketing",
+    "traffic management",
+]
+HIGH_SIGNAL_CAPABILITY_TERMS = {
+    "communications infrastructure",
+    "cyber security",
+    "cctv",
+    "fare collection",
+    "fleet telemetry",
+    "it services",
+    "it support",
+    "iot telemetry",
+    "managed it support",
+    "mass communication",
+    "microsoft 365",
+    "network communications",
+    "network services",
+    "operational technology",
+    "passenger information",
+    "roadside technology",
+    "scada",
+    "service desk",
+    "security systems",
+    "telecommunications",
+    "ticketing",
+    "traffic management",
+}
+LOW_VALUE_MARKET_NOISE_TERMS = {
+    "drinking-water",
+    "firewater pump",
+    "fm services",
+    "forestry",
+    "insurance cover",
+    "journey of recycling",
+    "laser cutter",
+    "leadership development",
+    "mobile partitions",
+    "musical equipment",
+    "outdoor and tactical equipment",
+    "passenger assistant",
+    "prison education",
+    "raked seating",
+    "racking systems",
+    "refurbishment",
+    "retroreflectivity",
+    "road marking",
+    "road markings",
+    "self-employment training",
+    "strip-out",
+    "surfacing",
+    "suspended ceiling",
+    "building in use support",
+    "taxi and mpv",
+    "topographic survey",
+    "traffic signs",
+    "window cleaning",
+}
 
 
 @dataclass
@@ -132,7 +255,59 @@ def numberish(value: object) -> float:
 
 def source_query_url(source: ProcurementSource, terms: list[str]) -> str:
     query = " ".join(terms[:8]) or "transport technology framework"
-    return source.query_url.replace("{query}", quote_plus(query))
+    now = datetime.now(UTC)
+    start = now - timedelta(days=DEFAULT_NOTICE_LOOKBACK_DAYS)
+    values = {
+        "query": quote_plus(query),
+        "published_from": start.strftime("%Y-%m-%dT%H:%M:%S"),
+        "published_to": now.strftime("%Y-%m-%dT%H:%M:%S"),
+        "updated_from": start.strftime("%Y-%m-%dT%H:%M:%S"),
+        "updated_to": now.strftime("%Y-%m-%dT%H:%M:%S"),
+        "limit": str(DEFAULT_NOTICE_PAGE_LIMIT),
+    }
+    url = source.query_url
+    for key, value in values.items():
+        url = url.replace(f"{{{key}}}", value)
+    if source.source_key == "contracts_finder" and "publishedFrom=" not in url:
+        return append_query_params(
+            url,
+            {
+                "publishedFrom": values["published_from"],
+                "publishedTo": values["published_to"],
+                "stages": "planning,tender",
+                "limit": str(DEFAULT_NOTICE_PAGE_LIMIT),
+            },
+        )
+    if source.source_key == "find_a_tender" and "updatedFrom=" not in url:
+        return append_query_params(
+            url,
+            {
+                "updatedFrom": values["updated_from"],
+                "updatedTo": values["updated_to"],
+                "stages": "planning,tender",
+                "limit": str(DEFAULT_NOTICE_PAGE_LIMIT),
+            },
+        )
+    return url
+
+
+def append_query_params(url: str, params: dict[str, str]) -> str:
+    parsed = urlparse(url)
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    for key, value in params.items():
+        query.setdefault(key, value)
+    return urlunparse(parsed._replace(query=urlencode(query)))
+
+
+def next_page_url(text: str) -> str:
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return ""
+    links = payload.get("links") if isinstance(payload, dict) else None
+    if isinstance(links, dict):
+        return textish(links.get("next"))
+    return ""
 
 
 def fetch_error_message(status_code: int, headers: httpx.Headers) -> str:
@@ -377,6 +552,22 @@ def candidate_hash(source: ProcurementSource, title: str, identifier: str, summa
     return content_hash(f"{source.id}|{identifier}|{title}|{summary}")
 
 
+def candidate_source_url(source: ProcurementSource, release: dict, identifier: str) -> str:
+    links = release.get("links") if isinstance(release.get("links"), dict) else {}
+    link = textish(links.get("self") or release.get("url"))
+    if link:
+        return link
+    if source.source_key == "contracts_finder":
+        match = re.search(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", identifier)
+        if match:
+            return f"{source.base_url.rstrip('/')}/notice/{match.group(0)}"
+    if source.source_key == "find_a_tender":
+        match = re.search(r"\d{6}-\d{4}", identifier)
+        if match:
+            return f"{source.base_url.rstrip('/')}/Notice/{match.group(0)}"
+    return source.base_url
+
+
 def candidate_from_release(release: dict, source: ProcurementSource) -> CandidateOpportunity | None:
     tender = release.get("tender") if isinstance(release.get("tender"), dict) else {}
     planning = release.get("planning") if isinstance(release.get("planning"), dict) else {}
@@ -386,11 +577,19 @@ def candidate_from_release(release: dict, source: ProcurementSource) -> Candidat
     title = textish(tender.get("title") or planning.get("rationale") or release.get("id") or release.get("ocid"))
     if not title:
         return None
-    summary = textish(tender.get("description") or planning.get("rationale") or "")
+    summary_parts = [textish(tender.get("description") or planning.get("rationale") or "")]
     identifier = textish(release.get("id") or release.get("ocid") or title)
-    links = release.get("links") if isinstance(release.get("links"), dict) else {}
     tags = release.get("tag") if isinstance(release.get("tag"), list) else []
     cpv: list[str] = []
+    classification = tender.get("classification") if isinstance(tender.get("classification"), dict) else {}
+    label = " - ".join(part for part in [textish(classification.get("id")), textish(classification.get("description"))] if part)
+    if label:
+        cpv.append(label)
+    for lot in tender.get("lots") or []:
+        if not isinstance(lot, dict):
+            continue
+        summary_parts.append(textish(lot.get("title") or ""))
+        summary_parts.append(textish(lot.get("description") or ""))
     for item in tender.get("items") or []:
         if not isinstance(item, dict):
             continue
@@ -398,6 +597,18 @@ def candidate_from_release(release: dict, source: ProcurementSource) -> Candidat
         label = " - ".join(part for part in [textish(classification.get("id")), textish(classification.get("description"))] if part)
         if label:
             cpv.append(label)
+        for additional in item.get("additionalClassifications") or []:
+            if not isinstance(additional, dict):
+                continue
+            label = " - ".join(part for part in [textish(additional.get("id")), textish(additional.get("description"))] if part)
+            if label:
+                cpv.append(label)
+    if not textish(buyer.get("name")):
+        for party in release.get("parties") or []:
+            if isinstance(party, dict) and "buyer" in (party.get("roles") or []):
+                buyer = {"name": party.get("name")}
+                break
+    summary = textish(" ".join(part for part in summary_parts if part))
     return CandidateOpportunity(
         title=title[:250],
         buyer_name=textish(buyer.get("name")),
@@ -410,7 +621,7 @@ def candidate_from_release(release: dict, source: ProcurementSource) -> Candidat
         value_high=numberish(value.get("amount")),
         currency=textish(value.get("currency") or "GBP")[:12],
         cpv_codes="; ".join(cpv)[:500],
-        source_url=textish(links.get("self") or release.get("url") or source.base_url),
+        source_url=candidate_source_url(source, release, identifier),
         summary=summary[:2000],
         content_hash=candidate_hash(source, title, identifier, summary),
     )
@@ -464,6 +675,132 @@ def parse_web_candidates(text: str, source: ProcurementSource, terms: list[str])
     return candidates
 
 
+def candidate_from_contracts_finder_v2_item(item: dict, source: ProcurementSource, keyword: str) -> CandidateOpportunity:
+    notice_id = str(item.get("id") or item.get("noticeIdentifier") or "").strip()
+    title = textish(str(item.get("title") or "Untitled Contracts Finder opportunity"))
+    description = strip_html(str(item.get("description") or ""))
+    cpv = textish(
+        " ".join(
+            str(item.get(key) or "")
+            for key in ("cpvDescription", "cpvDescriptionExpanded", "cpvCodes", "cpvCodesExtended")
+        )
+    )
+    source_url = f"{source.base_url.rstrip('/')}/notice/{notice_id}" if notice_id else source.base_url
+    notice_status = textish(str(item.get("noticeStatus") or ""))
+    notice_type = textish(str(item.get("noticeType") or "Contract"))
+    value_high = numberish(item.get("valueHigh")) or numberish(item.get("valueLow")) or numberish(item.get("awardedValue"))
+    digest = content_hash("|".join([notice_id, title, description, str(item.get("lastNotifableUpdate") or "")]))
+    return CandidateOpportunity(
+        title=title,
+        buyer_name=textish(str(item.get("organisationName") or "")),
+        notice_identifier=textish(str(item.get("noticeIdentifier") or notice_id)),
+        ocid="",
+        notice_type=notice_type,
+        procurement_stage=notice_status or notice_type,
+        published_date=parse_dateish(item.get("publishedDate")),
+        deadline_date=parse_dateish(item.get("deadlineDate") or item.get("approachMarketDate")),
+        value_high=value_high,
+        currency="GBP",
+        cpv_codes=cpv,
+        source_url=source_url,
+        summary=description,
+        content_hash=digest,
+    )
+
+
+def run_public_market_keyword_sweep(
+    session: Session,
+    keywords: list[str] | None = None,
+    limit_per_keyword: int = 60,
+    poster=None,
+) -> dict[str, int | list[str]]:
+    """Read-only Contracts Finder v2 search used to enrich the demo with current opportunity signals."""
+    source = session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "contracts_finder")).first()
+    if not source:
+        source = ProcurementSource(
+            source_key="contracts_finder",
+            name="Contracts Finder OCDS search API",
+            source_family="official_notice",
+            source_type="ocds_api",
+            base_url="https://www.contractsfinder.service.gov.uk",
+            query_url=(
+                "https://www.contractsfinder.service.gov.uk/Published/Notices/OCDS/Search"
+                "?publishedFrom={published_from}&publishedTo={published_to}&stages=planning,tender&limit={limit}"
+            ),
+            official=True,
+            active=True,
+            coverage="UK below-threshold, future, live, early engagement and award notices",
+            auth_model="public reads",
+            data_format="REST OCDS JSON and public v2 notice search",
+            dedupe_strategy="ocid_or_notice_id",
+            connector_status="live_mvp",
+            notes="Official Contracts Finder opportunity source.",
+        )
+        session.add(source)
+        session.flush()
+    post = poster or httpx.post
+    created = updated = skipped = 0
+    errors: list[str] = []
+    published_from = (datetime.now(UTC) - timedelta(days=DEFAULT_NOTICE_LOOKBACK_DAYS)).strftime("%d/%m/%Y")
+    for keyword in keywords or PUBLIC_MARKET_SEARCH_KEYWORDS:
+        payload = {
+            "searchCriteria": {
+                "types": ["Contract", "Pipeline"],
+                "keyword": keyword,
+                "publishedFrom": published_from,
+            },
+            "size": limit_per_keyword,
+        }
+        try:
+            response = post(CONTRACTS_FINDER_V2_SEARCH_URL, json=payload, timeout=30)
+            status_code = int(getattr(response, "status_code", 0) or 0)
+            if status_code >= 400:
+                errors.append(f"{keyword}: HTTP {status_code}")
+                continue
+            data = response.json()
+        except Exception as exc:
+            errors.append(f"{keyword}: {str(exc)[:160]}")
+            continue
+        for row in data.get("noticeList") or []:
+            item = row.get("item") or row
+            if not isinstance(item, dict):
+                skipped += 1
+                continue
+            candidate = candidate_from_contracts_finder_v2_item(item, source, keyword)
+            if is_award_candidate(candidate) or not is_current_candidate(candidate):
+                skipped += 1
+                continue
+            relevance, rationale = market_relevance_for_candidate(candidate)
+            if relevance < MARKET_RELEVANCE_THRESHOLD:
+                skipped += 1
+                continue
+            opportunity, was_created = upsert_opportunity(session, source, candidate, relevance, rationale)
+            created += 1 if was_created else 0
+            updated += 0 if was_created else 1
+            document = session.exec(
+                select(OpportunityDocument).where(
+                    OpportunityDocument.opportunity_id == opportunity.id,
+                    OpportunityDocument.url_or_path == opportunity.source_url,
+                )
+            ).first()
+            if not document:
+                document = OpportunityDocument(
+                    opportunity_id=opportunity.id or 0,
+                    title=f"Contracts Finder notice: {opportunity.title[:120]}",
+                    document_type="public_notice",
+                    url_or_path=opportunity.source_url,
+                    retrieval_status="linked",
+                    human_review_status="review_required",
+                    platform_name="Contracts Finder",
+                    content_summary=opportunity.summary[:1200],
+                )
+                session.add(document)
+                session.flush()
+            create_requirements_for_opportunity(session, opportunity, textish(f"{opportunity.title}. {opportunity.summary}. {opportunity.cpv_codes}"))
+    session.commit()
+    return {"keywords": len(keywords or PUBLIC_MARKET_SEARCH_KEYWORDS), "created": created, "updated": updated, "skipped": skipped, "errors": errors[:8]}
+
+
 def _specific_customer_terms(customer: Customer) -> list[str]:
     raw_terms = [customer.customer_name, customer.aliases, customer.buying_entities]
     terms: list[str] = []
@@ -477,6 +814,21 @@ def _specific_customer_terms(customer: Customer) -> list[str]:
             if cleaned not in terms:
                 terms.append(cleaned)
     return terms
+
+
+def normalise_match_terms(terms: list[str]) -> list[str]:
+    cleaned_terms: list[str] = []
+    for term in terms:
+        cleaned = textish(term).lower()
+        if not cleaned:
+            continue
+        if cleaned in GENERIC_MATCH_TERMS:
+            continue
+        if len(cleaned) < 4 and cleaned not in SHORT_ALIAS_ALLOWLIST:
+            continue
+        if cleaned not in cleaned_terms:
+            cleaned_terms.append(cleaned)
+    return cleaned_terms
 
 
 def _term_in_text(term: str, text: str) -> bool:
@@ -509,15 +861,46 @@ def watch_profile_terms(session: Session, profile: CustomerWatchProfile | None =
         for term in split_terms(value):
             if term not in terms:
                 terms.append(term)
-    return terms or ["transport", "technology", "framework"]
+    return normalise_match_terms(terms) or ["technology", "framework"]
 
 
 def relevance_for_candidate(candidate: CandidateOpportunity, terms: list[str]) -> tuple[float, str]:
     combined = " ".join([candidate.title, candidate.buyer_name, candidate.summary, candidate.cpv_codes]).lower()
-    matched = [term for term in terms if term and term in combined]
+    matched = [term for term in normalise_match_terms(terms) if _term_in_text(term, combined)]
     if not matched:
         return 0, "No watch terms matched."
     return float(min(100, 20 + len(matched) * 12)), f"Matched terms: {', '.join(matched[:8])}."
+
+
+def is_award_candidate(candidate: CandidateOpportunity) -> bool:
+    category = f"{candidate.notice_type} {candidate.procurement_stage} {candidate.title}".lower()
+    return "award" in category or candidate.procurement_stage.lower() in {"complete", "completed"}
+
+
+def is_current_candidate(candidate: CandidateOpportunity) -> bool:
+    status_text = f"{candidate.notice_type} {candidate.procurement_stage}".lower()
+    if any(term in status_text for term in ("closed", "complete", "completed", "cancelled", "withdrawn")):
+        return False
+    if candidate.deadline_date and candidate.deadline_date < date.today():
+        return False
+    return True
+
+
+def has_capability_match(candidate: CandidateOpportunity) -> bool:
+    combined = " ".join([candidate.title, candidate.summary, candidate.cpv_codes]).lower()
+    return any(_term_in_text(term, combined) for term in GLOBAL_CAPABILITY_TERMS)
+
+
+def market_relevance_for_candidate(candidate: CandidateOpportunity) -> tuple[float, str]:
+    combined = " ".join([candidate.title, candidate.buyer_name, candidate.summary, candidate.cpv_codes]).lower()
+    if any(term in combined for term in LOW_VALUE_MARKET_NOISE_TERMS):
+        return 0, "Filtered out as a low-value market-noise match."
+    matched = [term for term in GLOBAL_CAPABILITY_TERMS if _term_in_text(term, combined)]
+    strong = [term for term in matched if term in HIGH_SIGNAL_CAPABILITY_TERMS]
+    if not strong and len(matched) < 2:
+        return 0, "No strong capability terms matched."
+    score = min(100, 44 + len(strong) * 14 + (len(matched) - len(strong)) * 6)
+    return float(score), f"Public sector market signal matched capability terms: {', '.join(matched[:8])}."
 
 
 def inferred_opportunity_status(candidate: CandidateOpportunity) -> str:
@@ -541,7 +924,7 @@ def upsert_opportunity(
     existing = None
     if candidate.ocid:
         existing = session.exec(select(Opportunity).where(Opportunity.ocid == candidate.ocid)).first()
-    if not existing and candidate.source_url:
+    if not existing and candidate.source_url and candidate.source_url.rstrip("/") != source.base_url.rstrip("/"):
         existing = session.exec(select(Opportunity).where(Opportunity.source_url == candidate.source_url)).first()
     if not existing and candidate.notice_identifier:
         existing = session.exec(
@@ -631,6 +1014,60 @@ def repair_mismatched_customer_assignments(session: Session) -> int:
             entity_id=opportunity.id,
             action="data_quality_repair",
             summary=f"Unassigned mismatched opportunity from {customer_name}",
+            before=before,
+            after=opportunity,
+        )
+        repaired += 1
+    if repaired:
+        session.commit()
+    return repaired
+
+
+def repair_low_quality_market_opportunities(session: Session) -> int:
+    repaired = 0
+    opportunities = list(session.exec(select(Opportunity).where(Opportunity.customer_id == None)))  # noqa: E711
+    for opportunity in opportunities:
+        candidate = CandidateOpportunity(
+            title=opportunity.title,
+            buyer_name=opportunity.buyer_name,
+            notice_identifier=opportunity.notice_identifier,
+            ocid=opportunity.ocid,
+            notice_type=opportunity.notice_type,
+            procurement_stage=opportunity.procurement_stage,
+            published_date=opportunity.published_date,
+            deadline_date=opportunity.deadline_date,
+            value_high=opportunity.value_high,
+            currency=opportunity.currency,
+            cpv_codes=opportunity.cpv_codes,
+            source_url=opportunity.source_url,
+            summary=opportunity.summary,
+            content_hash=opportunity.content_hash,
+        )
+        relevance, rationale = market_relevance_for_candidate(candidate)
+        should_hold_back = is_award_candidate(candidate) or not is_current_candidate(candidate) or relevance < MARKET_RELEVANCE_THRESHOLD
+        old_rationale = opportunity.relevance_rationale or ""
+        needs_rationale_refresh = old_rationale.startswith("Capability-market match for ") or "Search keyword:" in opportunity.summary
+        if should_hold_back:
+            if opportunity.relevance_score == 0 and opportunity.status == "needs_review":
+                continue
+            before = compact_snapshot(opportunity)
+            opportunity.status = "needs_review"
+            opportunity.relevance_score = 0
+            opportunity.relevance_rationale = "Held back from executive pack by market-quality gate: insufficient current capability match."
+        elif needs_rationale_refresh or abs(float(opportunity.relevance_score or 0) - relevance) > 0.1:
+            before = compact_snapshot(opportunity)
+            opportunity.relevance_score = relevance
+            opportunity.relevance_rationale = rationale
+        else:
+            continue
+        opportunity.updated_at = datetime.now(UTC)
+        session.add(opportunity)
+        log_event(
+            session,
+            entity_type="Opportunity",
+            entity_id=opportunity.id,
+            action="data_quality_repair",
+            summary=f"Rechecked market opportunity quality gate for {opportunity.title}",
             before=before,
             after=opportunity,
         )
@@ -791,43 +1228,57 @@ def run_kra_research(
     )
     session.add(run)
     session.flush()
-    terms = split_terms(query) + watch_profile_terms(session, customer=customer)
+    terms = split_terms(query) + watch_profile_terms(session, customer=customer) + GLOBAL_CAPABILITY_TERMS
     findings_created = 0
     candidate_brief_items: list[str] = []
     for source in sources:
-        run.sources_checked += 1
         url = source_query_url(source, terms)
-        fetch = fetcher(url)
-        source.last_checked_at = datetime.now(UTC)
-        source.last_status = f"HTTP {fetch.status_code}" if fetch.ok else (fetch.error or "failed")
-        session.add(source)
-        snapshot = record_snapshot(session, source, fetch, url)
-        finding = KRAFinding(
-            run_id=run.id,
-            source_id=source.id,
-            customer_id=customer_id,
-            finding_type="source_change" if snapshot.change_type == "changed" else "source_observation",
-            title=f"{source.name}: {snapshot.change_type}",
-            summary=(
-                f"Detected schema {snapshot.detected_schema}; status {snapshot.status_code}; "
-                f"connector {source.connector_status}; source URL {url}."
-            ),
-            source_url=url,
-            content_hash=snapshot.content_hash,
-            confidence="high" if fetch.ok else "low",
-            change_status=snapshot.change_type,
-        )
-        session.add(finding)
-        findings_created += 1
-        if fetch.ok:
+        for page_number in range(DEFAULT_NOTICE_MAX_PAGES):
+            if not url:
+                break
+            run.sources_checked += 1
+            fetch = fetcher(url)
+            source.last_checked_at = datetime.now(UTC)
+            source.last_status = f"HTTP {fetch.status_code}" if fetch.ok else (fetch.error or "failed")
+            session.add(source)
+            snapshot = record_snapshot(session, source, fetch, url)
+            finding = KRAFinding(
+                run_id=run.id,
+                source_id=source.id,
+                customer_id=customer_id,
+                finding_type="source_change" if snapshot.change_type == "changed" else "source_observation",
+                title=f"{source.name}: {snapshot.change_type}",
+                summary=(
+                    f"Detected schema {snapshot.detected_schema}; status {snapshot.status_code}; "
+                    f"connector {source.connector_status}; source URL {url}."
+                ),
+                source_url=url,
+                content_hash=snapshot.content_hash,
+                confidence="high" if fetch.ok else "low",
+                change_status=snapshot.change_type,
+            )
+            session.add(finding)
+            findings_created += 1
+            if not fetch.ok:
+                break
             candidates = parse_ocds_candidates(fetch.text, source)
             if not candidates:
                 candidates = parse_web_candidates(fetch.text, source, terms)
-            for candidate in candidates[:20]:
-                if customer and not candidate_matches_customer(candidate, customer):
-                    continue
+            for candidate in candidates[:80]:
+                direct_customer_match = bool(customer and candidate_matches_customer(candidate, customer))
                 relevance, rationale = relevance_for_candidate(candidate, terms)
-                if relevance <= 0:
+                if direct_customer_match and relevance < 70:
+                    relevance = 70
+                    rationale = f"Buyer matched {customer.customer_name}; {rationale}"
+                if customer and not direct_customer_match:
+                    relevance, rationale = market_relevance_for_candidate(candidate)
+                    if (
+                        is_award_candidate(candidate)
+                        or not is_current_candidate(candidate)
+                        or relevance < MARKET_RELEVANCE_THRESHOLD
+                    ):
+                        continue
+                elif relevance <= 0:
                     continue
                 opportunity, _ = upsert_opportunity(
                     session,
@@ -835,7 +1286,7 @@ def run_kra_research(
                     candidate,
                     relevance,
                     rationale,
-                    customer_id=customer_id,
+                    customer_id=customer.id if direct_customer_match and customer else customer_id if not customer else None,
                     business_unit_id=customer.business_unit_id if customer else None,
                 )
                 candidate_brief_items.append(
@@ -844,6 +1295,8 @@ def run_kra_research(
                     f"relevance {relevance:g}"
                 )
                 create_requirements_for_opportunity(session, opportunity, textish(f"{candidate.title}. {candidate.summary}. {candidate.cpv_codes}"))
+            next_url = next_page_url(fetch.text)
+            url = next_url if next_url and source_allowed(next_url) and page_number + 1 < DEFAULT_NOTICE_MAX_PAGES else ""
     if llm_enabled():
         try:
             summary = generate_llm_text(

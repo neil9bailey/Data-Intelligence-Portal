@@ -2,8 +2,10 @@ version: 2026.05.17
 themes:
   cyber security:
     - cyber
-    - security
-    - secure
+    - cyber security
+    - information security
+    - security operations
+    - secure by design
     - accreditation
   operational resilience:
     - resilience

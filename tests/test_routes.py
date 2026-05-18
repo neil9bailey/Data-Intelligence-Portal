@@ -178,6 +178,10 @@ def test_admin_email_test_route(reference_session):
 
 def test_admin_full_cycle_automation_preconfigures_and_exports(reference_session, monkeypatch):
     monkeypatch.setattr("app.automation.refresh_news_feeds", lambda session: 0)
+    monkeypatch.setattr(
+        "app.automation.run_public_market_keyword_sweep",
+        lambda session: {"keywords": 1, "created": 0, "updated": 0, "skipped": 0, "errors": []},
+    )
 
     def fake_source_fetcher(url):
         payload = {
@@ -326,7 +330,7 @@ def test_read_only_portal_connector_retrieves_document_for_reports(seeded_sessio
     assert seeded_session.exec(select(OpportunityDocument).where(OpportunityDocument.document_type == "automated_retrieval")).first() is not None
     assert seeded_session.exec(select(KRAFinding).where(KRAFinding.finding_type == "portal_retrieval")).first() is None
 
-    report = create_report(seeded_session, "Connector report")
+    report = create_report(seeded_session, "Connector report", report_type="admin_run_log")
     assert "Automated Portal Retrieval" in report.markdown
     assert "Route connector" in report.markdown
 

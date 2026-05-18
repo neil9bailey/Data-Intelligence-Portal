@@ -7,7 +7,7 @@ import re
 from sqlmodel import Session, col, select
 
 from app.audit import log_event
-from app.intelligence import kra_runtime_status
+from app.intelligence import kra_runtime_status, requirement_themes_for_text
 from app.llm import LLMError, generate_llm_text, kra_system_prompt, llm_enabled
 from app.models import (
     BusinessUnit,
@@ -101,7 +101,6 @@ def generate_executive_intelligence_pack_markdown(
     scope = _scope_label(customer, unit)
     opportunities, excluded = _executive_opportunities(context["opportunities"], customer)
     current_opportunities = [item for item in opportunities if _signal_type(item) != "Award / market evidence"]
-    historical_opportunities = [item for item in opportunities if _signal_type(item) == "Award / market evidence"]
     requirements = _requirements_for_opportunities(context["requirements"], opportunities)
     questions = _questions_for_opportunities(context["questions"], opportunities)
     documents = _documents_for_opportunities(context["documents"], opportunities)
@@ -117,20 +116,14 @@ def generate_executive_intelligence_pack_markdown(
         gaps,
         include_ai_brief,
     )
-    opportunity_lines = [_executive_opportunity_line(item, context["sources_by_id"]) for item in current_opportunities[:12]]
-    if historical_opportunities:
-        opportunity_lines.extend(_historical_opportunity_line(item) for item in historical_opportunities[:5])
-    requirement_lines = [_requirement_line(item) for item in requirements[:14]]
-    question_lines = [_question_line(item) for item in questions[:10]]
-    source_lines = _source_evidence_lines(context["sources"], context["latest_snapshots_by_source"])
-    finding_lines = [_finding_line(item, context["sources_by_id"]) for item in findings[:10]]
-    document_lines = [_document_line(item) for item in documents[:12]]
-    retrieval_guardrail_lines = _retrieval_guardrail_lines(context["connectors"], context["retrieval_runs"])
-    exclusion_lines = [_exclusion_line(item) for item in excluded[:10]]
+    opportunity_blocks = [_opportunity_block(index, item, context["sources_by_id"]) for index, item in enumerate(current_opportunities[:25], start=1)]
+    requirement_lines = [_requirement_line(item) for item in requirements[:12]]
+    question_lines = [_question_line(item) for item in questions[:8]]
+    exclusion_note = _exclusion_summary(excluded)
 
     return f"""# {report_name}
 
-**Report type:** Executive Intelligence Pack  
+**Report type:** Opportunity Intelligence Digest  
 **Generated at:** {generated_at}  
 **Scope:** {scope}  
 **Credibility status:** {confidence}  
@@ -138,21 +131,21 @@ def generate_executive_intelligence_pack_markdown(
 
 ## Purpose
 
-This pack consolidates public-source, portal, opportunity, document and requirement intelligence for leadership, sales, bid, strategy and delivery review. It is not a bid/no-bid, legal, procurement, compliance or customer-contact decision.
+This digest summarises current public-sector opportunity signals for leadership, sales, bid, strategy and delivery review. It is not a bid/no-bid, legal, procurement, compliance or customer-contact decision.
 
-## AI-Assisted Executive Brief
+## Executive Summary
 
 {executive_brief}
 
-## Confidence And Readiness
+## Opportunity Coverage
 
 {chr(10).join(readiness_rows)}
 
-## Current Opportunity Signals
+## Priority Opportunities
 
-{chr(10).join(opportunity_lines) if opportunity_lines else "- No current opportunity signals passed the report credibility gate for this scope."}
+{chr(10).join(opportunity_blocks) if opportunity_blocks else "- No live or early-stage opportunity signals passed the credibility gate for this scope. Run the Admin full cycle after source configuration has been checked."}
 
-## Requirement Themes
+## Requirement And Capability Themes
 
 {chr(10).join(requirement_lines) if requirement_lines else "- No reviewed requirement themes are available yet. Capture permitted tender text or run approved source checks before using the pack externally."}
 
@@ -160,27 +153,11 @@ This pack consolidates public-source, portal, opportunity, document and requirem
 
 {chr(10).join(question_lines) if question_lines else "- No quality questions or weighting signals have been extracted yet."}
 
-## Source Evidence
+## Data Quality Notes
 
-{chr(10).join(source_lines)}
+{exclusion_note}
 
-## KRA Intelligence Signals
-
-{chr(10).join(finding_lines) if finding_lines else "- No KRA findings are available for this scope yet."}
-
-## Evidence Appendix
-
-{chr(10).join(document_lines) if document_lines else "- No opportunity documents or permitted extracts have been captured for this scope yet."}
-
-## Automated Portal Retrieval Guardrail
-
-{chr(10).join(retrieval_guardrail_lines)}
-
-## Data Quality Exclusions
-
-{chr(10).join(exclusion_lines) if exclusion_lines else "- No buyer mismatch or low-confidence opportunity records were excluded from this executive view."}
-
-## Gaps And Risks
+## Report Gaps
 
 {chr(10).join(f"- {item}" for item in gaps) if gaps else "- No material report-readiness gaps detected for this scope."}
 
@@ -189,7 +166,7 @@ This pack consolidates public-source, portal, opportunity, document and requirem
 - Review all opportunity, requirement and KRA findings before onward circulation.
 - Confirm buyer, deadline, source URL and portal evidence before treating any signal as live.
 - Capture permitted tender extracts and quality questions where buyer portals require manual login.
-- Use the Admin Run Log report type for source-check, connector and KRA runtime traceability.
+- Use the Admin Run Log report type only when diagnosing source, connector or KRA runtime issues.
 """
 
 
@@ -422,14 +399,16 @@ def _executive_opportunities(opportunities: list[Opportunity], customer: Custome
     included: list[Opportunity] = []
     excluded: list[Opportunity] = []
     for item in opportunities:
+        if _signal_type(item) in {"Award / market evidence", "Closed / historical signal"}:
+            continue
         if customer and item.buyer_name and not _buyer_matches_customer(item, customer):
             excluded.append(item)
             continue
-        if item.relevance_score < 25 and item.status == "new":
+        if item.relevance_score < 25:
             excluded.append(item)
             continue
         included.append(item)
-    included.sort(key=lambda item: (item.deadline_date or date.max, -item.relevance_score, item.title))
+    included.sort(key=lambda item: (-item.relevance_score, item.deadline_date or date.max, item.title))
     return included, excluded
 
 
@@ -493,12 +472,11 @@ def _readiness_assessment(
         confidence = "Red - not enough evidence for onward use"
 
     rows = [
-        f"- **Opportunity signals:** {len(opportunities)} included; {len(high_relevance)} high-relevance.",
-        f"- **Requirements:** {len(requirements)} captured; review states {dict(review_statuses) or {'none': 0}}.",
-        f"- **Documents:** {len(documents)} captured; review states {dict(document_statuses) or {'none': 0}}.",
-        f"- **Source health:** {len(ok_sources)} of {len(active_sources)} active sources show a recent OK/status-200 signal.",
-        f"- **Quality questions:** {len(questions)} extracted.",
-        f"- **Data quality gate:** {len(excluded)} low-confidence or buyer-mismatch records excluded from the executive view.",
+        f"- {len(opportunities)} current opportunity signal(s) included in this digest.",
+        f"- {len(high_relevance)} high-relevance signal(s) scored 70 or above.",
+        f"- {len(requirements)} requirement or capability theme(s) captured from notices and permitted extracts.",
+        f"- {len(questions)} quality question or weighting signal(s) extracted.",
+        f"- {len(excluded)} low-confidence or buyer-mismatch record(s) held back from the opportunity digest.",
     ]
     return confidence, rows, gaps
 
@@ -510,9 +488,16 @@ def _snapshot_ok(snapshot: SourceCheckSnapshot | None) -> bool:
 def _requirements_for_opportunities(requirements: list[ExtractedRequirement], opportunities: list[Opportunity]) -> list[ExtractedRequirement]:
     opportunity_ids = {item.id for item in opportunities if item.id}
     return sorted(
-        [item for item in requirements if item.opportunity_id in opportunity_ids],
+        [item for item in requirements if item.opportunity_id in opportunity_ids and _requirement_theme_still_matches(item)],
         key=lambda item: (_review_rank(item.human_review_status), item.requirement_theme),
     )
+
+
+def _requirement_theme_still_matches(item: ExtractedRequirement) -> bool:
+    if item.requirement_theme == "general opportunity fit":
+        return True
+    current_themes = requirement_themes_for_text(item.requirement_text)
+    return item.requirement_theme in current_themes
 
 
 def _documents_for_opportunities(documents: list[OpportunityDocument], opportunities: list[Opportunity]) -> list[OpportunityDocument]:
@@ -573,19 +558,18 @@ def _executive_brief(
     opportunity_lines = [_executive_opportunity_line(item, {}) for item in opportunities[:8]]
     requirement_lines = [_requirement_line(item) for item in requirements[:8]]
     finding_lines = [f"- {item.title}: {clean_ai_text(item.summary, 240)}" for item in findings[:6]]
+    live_count = sum(1 for item in opportunities if _signal_type(item) == "Live tender signal")
+    early_count = sum(1 for item in opportunities if _signal_type(item) == "Early market signal")
     deterministic = (
-        f"{scope} currently has {len(opportunities)} credible opportunity signal(s), "
-        f"{len(requirements)} extracted requirement theme(s), {len(documents)} evidence document(s) and "
-        f"{len(findings)} KRA signal(s). "
-        f"The pack is suitable for internal review and demo use, with {len(gaps)} material gap(s) requiring action before onward reliance."
+        f"{scope} currently has {len(opportunities)} current opportunity signal(s): "
+        f"{live_count} live tender(s) and {early_count} early-market signal(s). "
+        f"{len(requirements)} requirement or capability theme(s) have been captured for review. "
+        f"There are {len(gaps)} material gap(s) to resolve before onward reliance."
     )
     if not llm_enabled():
-        return f"{deterministic}\n\nKRA LLM is not enabled, so this brief was generated deterministically from stored source and opportunity data."
+        return deterministic
     if not include_ai_brief:
-        return (
-            "Report-level AI brief was skipped for the automated cycle to keep the live run responsive. "
-            f"{deterministic}"
-        )
+        return deterministic
     try:
         brief = generate_llm_text(
             kra_system_prompt(),
@@ -597,8 +581,8 @@ def _executive_brief(
                     *(opportunity_lines or ["- None"]),
                     "Requirement themes:",
                     *(requirement_lines or ["- None"]),
-                    "KRA findings:",
-                    *(finding_lines or ["- None"]),
+                    "KRA findings for context only:",
+                    *(finding_lines[:3] or ["- None"]),
                     "Known gaps:",
                     *(f"- {item}" for item in gaps),
                     "",
@@ -680,6 +664,54 @@ def _retrieval_guardrail_lines(connectors: list[PortalInformationConnector], ret
     return lines
 
 
+def _opportunity_block(index: int, item: Opportunity, sources_by_id: dict[int, str]) -> str:
+    signal = _signal_type(item)
+    deadline = item.deadline_date.isoformat() if item.deadline_date else "not captured"
+    published = item.published_date.isoformat() if item.published_date else "not captured"
+    value = _money(item.value_high, item.currency)
+    source = sources_by_id.get(item.source_id or 0, "source not recorded")
+    summary = clean_ai_text(item.summary, 420) or "No notice summary has been captured yet."
+    rationale = _executive_rationale(item)
+    link = item.source_url or "source URL not captured"
+    return f"""### {index}. {item.title}
+
+Buyer: {item.buyer_name or "not detected"}  
+Signal: {signal}  
+Stage: {item.procurement_stage or item.notice_type or "not captured"}  
+Published: {published}  
+Deadline: {deadline}  
+Estimated value: {value}  
+Source: {source}  
+Link: {link}
+
+Why this matters: {rationale}
+
+Notice summary: {summary}
+"""
+
+
+def _executive_rationale(item: Opportunity) -> str:
+    rationale = clean_ai_text(item.relevance_rationale, 260) or ""
+    rationale = rationale.replace("Automation prepared this opportunity for human review.", "").strip()
+    if rationale.startswith("Capability-market match for "):
+        marker = ": "
+        rationale = rationale.split(marker, 1)[1] if marker in rationale else rationale
+    if rationale.startswith("Matched terms:"):
+        rationale = f"Public sector market signal. {rationale}"
+    return rationale or "Public-source opportunity signal matched configured public-sector capability themes."
+
+
+def _money(value: float, currency: str) -> str:
+    if not value:
+        return "not captured"
+    prefix = "GBP" if (currency or "GBP").upper() == "GBP" else (currency or "GBP").upper()
+    if value >= 1_000_000:
+        return f"{prefix} {value / 1_000_000:.1f}m"
+    if value >= 1_000:
+        return f"{prefix} {value / 1_000:.0f}k"
+    return f"{prefix} {value:.0f}"
+
+
 def _executive_opportunity_line(item: Opportunity, sources_by_id: dict[int, str]) -> str:
     signal = _signal_type(item)
     deadline = item.deadline_date.isoformat() if item.deadline_date else "deadline not captured"
@@ -731,3 +763,12 @@ def _finding_line(item: KRAFinding, sources_by_id: dict[int, str]) -> str:
 def _exclusion_line(item: Opportunity) -> str:
     reason = "buyer mismatch" if item.buyer_name else "low relevance"
     return f"- {item.title}: excluded from executive pack due to {reason}; buyer {item.buyer_name or 'not detected'}; relevance {item.relevance_score:g}."
+
+
+def _exclusion_summary(excluded: list[Opportunity]) -> str:
+    if not excluded:
+        return "- No buyer mismatch or low-confidence opportunity records were excluded from this executive view."
+    return (
+        f"- {len(excluded)} low-confidence, stale or buyer-mismatch record(s) were held back from this executive view. "
+        "Use the Admin Run Log and audit view for the diagnostic list."
+    )

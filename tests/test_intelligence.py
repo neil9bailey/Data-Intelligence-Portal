@@ -5,12 +5,17 @@ from sqlmodel import select
 from app.audit import compact_snapshot
 from app.intelligence import (
     FetchResult,
+    CandidateOpportunity,
     extract_document_intelligence,
     parse_feed_items,
+    repair_low_quality_market_opportunities,
     repair_mismatched_customer_assignments,
+    relevance_for_candidate,
     run_kra_research,
+    run_public_market_keyword_sweep,
     run_source_check,
     source_allowed,
+    source_query_url,
 )
 from app.llm import llm_enabled
 from app.models import (
@@ -246,6 +251,29 @@ def test_data_quality_repair_unassigns_mismatched_customer_opportunity(seeded_se
     assert "did not match National Highways aliases" in opportunity.relevance_rationale
 
 
+def test_market_quality_repair_holds_back_noisy_opportunity(seeded_session):
+    opportunity = Opportunity(
+        title="Award of a Call-Off Contract under the Prison Education DPS",
+        buyer_name="Ministry of Justice",
+        status="new",
+        relevance_score=80,
+        summary="Self-employment training course for prisoners.",
+    )
+    seeded_session.add(opportunity)
+    seeded_session.commit()
+    seeded_session.refresh(opportunity)
+
+    repaired = repair_low_quality_market_opportunities(seeded_session)
+    seeded_session.refresh(opportunity)
+    report = create_report(seeded_session, "Market quality report")
+
+    assert repaired == 1
+    assert opportunity.relevance_score == 0
+    assert opportunity.status == "needs_review"
+    assert "Held back from executive pack" in opportunity.relevance_rationale
+    assert "### 1. Award of a Call-Off Contract" not in report.markdown
+
+
 def test_document_extraction_creates_quality_question(seeded_session):
     opportunity = seeded_session.exec(select(Opportunity)).first()
     document = OpportunityDocument(
@@ -275,11 +303,12 @@ def test_executive_report_generation_hides_admin_runtime(seeded_session):
     report = create_report(seeded_session, "Test report")
 
     assert report.id is not None
-    assert "Executive Intelligence Pack" in report.markdown
+    assert "Opportunity Intelligence Digest" in report.markdown
     assert "KRA Runtime" not in report.markdown
     assert "API key configured" not in report.markdown
-    assert "AI-Assisted Executive Brief" in report.markdown
+    assert "Executive Summary" in report.markdown
     assert "not a bid/no-bid" in report.markdown
+    assert "KRA Intelligence Signals" not in report.markdown
 
 
 def test_admin_report_generation_contains_kra_runtime(seeded_session):
@@ -307,7 +336,8 @@ def test_report_generation_can_skip_report_level_ai_brief(seeded_session, monkey
 
     report = create_report(seeded_session, "Automation report", include_ai_brief=False)
 
-    assert "Report-level AI brief was skipped for the automated cycle" in report.markdown
+    assert "Report-level AI brief was skipped for the automated cycle" not in report.markdown
+    assert "Executive Summary" in report.markdown
     assert "Should not be called." not in report.markdown
 
 
@@ -331,9 +361,9 @@ def test_customer_scoped_executive_report_excludes_buyer_mismatch(seeded_session
     opportunity = Opportunity(
         source_id=source.id if source else None,
         customer_id=customer.id,
-        title="Award of a Call-Off Contract under the Prison Education DPS",
+        title="Prison Education DPS call-off training opportunity",
         buyer_name="Ministry of Justice",
-        procurement_stage="award",
+        procurement_stage="tender",
         status="new",
         relevance_score=92,
         summary="Prison education training course notice that should not appear as a National Highways live signal.",
@@ -343,8 +373,87 @@ def test_customer_scoped_executive_report_excludes_buyer_mismatch(seeded_session
 
     report = create_report(seeded_session, "National Highways report", customer_id=customer.id)
 
-    assert "excluded from executive pack due to buyer mismatch" in report.markdown
+    assert "low-confidence, stale or buyer-mismatch record(s) were held back" in report.markdown
     assert "No buyer mismatch or low-confidence opportunity records were excluded" not in report.markdown
+
+
+def test_relevance_does_not_match_short_alias_inside_words():
+    candidate = CandidateOpportunity(
+        title="Consultancy Services To Develop An Estates Strategy",
+        buyer_name="Gloucestershire Hospitals Subsidiary Company Limited",
+        summary="The estates strategy covers general facilities planning.",
+    )
+
+    score, rationale = relevance_for_candidate(candidate, ["NH", "HE", "National Highways"])
+
+    assert score == 0
+    assert rationale == "No watch terms matched."
+
+
+def test_public_market_keyword_sweep_creates_reviewable_opportunity(seeded_session):
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {
+                "noticeList": [
+                    {
+                        "item": {
+                            "id": "cf-open-cyber",
+                            "noticeIdentifier": "tender_123",
+                            "title": "Cyber security services for public operations",
+                            "description": "Specialist cyber security support, network communications and operational resilience.",
+                            "organisationName": "Home Office",
+                            "noticeType": "Contract",
+                            "noticeStatus": "Open",
+                            "publishedDate": "2026-05-01T09:00:00Z",
+                            "deadlineDate": "2026-07-01T12:00:00Z",
+                            "valueHigh": 3000000,
+                            "cpvDescription": "IT services",
+                        }
+                    },
+                    {
+                        "item": {
+                            "id": "cf-noise",
+                            "title": "Self-employment training course for prisoners",
+                            "description": "Training course under an education DPS.",
+                            "organisationName": "Ministry of Justice",
+                            "noticeType": "Contract",
+                            "noticeStatus": "Open",
+                            "deadlineDate": "2026-07-01T12:00:00Z",
+                        }
+                    },
+                ]
+            }
+
+    result = run_public_market_keyword_sweep(
+        seeded_session,
+        keywords=["cyber security"],
+        poster=lambda *args, **kwargs: FakeResponse(),
+    )
+
+    opportunity = seeded_session.exec(select(Opportunity).where(Opportunity.notice_identifier == "tender_123")).first()
+
+    assert result["created"] == 1
+    assert result["skipped"] == 1
+    assert opportunity is not None
+    assert opportunity.customer_id is None
+    assert "Public sector market signal" in opportunity.relevance_rationale
+    assert seeded_session.exec(select(OpportunityDocument).where(OpportunityDocument.opportunity_id == opportunity.id)).first() is not None
+    assert seeded_session.exec(select(ExtractedRequirement).where(ExtractedRequirement.opportunity_id == opportunity.id)).first() is not None
+
+
+def test_source_query_url_uses_date_scoped_live_notice_filters(seeded_session):
+    contracts = seeded_session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "contracts_finder")).first()
+    find_tender = seeded_session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "find_a_tender")).first()
+
+    contracts_url = source_query_url(contracts, ["highways"])
+    find_tender_url = source_query_url(find_tender, ["highways"])
+
+    assert "publishedFrom=" in contracts_url
+    assert "stages=planning%2Ctender" in contracts_url or "stages=planning,tender" in contracts_url
+    assert "updatedFrom=" in find_tender_url
+    assert "stages=planning%2Ctender" in find_tender_url or "stages=planning,tender" in find_tender_url
 
 
 def test_llm_enabled_requires_provider_model_and_key(monkeypatch):
