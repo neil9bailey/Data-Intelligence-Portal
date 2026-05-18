@@ -1,0 +1,172 @@
+version: 2026.05.18
+last_reviewed: 2026-05-18
+purpose: Preconfigured customer intelligence packs for high-value public-sector accounts.
+guardrails:
+  public_source_first: true
+  no_credentials_stored: true
+  no_portal_login_automation: true
+  human_review_required: true
+packs:
+  - key: national_highways
+    display_name: National Highways
+    description: Preconfigures National Highways customer memory, Highways business unit, official public sources, Jaggaer portal tracking and read-only public API connector placeholders.
+    template_key: arm_length_body
+    business_unit:
+      name: Highways
+      parent: Transport
+      description: Strategic road network, roadside operational technology, traffic operations, maintenance, network communications, cyber resilience and asset management opportunities.
+    customer:
+      name: National Highways
+      sector: Public sector transport
+      domain: highways; strategic road network; roadside technology; operational technology
+      customer_type: Government-owned arm's-length company / strategic highways company
+      region: England / UK
+      aliases:
+        - National Highways
+        - National Highways Limited
+        - Highways England
+        - NH
+        - HE
+      buying_entities:
+        - National Highways Limited
+        - National Highways CCFT
+        - Department for Transport sponsor context
+        - regional and programme teams to be confirmed
+      strategic_notes:
+        - National Highways manages and improves England's motorways and major A-roads, known as the Strategic Road Network.
+        - It is a government-owned arm's-length company and strategic highways company.
+        - Intelligence themes include Strategic Road Network, Road Investment Strategy, safety, reliable journeys, asset management, roadside technology, operational resilience, cyber security, digital continuity, supplier information management, 24/7 network operations, traffic management, service continuity, environment and carbon reduction.
+    watch_profile:
+      name: National Highways public sector watch
+      keywords:
+        - strategic road network
+        - roadside technology
+        - operational technology
+        - SCADA
+        - traffic operations
+        - network communications
+        - cyber resilience
+        - asset management
+        - service management
+        - maintenance and response
+        - tunnels
+        - traffic management
+        - incident management
+        - digital roads
+      cpv_codes:
+        - "72000000 - IT services"
+        - "50330000 - Communications equipment maintenance"
+        - "34970000 - Traffic-monitoring equipment"
+        - "72250000 - System and support services"
+      domains:
+        - highways
+        - strategic road network
+        - roadside operational technology
+    sources:
+      - key: national_highways_supplier_pages
+        name: National Highways supplier pages
+        source_family: customer_website
+        source_type: web_page
+        base_url: https://nationalhighways.co.uk
+        query_url: https://nationalhighways.co.uk/suppliers/
+        official: true
+        active: true
+        coverage: National Highways supplier guidance, supply chain themes, supplier-facing updates and portal references.
+        auth_model: none
+        data_format: HTML
+        connector_status: configured
+        review_frequency: weekly
+        notes: Approved public website source. Use for supplier guidance, procurement themes and customer operating context. No portal login.
+      - key: national_highways_new_suppliers
+        name: National Highways new and prospective suppliers
+        source_family: customer_website
+        source_type: web_page
+        base_url: https://nationalhighways.co.uk
+        query_url: https://nationalhighways.co.uk/suppliers/becoming-a-supplier/guide-for-new-and-prospective-suppliers/
+        official: true
+        active: true
+        coverage: Supplier onboarding, eSourcing portal reference, expectations, standards and procurement routes.
+        auth_model: none
+        data_format: HTML
+        connector_status: configured
+        review_frequency: weekly
+        notes: Official National Highways supplier guidance. Useful for account intelligence, supplier readiness and portal operating context.
+      - key: national_highways_social_enterprise_dps
+        name: National Highways social enterprise DPS
+        source_family: customer_website
+        source_type: web_page
+        base_url: https://nationalhighways.co.uk
+        query_url: https://nationalhighways.co.uk/suppliers/becoming-a-supplier/social-enterprises/
+        official: true
+        active: true
+        coverage: DPS joining process, Jaggaer references, supplier categories and social value themes.
+        auth_model: none
+        data_format: HTML
+        connector_status: configured
+        review_frequency: monthly
+        notes: Official National Highways page naming Jaggaer as the eSourcing portal for the Social Enterprise DPS.
+      - key: find_a_tender_national_highways
+        name: Find a Tender - National Highways
+        source_family: official_notice
+        source_type: web_page
+        base_url: https://www.find-tender.service.gov.uk
+        query_url: https://www.find-tender.service.gov.uk/Search/Results?Keywords=National%20Highways
+        official: true
+        active: true
+        coverage: UK public procurement notices mentioning National Highways.
+        auth_model: none
+        data_format: HTML / OCDS links
+        connector_status: configured
+        review_frequency: daily
+        notes: Official public notice source. Use alongside default Find a Tender source checks.
+      - key: contracts_finder_national_highways
+        name: Contracts Finder - National Highways
+        source_family: official_notice
+        source_type: web_page
+        base_url: https://www.contractsfinder.service.gov.uk
+        query_url: https://www.contractsfinder.service.gov.uk/Search/Results?Keywords=National%20Highways
+        official: true
+        active: true
+        coverage: UK lower-value opportunities, awards and notices mentioning National Highways.
+        auth_model: none
+        data_format: HTML / OCDS links
+        connector_status: configured
+        review_frequency: daily
+        notes: Official public notice source. Useful for earlier signals and award history.
+    portals:
+      - name: National Highways - Jaggaer eSourcing
+        platform_name: Jaggaer
+        portal_url: https://nationalhighways.ukp.app.jaggaer.com/
+        access_status: registration_required
+        document_retrieval_mode: account_required_manual
+        account_reference: Bid team supplier account owner to confirm. Credentials must stay in the approved corporate password manager, not in DIP.
+        notes: National Highways eSourcing Portal on Jaggaer. Supplier registration and named user access with MFA may be required. DIP tracks status and retrieval tasks only.
+      - name: Contracts Finder - National Highways public notices
+        platform_name: Contracts Finder API
+        platform_type: official_source_api
+        portal_url: https://www.contractsfinder.service.gov.uk/
+        access_status: active
+        document_retrieval_mode: public_api_no_key
+        account_reference: Public official API / no personal portal account used for retrieval.
+        notes: Official public Contracts Finder notice retrieval. Read-only public source.
+    connectors:
+      - name: Contracts Finder - National Highways public notices
+        portal_name: Contracts Finder - National Highways public notices
+        integration_method: public_api_no_key
+        endpoint_url: https://www.contractsfinder.service.gov.uk/Published/Notices/OCDS/Search?stages=planning,tender,award&limit=50&keyword=National%20Highways
+        auth_type: none
+        enabled: false
+        allowed_operations: retrieve_metadata; retrieve_documents; detect_changes
+        notes: Keep disabled until endpoint format and review flow are accepted. Filter results for National Highways, National Highways Limited and Highways England.
+    kra_queries:
+      - agent: Official Source Scout
+        query: National Highways highways operational technology roadside technology cyber resilience asset management service management SCADA network communications maintenance response framework
+      - agent: Customer Memory Curator
+        query: National Highways supplier requirements strategic road network Road Investment Strategy information security digital continuity supplier expectations framework procurement
+      - agent: Portal Document Scout
+        query: National Highways Jaggaer eSourcing portal supplier registration two factor authentication PQQ ITT tender documents
+    missing_actions:
+      - Confirm supplier account registration and named portal owner.
+      - Confirm MFA ownership and backup owner outside DIP.
+      - Confirm live opportunity references from Find a Tender, Contracts Finder or Jaggaer.
+      - Paste only permitted document extracts into opportunity documents for requirement extraction.

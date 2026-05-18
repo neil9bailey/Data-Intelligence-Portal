@@ -43,6 +43,7 @@ def test_route_smoke_pages(seeded_session):
         paths = [
             "/",
             "/workflow",
+            "/intelligence-packs",
             "/business-units",
             "/customers",
             "/sources",

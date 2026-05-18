@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}Intelligence Packs - {{ app_name }}{% endblock %}
+{% block content %}
+<section class="portal-command">
+  <div>
+    <span class="eyebrow">Intelligence Packs</span>
+    <h2>Configure a public-sector customer in minutes, not a runbook.</h2>
+    <p>Use preconfigured packs or generate a semi-configured pack from an organisation name and sector template. DIP creates the customer memory, watch profile, official public-source monitors, portal assumptions and KRA research prompts for human review.</p>
+    <div class="actions">
+      <a class="button secondary" href="/customers">Customers</a>
+      <a class="button secondary" href="/sources">Sources</a>
+      <a class="button" href="/kra">Run KRA</a>
+    </div>
+  </div>
+  <div class="readiness">
+    <h2>Pack Guardrails</h2>
+    <div class="signal-row"><span>Credentials stored</span><strong>Never</strong></div>
+    <div class="signal-row"><span>Public-source monitors</span><strong>Created</strong></div>
+    <div class="signal-row"><span>Portal access</span><strong>Human confirmed</strong></div>
+    <div class="signal-row"><span>Report use</span><strong>Review required</strong></div>
+  </div>
+</section>
+
+{% if apply_result %}
+<section class="panel" style="margin-top:18px;">
+  <div class="panel-title"><h2>Pack Applied</h2><span class="badge green">Configured</span></div>
+  <div class="grid three">
+    <div>
+      <h3>Created</h3>
+      <ul class="plain-list">{% for item in apply_result.created %}<li>{{ item }}</li>{% else %}<li>No new records.</li>{% endfor %}</ul>
+    </div>
+    <div>
+      <h3>Updated</h3>
+      <ul class="plain-list">{% for item in apply_result.updated %}<li>{{ item }}</li>{% else %}<li>No existing records needed updates.</li>{% endfor %}</ul>
+    </div>
+    <div>
+      <h3>Already Present</h3>
+      <ul class="plain-list">{% for item in apply_result.skipped[:8] %}<li>{{ item }}</li>{% else %}<li>No duplicates detected.</li>{% endfor %}</ul>
+    </div>
+  </div>
+  {% if apply_result.warnings %}
+  <div class="warning-text" style="margin-top:12px;">{{ apply_result.warnings | join("; ") }}</div>
+  {% endif %}
+  <div class="actions" style="margin-top:14px;">
+    <a class="button secondary" href="/customers">Review customer</a>
+    <a class="button secondary" href="/portals">Review portals</a>
+    <a class="button secondary" href="/sources">Review sources</a>
+  </div>
+</section>
+{% endif %}
+
+<section class="grid two" style="margin-top:18px;">
+  <div class="panel">
+    <h2>Preconfigured Packs</h2>
+    <p class="hint">Use these where DIP already has a curated customer baseline. Applying the same pack again is idempotent, so it will not duplicate records.</p>
+    <div class="stack">
+      {% for pack in customer_packs %}
+      <article class="list-item pack-card">
+        <div class="list-heading">
+          <div>
+            <h3>{{ pack.display_name }}</h3>
+            <p>{{ pack.description }}</p>
+          </div>
+          <span class="badge green">Ready</span>
+        </div>
+        <form class="record-actions" method="post" action="/intelligence-packs/preview">
+          <input type="hidden" name="mode" value="built_in">
+          <input type="hidden" name="pack_key" value="{{ pack.key }}">
+          <button class="secondary compact" type="submit">Preview</button>
+          <button class="compact" formaction="/intelligence-packs/apply" type="submit">Apply</button>
+        </form>
+      </article>
+      {% else %}<p>No preconfigured packs are loaded.</p>{% endfor %}
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Discover Any Public-Sector Organisation</h2>
+    <p class="hint">Enter the organisation name once, choose the closest template, and DIP creates the public-source watch baseline and missing-action list.</p>
+    <form method="post" action="/intelligence-packs/preview">
+      <input type="hidden" name="mode" value="discover">
+      <div class="field"><label>Organisation name</label><input name="organisation_name" value="{{ form_values.organisation_name or '' }}" placeholder="Example: Leeds City Council" required></div>
+      <div class="field">
+        <label>Public-sector template</label>
+        <select name="template_key">
+          {% for template in public_sector_templates %}
+          <option value="{{ template.key }}" {% if form_values.template_key == template.key %}selected{% endif %}>{{ template.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field"><label>Business unit override</label><input name="business_unit_name" value="{{ form_values.business_unit_name or '' }}" placeholder="Leave blank to use template default"></div>
+      <div class="actions">
+        <button class="secondary" type="submit">Preview generated pack</button>
+        <button formaction="/intelligence-packs/apply" type="submit">Generate and apply</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+{% if selected_pack %}
+<section class="panel pack-preview" style="margin-top:18px;">
+  <div class="panel-title">
+    <div>
+      <span class="eyebrow">Preview</span>
+      <h2>{{ selected_pack.display_name }}</h2>
+      <p>{{ selected_pack.description }}</p>
+    </div>
+    <form method="post" action="/intelligence-packs/apply">
+      <input type="hidden" name="mode" value="{{ form_values.mode or 'built_in' }}">
+      <input type="hidden" name="pack_key" value="{{ form_values.pack_key or selected_pack.key }}">
+      <input type="hidden" name="organisation_name" value="{{ form_values.organisation_name or '' }}">
+      <input type="hidden" name="template_key" value="{{ form_values.template_key or selected_pack.template_key }}">
+      <input type="hidden" name="business_unit_name" value="{{ form_values.business_unit_name or '' }}">
+      <button type="submit">Apply this pack</button>
+    </form>
+  </div>
+
+  <section class="grid metrics pack-metrics">
+    <div class="metric"><span class="value">{{ selected_pack.summary_counts.sources }}</span><span class="label">public sources</span></div>
+    <div class="metric"><span class="value">{{ selected_pack.summary_counts.watch_terms }}</span><span class="label">watch terms</span></div>
+    <div class="metric"><span class="value">{{ selected_pack.summary_counts.portals }}</span><span class="label">portal records</span></div>
+    <div class="metric"><span class="value">{{ selected_pack.summary_counts.connectors }}</span><span class="label">connectors</span></div>
+    <div class="metric"><span class="value">{{ selected_pack.summary_counts.missing_actions }}</span><span class="label">human checks</span></div>
+  </section>
+
+  <div class="grid two" style="margin-top:18px;">
+    <div>
+      <h3>Customer Baseline</h3>
+      <table>
+        <tbody>
+          <tr><th>Name</th><td>{{ selected_pack.customer.name }}</td></tr>
+          <tr><th>Business unit</th><td>{{ selected_pack.business_unit.name }}</td></tr>
+          <tr><th>Sector</th><td>{{ selected_pack.customer.sector }}</td></tr>
+          <tr><th>Type</th><td>{{ selected_pack.customer.customer_type }}</td></tr>
+          <tr><th>Domain</th><td>{{ selected_pack.customer.domain }}</td></tr>
+          <tr><th>Aliases</th><td>{{ selected_pack.customer.aliases | join("; ") }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3>Watch Profile</h3>
+      <div class="badges">
+        {% for term in selected_pack.watch_profile.keywords[:16] %}
+        <span class="badge weak">{{ term }}</span>
+        {% endfor %}
+      </div>
+      <p class="hint">CPV: {{ selected_pack.watch_profile.cpv_codes | join("; ") if selected_pack.watch_profile.cpv_codes else "Template review required" }}</p>
+    </div>
+  </div>
+
+  <div class="grid three" style="margin-top:18px;">
+    <div>
+      <h3>Sources To Create</h3>
+      <ul class="plain-list">
+        {% for source in selected_pack.sources %}
+        <li><strong>{{ source.name }}</strong><span>{{ source.query_url }}</span></li>
+        {% else %}<li>No source monitors in this pack.</li>{% endfor %}
+      </ul>
+    </div>
+    <div>
+      <h3>Portals / Connectors</h3>
+      <ul class="plain-list">
+        {% for portal in selected_pack.portals %}
+        <li><strong>{{ portal.name }}</strong><span>{{ portal.platform_name }} | {{ portal.access_status }}</span></li>
+        {% else %}<li>No portal records will be created until confirmed.</li>{% endfor %}
+        {% for connector in selected_pack.connectors %}
+        <li><strong>{{ connector.name }}</strong><span>{{ connector.integration_method }} | enabled: {{ connector.enabled }}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div>
+      <h3>KRA Prompts And Human Checks</h3>
+      <ul class="plain-list">
+        {% for query in selected_pack.kra_queries %}
+        <li><strong>{{ query.agent }}</strong><span>{{ query.query }}</span></li>
+        {% endfor %}
+        {% for action in selected_pack.missing_actions %}
+        <li><strong>Check</strong><span>{{ action }}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

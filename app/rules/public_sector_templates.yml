@@ -1,0 +1,362 @@
+version: 2026.05.18
+last_reviewed: 2026-05-18
+purpose: Semi-configured organisation templates used by Intelligence Packs to reduce manual setup for UK public-sector customers.
+guardrails:
+  decision_support_only: true
+  no_credentials_stored: true
+  public_source_first: true
+  human_review_required: true
+  note: Templates create a useful starting configuration. Account teams must confirm customer facts, portal access, scope and commercial judgement.
+templates:
+  - key: central_government_department
+    name: Central government department
+    sector: Central government
+    customer_type: UK Government department
+    region: UK
+    business_unit_hint: Core
+    domain_terms:
+      - policy
+      - digital services
+      - shared services
+      - public administration
+    watch_keywords:
+      - digital transformation
+      - cloud services
+      - cyber security
+      - service management
+      - data platform
+      - user centred design
+      - managed services
+    cpv_codes:
+      - "72000000 - IT services"
+      - "72200000 - Software programming and consultancy"
+      - "72300000 - Data services"
+      - "72500000 - Computer-related services"
+    likely_portal_families:
+      - Jaggaer
+      - Delta eSourcing
+      - CCS frameworks
+    missing_private_fields:
+      - named portal owner
+      - active supplier registrations
+      - account-specific framework eligibility
+  - key: arm_length_body
+    name: Arm's-length public body
+    sector: Public sector
+    customer_type: Government-owned arm's-length body
+    region: UK
+    business_unit_hint: Core
+    domain_terms:
+      - regulated public services
+      - operational delivery
+      - public accountability
+    watch_keywords:
+      - managed services
+      - operational resilience
+      - asset management
+      - cyber security
+      - data integration
+      - supplier management
+    cpv_codes:
+      - "72000000 - IT services"
+      - "72250000 - System and support services"
+      - "72300000 - Data services"
+    likely_portal_families:
+      - Jaggaer
+      - ProContract
+      - In-Tend
+    missing_private_fields:
+      - sponsor department context
+      - named buying teams
+      - live portal registration status
+  - key: local_authority
+    name: Local authority
+    sector: Local government
+    customer_type: local authority
+    region: UK
+    business_unit_hint: Local Government
+    domain_terms:
+      - local government
+      - highways
+      - transport
+      - social value
+      - place services
+    watch_keywords:
+      - highways maintenance
+      - traffic management
+      - smart cities
+      - connectivity
+      - asset management
+      - CCTV
+      - cyber security
+      - service desk
+      - cloud migration
+    cpv_codes:
+      - "72000000 - IT services"
+      - "34970000 - Traffic-monitoring equipment"
+      - "50330000 - Communications equipment maintenance"
+      - "72253000 - Helpdesk and support services"
+    likely_portal_families:
+      - ProContract
+      - In-Tend
+      - Delta eSourcing
+    missing_private_fields:
+      - council procurement portal
+      - framework route
+      - named account owner
+  - key: mayoral_combined_authority
+    name: Mayoral or combined authority
+    sector: Public sector transport
+    customer_type: mayoral / combined authority
+    region: UK
+    business_unit_hint: Transport
+    domain_terms:
+      - regional transport
+      - highways
+      - bus
+      - multimodal transport
+      - devolution
+    watch_keywords:
+      - integrated transport
+      - real-time passenger information
+      - ticketing
+      - traffic optimisation
+      - network management
+      - data platform
+      - smart ticketing
+      - active travel
+    cpv_codes:
+      - "72000000 - IT services"
+      - "63712000 - Support services for road transport"
+      - "34980000 - Transport tickets"
+      - "48813000 - Passenger information system"
+    likely_portal_families:
+      - ProContract
+      - In-Tend
+      - Delta eSourcing
+    missing_private_fields:
+      - constituent authority buying route
+      - transport programme ownership
+      - active portal registration
+  - key: transport_authority
+    name: Transport authority
+    sector: Public sector transport
+    customer_type: transport authority
+    region: UK
+    business_unit_hint: Transport
+    domain_terms:
+      - rail
+      - bus
+      - highways
+      - aviation
+      - maritime
+      - multimodal transport
+    watch_keywords:
+      - real-time data
+      - operational technology
+      - SCADA
+      - ticketing
+      - passenger information
+      - cyber resilience
+      - fleet telemetry
+      - disruption management
+      - safety critical
+      - high availability
+    cpv_codes:
+      - "72000000 - IT services"
+      - "34970000 - Traffic-monitoring equipment"
+      - "48813000 - Passenger information system"
+      - "50330000 - Communications equipment maintenance"
+    likely_portal_families:
+      - Jaggaer
+      - ProContract
+      - In-Tend
+    missing_private_fields:
+      - operating mode
+      - portal family
+      - supplier account owner
+  - key: nhs_body
+    name: NHS or health body
+    sector: Health
+    customer_type: NHS or other public body
+    region: UK
+    business_unit_hint: Health
+    domain_terms:
+      - health
+      - patient services
+      - clinical operations
+      - estates
+    watch_keywords:
+      - digital health
+      - cyber security
+      - data platform
+      - network services
+      - service desk
+      - cloud services
+      - clinical system integration
+    cpv_codes:
+      - "72000000 - IT services"
+      - "48814000 - Medical information systems"
+      - "72250000 - System and support services"
+    likely_portal_families:
+      - Atamis
+      - Jaggaer
+      - In-Tend
+    missing_private_fields:
+      - procurement hub
+      - trust or ICB ownership
+      - approved supplier route
+  - key: emergency_services
+    name: Police, fire or emergency services
+    sector: Emergency services
+    customer_type: public body
+    region: UK
+    business_unit_hint: Core
+    domain_terms:
+      - emergency services
+      - command and control
+      - resilience
+      - communications
+    watch_keywords:
+      - mission critical
+      - control room
+      - radio
+      - cyber resilience
+      - network services
+      - incident management
+      - mobile workforce
+    cpv_codes:
+      - "72000000 - IT services"
+      - "64200000 - Telecommunications services"
+      - "35710000 - Command, control, communication and computer systems"
+    likely_portal_families:
+      - Bluelight
+      - ProContract
+      - In-Tend
+    missing_private_fields:
+      - force or service procurement portal
+      - security clearance needs
+      - operational owner
+  - key: education
+    name: Education, college or university
+    sector: Education
+    customer_type: public body
+    region: UK
+    business_unit_hint: Core
+    domain_terms:
+      - education
+      - campus services
+      - research
+      - student experience
+    watch_keywords:
+      - managed IT
+      - network services
+      - cloud services
+      - cyber security
+      - data platform
+      - digital learning
+    cpv_codes:
+      - "72000000 - IT services"
+      - "72700000 - Computer network services"
+      - "72250000 - System and support services"
+    likely_portal_families:
+      - In-Tend
+      - Delta eSourcing
+      - ProContract
+    missing_private_fields:
+      - institution portal
+      - framework route
+      - contract owner
+  - key: housing_association
+    name: Housing association or social landlord
+    sector: Housing
+    customer_type: public / regulated housing body
+    region: UK
+    business_unit_hint: Core
+    domain_terms:
+      - housing
+      - asset management
+      - repairs
+      - resident services
+    watch_keywords:
+      - asset management
+      - IoT
+      - repairs platform
+      - resident portal
+      - cloud services
+      - cyber security
+      - data integration
+    cpv_codes:
+      - "72000000 - IT services"
+      - "72250000 - System and support services"
+      - "72300000 - Data services"
+    likely_portal_families:
+      - ProContract
+      - In-Tend
+      - Delta eSourcing
+    missing_private_fields:
+      - registered provider group structure
+      - portal family
+      - regional buying route
+  - key: public_corporation
+    name: Public corporation or public company
+    sector: Public sector
+    customer_type: public corporation
+    region: UK
+    business_unit_hint: Core
+    domain_terms:
+      - public corporation
+      - operational delivery
+      - regulated infrastructure
+    watch_keywords:
+      - operational resilience
+      - managed services
+      - asset management
+      - network services
+      - cyber security
+      - data platform
+    cpv_codes:
+      - "72000000 - IT services"
+      - "72250000 - System and support services"
+      - "50330000 - Communications equipment maintenance"
+    likely_portal_families:
+      - Jaggaer
+      - ProContract
+      - Delta eSourcing
+    missing_private_fields:
+      - corporate tax / legal status context where relevant
+      - supplier registration route
+      - framework eligibility
+  - key: regulated_infrastructure
+    name: Regulated infrastructure operator
+    sector: Critical infrastructure
+    customer_type: regulated infrastructure operator
+    region: UK
+    business_unit_hint: Critical Infrastructure
+    domain_terms:
+      - critical national infrastructure
+      - operational technology
+      - asset management
+      - service continuity
+    watch_keywords:
+      - OT cyber
+      - SCADA
+      - telemetry
+      - high availability
+      - network communications
+      - field service
+      - safety critical operations
+      - asset management
+    cpv_codes:
+      - "72000000 - IT services"
+      - "64200000 - Telecommunications services"
+      - "50330000 - Communications equipment maintenance"
+      - "72250000 - System and support services"
+    likely_portal_families:
+      - Jaggaer
+      - Achilles
+      - Delta eSourcing
+    missing_private_fields:
+      - operator supplier portal
+      - security and onboarding controls
+      - account owner

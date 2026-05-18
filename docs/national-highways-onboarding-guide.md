@@ -6,6 +6,8 @@ Checked date: 17 May 2026.
 
 This is an operational setup guide. It does not store portal credentials and does not automate portal login, portal submission, customer contact or bid decisions. Retrieved or extracted information remains review-required until accepted by a human reviewer.
 
+Fast path: open `/intelligence-packs`, preview **National Highways**, then apply the pack. DIP will create the core customer, Highways business unit, watch profile, public source monitors, Jaggaer portal record and disabled public API connector placeholder. Use the remaining sections of this guide to review and complete the human-confirmed fields.
+
 ## 1. Official Baseline Facts
 
 Use these facts as the starting customer profile.

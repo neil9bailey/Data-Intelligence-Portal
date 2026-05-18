@@ -18,6 +18,7 @@ Data Intelligence Portal is a configurable information-gathering workspace for:
 - official GOV.UK policy/news feed monitoring
 - executive summaries and exportable intelligence reports
 - COF-style source-to-inbox workflow, review queue, local downloads and controlled email delivery
+- Intelligence Packs that preconfigure public-sector customers, watch profiles, source monitors and portal assumptions from one guided screen
 - a built-in KRA Knowledge Research Agent for guarded source checks, source-change tracking, customer memory and requirement extraction
 - MCP-style local agent/tool profiles ready for future connector orchestration
 
@@ -167,6 +168,24 @@ KRA can:
 - extract quality questions and weighting signals from permitted document text
 - generate Markdown reports
 
+## Intelligence Packs
+
+Open `/intelligence-packs` to reduce manual customer setup.
+
+The page supports:
+
+- preconfigured customer packs, currently including National Highways
+- semi-configured packs for any public-sector organisation using templates such as local authority, transport authority, NHS body, emergency services, education, housing and regulated infrastructure
+- one-action creation of the customer, business unit, watch profile, official public-source searches, portal assumptions and KRA prompt guidance
+- idempotent apply behaviour, so reapplying a pack updates or skips existing records instead of duplicating them
+
+Packs are runtime YAML configuration:
+
+- `app/rules/public_sector_templates.yml`
+- `app/rules/customer_packs.yml`
+
+The pack engine is a setup accelerator, not a substitute for review. It still requires humans to confirm portal access, supplier registrations, account ownership, live opportunity references and permitted document extracts.
+
 ## Read-Only Portal Retrieval Connectors
 
 The Portal Workbench supports approved automated information retrieval where a portal or source provider offers a permitted API/public endpoint.
@@ -227,6 +246,7 @@ The main operational sections now expose user-managed create, edit and delete co
 
 - Business Units
 - Customers
+- Intelligence Packs for rapid customer baseline creation
 - Sources, managed through Admin
 - Opportunities
 - Portal instances and retrieval tasks
@@ -330,4 +350,4 @@ The plan references official/public procurement routes checked on 2026-05-17:
 
 ## Recommended Next Step
 
-Configure the first live customers, tune source/watch keywords, refresh the official feed, then run KRA against approved public sources.
+Start with `/intelligence-packs`, apply a preconfigured or generated pack, tune the resulting source/watch keywords, refresh the official feed, then run KRA against approved public sources.

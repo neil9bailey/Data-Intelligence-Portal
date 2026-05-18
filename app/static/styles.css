@@ -305,6 +305,34 @@ p { margin: 0 0 12px; }
   border-radius: 8px;
   background: #f7f9fd;
 }
+.plain-list {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  list-style: none;
+}
+.plain-list li {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--cyan);
+  border-radius: 8px;
+  background: #fbfbfe;
+}
+.plain-list strong {
+  display: block;
+  color: var(--ink);
+  font-size: 13px;
+}
+.plain-list span {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 12px;
+}
+.pack-card { border-left: 6px solid var(--plum); }
+.pack-preview { border-top: 5px solid var(--cyan); }
+.pack-metrics { margin-top: 0; }
 .setup-panel { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .setup-steps { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .setup-steps a { min-height: 32px; padding: 0 11px; border-radius: 999px; display: inline-flex; align-items: center; color: var(--plum); background: var(--weak-bg); font-size: 12px; font-weight: 1000; }

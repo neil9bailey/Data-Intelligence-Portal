@@ -11,6 +11,7 @@ This folder is the single home for Data Intelligence Portal guides, operating no
 | [Architecture blueprint](architecture_blueprint.md) | Current MVP architecture and production evolution. |
 | [Benefits case](benefits_case.md) | Business value and user benefits. |
 | [Implementation epics](implementation_epics.md) | Delivery status and future roadmap epics. |
+| [Intelligence pack engine](intelligence-pack-engine.md) | How DIP preconfigures public-sector customers, watch profiles and source monitors. |
 
 ## Operating Guides
 
