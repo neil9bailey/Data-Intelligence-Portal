@@ -244,10 +244,11 @@ The workflow covers:
 - customer matching using watch profiles, aliases, keywords, sectors, regions, CPV codes and value bands
 - a human review gate at `/review` for approve, hold, reject and reassign actions
 - branded report generation with local downloads in PDF, Markdown, HTML, JSON and text
+- two report products: a credibility-gated executive intelligence pack for leadership/demo use, and an admin automation run log for source, connector and KRA runtime traceability
 - email delivery through `/admin`, using local `.eml` outbox mode by default or SMTP when configured
 - a phase-2 style `/client-portal` interest tracker for "I'm interested" signals and pipeline follow-up
 
-The Admin automation can run the full operating rhythm in one cycle, but the MVP keeps the important COF guardrail: generated intelligence remains review-required and no portal login, expression of interest, submission or customer contact is automated. Admin source health now shows diagnostic detail such as rate-limit, TLS, allow-list and HTTP status notes when a source cannot be checked.
+The Admin automation can run the full operating rhythm in one cycle, but the MVP keeps the important COF guardrail: generated intelligence remains review-required and no portal login, expression of interest, submission or customer contact is automated. Admin source health now shows diagnostic detail such as rate-limit, TLS, allow-list and HTTP status notes when a source cannot be checked. Executive reports suppress raw runtime noise and move buyer mismatches or very low-confidence records into a data-quality exclusions section.
 
 ## Data Maintenance
 

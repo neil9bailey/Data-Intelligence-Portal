@@ -271,13 +271,24 @@ def test_document_extraction_creates_quality_question(seeded_session):
     assert question.weighting == "25%"
 
 
-def test_report_generation_contains_kra_runtime(seeded_session):
+def test_executive_report_generation_hides_admin_runtime(seeded_session):
     report = create_report(seeded_session, "Test report")
 
     assert report.id is not None
-    assert "KRA runtime" in report.markdown
+    assert "Executive Intelligence Pack" in report.markdown
+    assert "KRA Runtime" not in report.markdown
+    assert "API key configured" not in report.markdown
     assert "AI-Assisted Executive Brief" in report.markdown
     assert "not a bid/no-bid" in report.markdown
+
+
+def test_admin_report_generation_contains_kra_runtime(seeded_session):
+    report = create_report(seeded_session, "Admin report", report_type="admin_run_log")
+
+    assert report.id is not None
+    assert "Admin Automation Run Log" in report.markdown
+    assert "KRA Runtime" in report.markdown
+    assert "API key configured" not in report.markdown
 
 
 def test_report_generation_uses_ai_brief_when_llm_enabled(seeded_session, monkeypatch):
@@ -298,6 +309,42 @@ def test_report_generation_can_skip_report_level_ai_brief(seeded_session, monkey
 
     assert "Report-level AI brief was skipped for the automated cycle" in report.markdown
     assert "Should not be called." not in report.markdown
+
+
+def test_report_generation_cleans_ai_artifacts(seeded_session, monkeypatch):
+    monkeypatch.setattr("app.reports.llm_enabled", lambda: True)
+    monkeypatch.setattr(
+        "app.reports.generate_llm_text",
+        lambda *args, **kwargs: "Strong National Highways opportunity signal.\nIf helpful, I can create a longer buyer pack.",
+    )
+
+    report = create_report(seeded_session, "Clean AI report")
+
+    assert "Strong National Highways opportunity signal." in report.markdown
+    assert "If helpful" not in report.markdown
+    assert "I can create" not in report.markdown
+
+
+def test_customer_scoped_executive_report_excludes_buyer_mismatch(seeded_session):
+    customer = seeded_session.exec(select(Customer).where(Customer.customer_name == "National Highways")).first()
+    source = seeded_session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "find_a_tender")).first()
+    opportunity = Opportunity(
+        source_id=source.id if source else None,
+        customer_id=customer.id,
+        title="Award of a Call-Off Contract under the Prison Education DPS",
+        buyer_name="Ministry of Justice",
+        procurement_stage="award",
+        status="new",
+        relevance_score=92,
+        summary="Prison education training course notice that should not appear as a National Highways live signal.",
+    )
+    seeded_session.add(opportunity)
+    seeded_session.commit()
+
+    report = create_report(seeded_session, "National Highways report", customer_id=customer.id)
+
+    assert "excluded from executive pack due to buyer mismatch" in report.markdown
+    assert "No buyer mismatch or low-confidence opportunity records were excluded" not in report.markdown
 
 
 def test_llm_enabled_requires_provider_model_and_key(monkeypatch):

@@ -133,7 +133,8 @@ def run_admin_full_cycle(
 
         report = create_report(
             session,
-            f"DIP automated intelligence pack {datetime.now(UTC).strftime('%Y-%m-%d %H:%M')}",
+            f"DIP executive intelligence pack {datetime.now(UTC).strftime('%Y-%m-%d %H:%M')}",
+            report_type="executive_pack",
             include_ai_brief=False,
         )
         step("Generate a report", "completed", f"Report {report.id} generated.", report_id=report.id)

@@ -141,13 +141,17 @@ Go to **Reports**.
 In **Create Report**:
 
 1. Enter a report name.
-2. Choose the report type, usually `executive_summary`.
+2. Choose the report type:
+   - **Executive intelligence pack** for MD, account, bid, buyer-facing or demo discussion.
+   - **Admin automation run log** for source-check, connector, KRA runtime and data-quality traceability.
 3. Select a customer, or leave as **All customers**.
 4. Select a business unit, or leave as **All business units**.
 5. Leave **Run enabled read-only retrieval connectors before report generation** ticked if you want the report to refresh approved connectors first.
 6. Select **Generate report**.
 
 The report opens after generation.
+
+The executive pack applies a credibility gate before publishing the opportunity list. Buyer mismatches and very low-confidence records are moved to **Data Quality Exclusions** instead of being presented as current opportunity signals.
 
 ## 10. Review The Report
 
@@ -157,7 +161,7 @@ On the report page:
 2. Use **Edit report** if you need to update the title, scope, customer, business unit or report text.
 3. Save any changes.
 
-Treat the report as review-required until the responsible team has approved it.
+Treat the report as review-required until the responsible team has approved it. Use the admin run log to diagnose source failures, KRA runtime warnings, connector status and excluded records.
 
 ## 11. Download The Report
 

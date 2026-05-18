@@ -43,3 +43,4 @@ This folder is the single home for Data Intelligence Portal guides, operating no
 - Do not commit generated Entra output files or customer parameter files from `infra/azure/generated/`.
 - Keep customer-specific secrets out of the repo; use environment variables locally and Key Vault for hosted deployments.
 - For live demos, KRA AI summaries can be enabled through Key Vault-backed `KRA_API_KEY` plus `KRA_LLM_PROVIDER=openai_direct`; generated intelligence still requires human review.
+- Use executive intelligence packs for MD/buyer/demo conversations and admin automation run logs for technical traceability.
