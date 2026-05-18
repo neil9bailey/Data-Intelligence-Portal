@@ -66,8 +66,31 @@ def test_standard_user_sees_simple_pages_not_admin_setup(monkeypatch, reference_
     assert home_response.status_code == 200
     assert reports_response.status_code == 200
     assert customers_response.status_code == 403
-    assert "Admin Control" not in home_response.text
+    assert 'href="/admin"' not in home_response.text
     assert "Opportunity intelligence, ready for review." in home_response.text
+
+
+def test_admin_user_gets_dedicated_admin_workspace(monkeypatch, reference_session):
+    monkeypatch.setenv("ENTRA_AUTH_ENABLED", "true")
+    monkeypatch.setenv("ENTRA_ADMIN_GROUP_ID", "admin-group")
+    monkeypatch.setenv("ENTRA_STANDARD_GROUP_ID", "standard-group")
+    get_settings.cache_clear()
+    client = client_for(reference_session)
+    headers = {"x-ms-client-principal": principal_header(["admin-group"])}
+    try:
+        home_response = client.get("/", headers=headers)
+        admin_response = client.get("/admin", headers=headers)
+    finally:
+        app.dependency_overrides.clear()
+        get_settings.cache_clear()
+
+    assert home_response.status_code == 200
+    assert admin_response.status_code == 200
+    assert 'href="/admin"' in home_response.text
+    assert "Admin Configuration Workspace" in admin_response.text
+    assert "Customer packs" in admin_response.text
+    assert "Portals / connectors" in admin_response.text
+    assert "Admin Control" not in home_response.text
 
 
 def test_local_auth_disabled_allows_admin(monkeypatch, reference_session):

@@ -20,16 +20,13 @@
         </div>
         <div class="actions">
           <a class="button secondary" href="/reports">Reports</a>
-          {% if current_user.is_admin %}<a class="button" href="/admin">Admin</a>{% endif %}
+          {% if current_user.is_admin %}<a class="button admin-entry {{ 'active' if request.url.path.startswith('/admin') or request.url.path.startswith('/workflow') or request.url.path.startswith('/intelligence-packs') or request.url.path.startswith('/business-units') or request.url.path.startswith('/customers') or request.url.path.startswith('/sources') or request.url.path.startswith('/portals') or request.url.path.startswith('/opportunities') or request.url.path.startswith('/review') or request.url.path.startswith('/requirements') or request.url.path.startswith('/kra') or request.url.path.startswith('/audit') else '' }}" href="/admin">Admin</a>{% endif %}
         </div>
       </div>
       <nav class="nav">
         <a class="{{ 'active' if request.url.path == '/' else '' }}" href="/">Opportunity Inbox</a>
         <a class="{{ 'active' if request.url.path.startswith('/client-portal') else '' }}" href="/client-portal">Client Feed</a>
         <a class="{{ 'active' if request.url.path.startswith('/reports') else '' }}" href="/reports">Reports</a>
-        {% if current_user.is_admin %}
-        <a class="{{ 'active' if request.url.path.startswith('/admin') or request.url.path.startswith('/workflow') or request.url.path.startswith('/intelligence-packs') or request.url.path.startswith('/business-units') or request.url.path.startswith('/customers') or request.url.path.startswith('/sources') or request.url.path.startswith('/portals') or request.url.path.startswith('/opportunities') or request.url.path.startswith('/review') or request.url.path.startswith('/requirements') or request.url.path.startswith('/kra') or request.url.path.startswith('/audit') else '' }}" href="/admin">Admin Control</a>
-        {% endif %}
       </nav>
     </header>
     <main class="container">{% block content %}{% endblock %}</main>

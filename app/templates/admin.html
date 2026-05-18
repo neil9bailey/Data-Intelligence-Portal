@@ -52,6 +52,32 @@
   {% endif %}
 </section>
 
+<section class="panel admin-hub" style="margin-top:18px;">
+  <div class="panel-title">
+    <div>
+      <h2>Admin Configuration Workspace</h2>
+      <p class="hint">All detailed configuration and the previous management UI live here. Standard users only see Opportunity Inbox, Client Feed and report downloads.</p>
+    </div>
+    <form method="post" action="/news/refresh">
+      <button class="secondary" type="submit">Refresh news feeds</button>
+    </form>
+  </div>
+  <div class="admin-link-grid">
+    <a class="admin-tile" href="/workflow"><strong>Workflow</strong><span>COF source-to-inbox process, retrieval rules and operating model.</span></a>
+    <a class="admin-tile" href="/intelligence-packs"><strong>Customer packs</strong><span>Apply built-in or discovery packs for public-sector organisations.</span></a>
+    <a class="admin-tile" href="/business-units"><strong>Business units</strong><span>Configure BU structure and ownership context.</span></a>
+    <a class="admin-tile" href="/customers"><strong>Customers</strong><span>Maintain customer profiles, aliases, sectors and account memory.</span></a>
+    <a class="admin-tile" href="/sources"><strong>Sources</strong><span>Manage approved public sources and source-check snapshots.</span></a>
+    <a class="admin-tile" href="/portals"><strong>Portals / connectors</strong><span>Configure portal assumptions, read-only connectors and retrieval tasks.</span></a>
+    <a class="admin-tile" href="/opportunities"><strong>Opportunities</strong><span>Review, edit and maintain captured opportunity records and documents.</span></a>
+    <a class="admin-tile" href="/review"><strong>Review queue</strong><span>Approve, reject or reassign opportunity and requirement intelligence.</span></a>
+    <a class="admin-tile" href="/requirements"><strong>Requirements</strong><span>Manage extracted requirements and quality-question indicators.</span></a>
+    <a class="admin-tile" href="/kra"><strong>KRA agents</strong><span>Run and inspect Knowledge Research Agent activity.</span></a>
+    <a class="admin-tile" href="/reports"><strong>Reports / exports</strong><span>Create, update, download and email intelligence reports.</span></a>
+    <a class="admin-tile" href="/audit"><strong>Audit</strong><span>Inspect configuration, automation and data-change events.</span></a>
+  </div>
+</section>
+
 <section class="grid three" style="margin-top:18px;">
   <div class="panel">
     <div class="panel-title"><h2>Local Runtime</h2><span class="badge green">ok</span></div>
@@ -82,21 +108,9 @@
 
 <section class="grid three" style="margin-top:18px;">
   <div class="panel">
-    <h2>Admin Setup</h2>
-    <div class="setup-steps">
-      <a href="/workflow">Workflow</a>
-      <a href="/intelligence-packs">Customer packs</a>
-      <a href="/customers">Customers</a>
-      <a href="/sources">Sources</a>
-      <a href="/portals">Portals / connectors</a>
-      <a href="/business-units">Business units</a>
-      <a href="/opportunities">Opportunities</a>
-      <a href="/requirements">Requirements</a>
-      <a href="/reports">Reports</a>
-      <a href="/kra">KRA agents</a>
-      <a href="/audit">Audit</a>
-    </div>
-    <p class="hint">Detailed setup and data-entry screens are Admin-only. Standard users see the simplified opportunity inbox, client feed and report downloads.</p>
+    <h2>Admin Mode</h2>
+    <p>Configuration remains available, but is deliberately separated from the simplified user workspace.</p>
+    <p class="hint">Use the dedicated Admin button in the top bar to return to this control centre from any page.</p>
   </div>
   <div class="panel">
     <h2>Portal Retrieval Health</h2>
@@ -137,7 +151,7 @@
   </div>
 </section>
 
-<section class="grid two">
+<section id="email-settings" class="grid two">
   <div class="panel">
     <h2>Email Configuration</h2>
     <form method="post" action="/admin/email">

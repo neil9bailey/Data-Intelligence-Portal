@@ -134,7 +134,7 @@ Current KRA mode is deterministic/local by default. API-key-backed AI enhancemen
 
 ## Admin Control Centre
 
-Admin and configuration tasks are consolidated under `/admin`.
+Admin and configuration tasks are consolidated under `/admin` and are reached from the dedicated **Admin** button in the header. The main navigation stays deliberately simple for end users: Opportunity Inbox, Client Feed and Reports.
 
 The Admin Control Centre shows:
 
@@ -146,7 +146,7 @@ The Admin Control Centre shows:
 - latest source checks and retrieval runs
 - KRA runtime configuration
 - email profile, local outbox/SMTP test sending and delivery logs
-- links to source configuration, portal setup, KRA runs and audit events
+- an Admin Configuration Workspace containing the previous setup/configuration screens, including workflow, customer packs, business units, customers, sources, portals/connectors, opportunities, review queue, requirements, KRA, reports/exports and audit
 
 Detailed setup and data-entry screens are Admin-only when Entra authentication is enabled. Standard users see the simplified Opportunity Inbox, Client Feed and report downloads.
 
