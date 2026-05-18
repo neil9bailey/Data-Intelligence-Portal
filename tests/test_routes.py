@@ -129,6 +129,7 @@ def test_dashboard_uses_clean_setup_homepage(reference_session):
         app.dependency_overrides.clear()
 
     assert response.status_code == 200
+    assert '<base target="_top">' in response.text
     assert "Opportunity intelligence, ready for review." in response.text
     assert "One customer memory for every source, portal and requirement." not in response.text
     assert "Official Intelligence Feed" in response.text
