@@ -1301,6 +1301,12 @@ async def create_portal_connector(request: Request, session: Session = Depends(g
     return redirect("/portals")
 
 
+@app.post("/portal-connectors/run-all")
+def run_all_portal_connectors(session: Session = Depends(get_session)):
+    run_enabled_portal_connectors(session)
+    return redirect("/portals")
+
+
 @app.post("/portal-connectors/{connector_id}")
 async def update_portal_connector(connector_id: int, request: Request, session: Session = Depends(get_session)):
     connector = session.get(PortalInformationConnector, connector_id)
@@ -1354,12 +1360,6 @@ def run_single_portal_connector(connector_id: int, session: Session = Depends(ge
         run_portal_connector(session, connector_id)
     except ValueError as exc:
         return validation_error_response([str(exc)], "/portals")
-    return redirect("/portals")
-
-
-@app.post("/portal-connectors/run-all")
-def run_all_portal_connectors(session: Session = Depends(get_session)):
-    run_enabled_portal_connectors(session)
     return redirect("/portals")
 
 

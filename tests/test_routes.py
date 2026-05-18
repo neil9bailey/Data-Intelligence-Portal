@@ -166,6 +166,17 @@ def test_admin_email_test_route(reference_session):
     assert reference_session.exec(select(EmailDeliveryLog)).first() is not None
 
 
+def test_portal_connector_run_all_route_is_not_parsed_as_connector_id(reference_session):
+    client = client_for(reference_session)
+    try:
+        response = client.post("/portal-connectors/run-all", follow_redirects=False)
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/portals"
+
+
 def test_read_only_portal_connector_retrieves_document_for_reports(seeded_session):
     portal = seeded_session.exec(select(BuyerPortalInstance)).first()
     opportunity = seeded_session.exec(select(Opportunity)).first()
