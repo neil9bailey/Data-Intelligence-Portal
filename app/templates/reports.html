@@ -53,12 +53,13 @@
       <div class="field"><label>Report name</label><input name="report_name" value="Data intelligence executive summary"></div>
       <div class="field"><label>Report type</label><select name="report_type">
         <option value="executive_summary">Executive intelligence pack</option>
-        <option value="cof_weekly_portfolio_report">COF weekly portfolio report</option>
+        <option value="cof_weekly_portfolio_report">COF weekly portfolio report - defaults to Contracted Opportunity Finder</option>
         <option value="cof_weekly_client_report">COF weekly client report</option>
         <option value="admin_run_log">Admin automation run log</option>
-      </select><span class="help-text">Executive packs hide raw runtime detail; admin logs keep traceability for source and connector checks.</span></div>
+      </select><span class="help-text">COF portfolio reports auto-scope to the Contracted Opportunity Finder workspace when customer and business unit are left blank.</span></div>
       <div class="field"><label>Customer</label><select name="customer_id"><option value="">All customers</option>{% for customer in customers %}<option value="{{ customer.id }}">{{ customer.customer_name }}</option>{% endfor %}</select></div>
       <div class="field"><label>Business unit</label><select name="business_unit_id"><option value="">All business units</option>{% for unit in business_units %}<option value="{{ unit.id }}">{{ unit.name }}</option>{% endfor %}</select></div>
+      <label class="checkline"><input type="checkbox" name="force_all_scope" value="true"> Admin override: do not auto-apply the COF workspace scope label</label>
       <label class="checkline"><input type="checkbox" name="auto_retrieve" value="true" checked> Run enabled read-only retrieval connectors before report generation</label>
       <button type="submit">Generate report</button>
     </form>

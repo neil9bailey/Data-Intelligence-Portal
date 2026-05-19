@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 import re
 
 from sqlmodel import Session, col, select
@@ -33,6 +33,12 @@ ADMIN_REPORT_TYPES = {"admin_run_log", "automation_run_log", "technical_run_log"
 EXECUTIVE_REPORT_TYPES = {"executive_summary", "executive_pack", "executive_intelligence_pack"}
 COF_REPORT_TYPES = {"cof_weekly_client_report", "cof_weekly_portfolio_report"}
 REVIEW_READY_STATUSES = {"review_required", "review_ready", "accepted", "approved", "complete", "completed"}
+COF_BUSINESS_UNIT_NAME = "Contracted Opportunity Finder"
+COF_CLIENT_PREFIX = "COF Client "
+COF_PORTFOLIO_CUSTOMER_NAME = "Procter Street COF Portfolio"
+COF_CLOSING_SOON_DAYS = 14
+COF_RETRIEVED_DOCUMENT_TYPES = {"itt_extract", "automated_retrieval", "retrieved", "permitted_extract"}
+COF_PUBLIC_NOTICE_DOCUMENT_TYPES = {"public_notice"}
 AI_ARTIFACT_PHRASES = (
     "if helpful",
     "if you want",
@@ -315,16 +321,32 @@ def create_report(
     customer_id: int | None = None,
     business_unit_id: int | None = None,
     include_ai_brief: bool = True,
+    force_all_scope: bool = False,
 ) -> IntelligenceReport:
     report_type = (report_type or "executive_summary").strip() or "executive_summary"
     if report_type not in ADMIN_REPORT_TYPES | EXECUTIVE_REPORT_TYPES | COF_REPORT_TYPES:
         report_type = "executive_summary"
+    customer_id, business_unit_id = _resolve_cof_report_scope(
+        session,
+        report_type,
+        customer_id,
+        business_unit_id,
+        force_all_scope=force_all_scope,
+    )
     report = IntelligenceReport(
         report_name=report_name,
         report_type=report_type,
         customer_id=customer_id,
         business_unit_id=business_unit_id,
-        markdown=generate_report_markdown(session, report_name, report_type, customer_id, business_unit_id, include_ai_brief),
+        markdown=generate_report_markdown(
+            session,
+            report_name,
+            report_type,
+            customer_id,
+            business_unit_id,
+            include_ai_brief,
+            force_all_scope=force_all_scope,
+        ),
     )
     session.add(report)
     session.flush()
@@ -341,12 +363,33 @@ def generate_report_markdown(
     customer_id: int | None,
     business_unit_id: int | None,
     include_ai_brief: bool,
+    force_all_scope: bool = False,
 ) -> str:
     if (report_type or "").strip() in ADMIN_REPORT_TYPES:
         return generate_admin_run_log_markdown(session, report_name, customer_id, business_unit_id, include_ai_brief)
     if (report_type or "").strip() in COF_REPORT_TYPES:
-        return generate_cof_weekly_report_markdown(session, report_name, report_type, customer_id, business_unit_id)
+        return generate_cof_weekly_report_markdown(
+            session,
+            report_name,
+            report_type,
+            customer_id,
+            business_unit_id,
+            force_all_scope=force_all_scope,
+        )
     return generate_executive_intelligence_pack_markdown(session, report_name, customer_id, business_unit_id, include_ai_brief)
+
+
+def _resolve_cof_report_scope(
+    session: Session,
+    report_type: str,
+    customer_id: int | None,
+    business_unit_id: int | None,
+    force_all_scope: bool = False,
+) -> tuple[int | None, int | None]:
+    if report_type != "cof_weekly_portfolio_report" or customer_id or business_unit_id or force_all_scope:
+        return customer_id, business_unit_id
+    unit = _cof_business_unit(session)
+    return customer_id, unit.id if unit and unit.id else business_unit_id
 
 
 def generate_cof_weekly_report_markdown(
@@ -355,29 +398,55 @@ def generate_cof_weekly_report_markdown(
     report_type: str,
     customer_id: int | None = None,
     business_unit_id: int | None = None,
+    force_all_scope: bool = False,
 ) -> str:
+    customer_id, business_unit_id = _resolve_cof_report_scope(
+        session,
+        report_type,
+        customer_id,
+        business_unit_id,
+        force_all_scope=force_all_scope,
+    )
     context = _report_context(session, customer_id, business_unit_id)
     generated_at = datetime.now(UTC).isoformat(timespec="seconds")
     customer = context["customer"]
     unit = context["unit"]
     scope = _scope_label(customer, unit)
-    opportunities = [item for item in context["opportunities"] if item.status != "rejected"]
-    pins = [item for item in opportunities if item.status == "pin" or item.notice_type == "planning"]
-    live = [item for item in opportunities if item.status in {"live", "closing_soon", "document_retrieval_required", "questions_extracted"}]
-    closing = [item for item in opportunities if item.status == "closing_soon"]
-    awards = [item for item in opportunities if item.status == "awarded" or item.notice_type == "award"]
-    interested = [item for item in opportunities if item.status == "interested"]
-    documents = _documents_for_opportunities(context["documents"], opportunities)
-    questions = _questions_for_opportunities(context["questions"], opportunities)
-    requirements = _requirements_for_opportunities(context["requirements"], opportunities)
-    interests = list(session.exec(select(ClientInterestSignal).order_by(col(ClientInterestSignal.created_at).desc()).limit(100)))
-    tasks = list(session.exec(select(DocumentRetrievalTask).order_by(col(DocumentRetrievalTask.created_at).desc()).limit(100)))
+    opportunities = _cof_report_opportunities(session, customer_id, business_unit_id)
     opportunity_ids = {item.id for item in opportunities if item.id}
+    documents = _documents_for_opportunities(_records_for_opportunities(session, OpportunityDocument, opportunity_ids), opportunities)
+    questions = _questions_for_opportunities(_records_for_opportunities(session, ExtractedQualityQuestion, opportunity_ids), opportunities)
+    requirements = _requirements_for_opportunities(_records_for_opportunities(session, ExtractedRequirement, opportunity_ids), opportunities)
+    interests = list(session.exec(select(ClientInterestSignal).order_by(col(ClientInterestSignal.created_at).desc()).limit(250)))
     interests = [item for item in interests if item.opportunity_id in opportunity_ids]
+    interested_signals = [item for item in interests if (item.signal or "").lower() == "interested"]
+    tasks = list(session.exec(select(DocumentRetrievalTask).order_by(col(DocumentRetrievalTask.created_at).desc()).limit(250)))
     tasks = [item for item in tasks if item.opportunity_id in opportunity_ids]
+    interests_by_opportunity = _group_by_opportunity(interests)
+    tasks_by_opportunity = _group_by_opportunity(tasks)
+    documents_by_opportunity = _group_by_opportunity(documents)
+    questions_by_opportunity = _group_by_opportunity(questions)
+    stages = {
+        item.id: cof_stage_for_opportunity(
+            item,
+            interests_by_opportunity.get(item.id or 0, []),
+            tasks_by_opportunity.get(item.id or 0, []),
+            documents_by_opportunity.get(item.id or 0, []),
+            questions_by_opportunity.get(item.id or 0, []),
+        )
+        for item in opportunities
+        if item.id
+    }
+    pins = [item for item in opportunities if stages.get(item.id) in {"pin", "watch"}]
+    live = [item for item in opportunities if stages.get(item.id) in {"live", "closing_soon", "document_retrieval_required", "questions_extracted"}]
+    closing = [item for item in opportunities if stages.get(item.id) == "closing_soon"]
+    awards = [item for item in opportunities if stages.get(item.id) == "awarded"]
+    retrieved_documents = [item for item in documents if _is_cof_retrieved_document(item)]
+    public_notice_documents = [item for item in documents if _is_public_notice_document(item)]
     missing_source = sum(1 for item in opportunities if not item.source_url)
-    missing_deadline = sum(1 for item in opportunities if not item.deadline_date and item.status != "awarded")
-    missing_task = sum(1 for item in interested if item.id not in {task.opportunity_id for task in tasks if task.opportunity_id})
+    missing_deadline = sum(1 for item in opportunities if not item.deadline_date and stages.get(item.id) != "awarded")
+    task_opportunity_ids = {task.opportunity_id for task in tasks if task.opportunity_id}
+    missing_task = sum(1 for signal in interested_signals if signal.opportunity_id not in task_opportunity_ids)
     report_label = "Client Weekly COF Report" if report_type == "cof_weekly_client_report" else "Portfolio Weekly COF Report"
     return f"""# {report_name}
 
@@ -389,32 +458,36 @@ def generate_cof_weekly_report_markdown(
 ## Client / Portfolio Summary
 
 - {len(opportunities)} opportunity signal(s) are included for this COF scope.
-- {len(pins)} PIN / early-market signal(s), {len(live)} live tender signal(s), {len(interested)} interested item(s) and {len(awards)} award / market evidence record(s).
-- {len(requirements)} requirement theme(s), {len(questions)} quality question(s) and {len(documents)} document extract(s) are available for review.
+- {len(pins)} PIN / early-market signal(s), {len(live)} live tender signal(s), {len(interested_signals)} interested item(s) and {len(awards)} award / market evidence record(s).
+- {len(requirements)} requirement theme(s), {len(questions)} quality question(s), {len(retrieved_documents)} retrieved/permitted document extract(s) and {len(public_notice_documents)} public notice evidence record(s) are available for review.
 
 ## PINs
 
-{_cof_opportunity_lines(pins) if pins else "- No PINs are currently visible for this scope."}
+{_cof_opportunity_lines(pins, stages) if pins else "- No PINs are currently visible for this scope."}
 
 ## Live Tenders
 
-{_cof_opportunity_lines(live) if live else "- No live tenders are currently visible for this scope."}
+{_cof_opportunity_lines(live, stages) if live else "- No live tenders are currently visible for this scope."}
 
 ## Closing Soon
 
-{_cof_opportunity_lines(closing) if closing else "- No closing-soon tenders are currently visible for this scope."}
+{_cof_opportunity_lines(closing, stages) if closing else "- No closing-soon tenders are currently visible for this scope."}
 
 ## Awards / Market Evidence
 
-{_cof_opportunity_lines(awards) if awards else "- No awards or market evidence are currently visible for this scope."}
+{_cof_opportunity_lines(awards, stages) if awards else "- No awards or market evidence are currently visible for this scope."}
 
 ## Interested / Donna Actions
 
-{_cof_interest_lines(interests, context["opportunities"]) if interests else "- No client interest signals are waiting for Donna action."}
+{_cof_interest_lines(interested_signals, opportunities) if interested_signals else "- No client interest signals are waiting for Donna action."}
 
 ## Documents Retrieved
 
-{chr(10).join(_document_line(item) for item in documents) if documents else "- No permitted document extracts have been captured yet."}
+{chr(10).join(_document_line(item) for item in retrieved_documents) if retrieved_documents else "- No permitted document extracts have been captured yet."}
+
+## Public Notice Evidence
+
+{chr(10).join(_document_line(item) for item in public_notice_documents) if public_notice_documents else "- No public notice evidence records are linked to this COF scope yet."}
 
 ## Quality Questions And Weightings
 
@@ -436,6 +509,126 @@ def generate_cof_weekly_report_markdown(
 - Default COF digest profile can store or send the Monday report using the configured email mode.
 - Human review remains required before onward circulation or customer action.
 """
+
+
+def _cof_business_unit(session: Session) -> BusinessUnit | None:
+    return session.exec(select(BusinessUnit).where(BusinessUnit.name == COF_BUSINESS_UNIT_NAME)).first()
+
+
+def _cof_customer_ids(session: Session) -> set[int]:
+    customers = list(session.exec(select(Customer)))
+    return {
+        customer.id
+        for customer in customers
+        if customer.id
+        and (
+            customer.customer_name.startswith(COF_CLIENT_PREFIX)
+            or customer.customer_name == COF_PORTFOLIO_CUSTOMER_NAME
+        )
+    }
+
+
+def _cof_report_opportunities(session: Session, customer_id: int | None, business_unit_id: int | None) -> list[Opportunity]:
+    unit = _cof_business_unit(session)
+    cof_unit_id = unit.id if unit and unit.id else None
+    cof_customer_ids = _cof_customer_ids(session)
+    candidates = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(300)))
+    opportunities = [
+        item
+        for item in candidates
+        if item.status != "rejected"
+        and _is_cof_report_opportunity(item, cof_unit_id, cof_customer_ids)
+    ]
+    if customer_id:
+        opportunities = [item for item in opportunities if item.customer_id == customer_id]
+    if business_unit_id:
+        opportunities = [
+            item
+            for item in opportunities
+            if item.business_unit_id == business_unit_id
+            or bool(cof_unit_id and business_unit_id == cof_unit_id and item.customer_id in cof_customer_ids)
+        ]
+    return opportunities
+
+
+def _is_cof_report_opportunity(item: Opportunity, cof_unit_id: int | None, cof_customer_ids: set[int]) -> bool:
+    if item.customer_id and item.customer_id in cof_customer_ids:
+        return True
+    if not cof_unit_id or item.business_unit_id != cof_unit_id:
+        return False
+    if (item.notice_identifier or "").startswith("cof-live-pilot-"):
+        return True
+    return bool(item.customer_id)
+
+
+def _records_for_opportunities(session: Session, model, opportunity_ids: set[int]):
+    if not opportunity_ids:
+        return []
+    return list(session.exec(select(model).where(model.opportunity_id.in_(opportunity_ids))))
+
+
+def _group_by_opportunity(items) -> dict[int, list]:
+    grouped: dict[int, list] = {}
+    for item in items:
+        opportunity_id = getattr(item, "opportunity_id", None)
+        if opportunity_id:
+            grouped.setdefault(opportunity_id, []).append(item)
+    return grouped
+
+
+def cof_stage_for_opportunity(
+    opportunity: Opportunity,
+    interest_signals: list[ClientInterestSignal],
+    retrieval_tasks: list[DocumentRetrievalTask],
+    documents: list[OpportunityDocument],
+    questions: list[ExtractedQualityQuestion],
+) -> str:
+    raw = " ".join(
+        [
+            opportunity.status or "",
+            opportunity.notice_type or "",
+            opportunity.procurement_stage or "",
+        ]
+    ).lower()
+    today = date.today()
+    deadline = opportunity.deadline_date
+    signals = {(signal.signal or "").lower() for signal in interest_signals}
+    if "award" in raw:
+        return "awarded"
+    if "interested" in signals or (opportunity.status or "").lower() == "interested":
+        return "interested"
+    if questions or "questions_extracted" in raw:
+        return "questions_extracted"
+    if retrieval_tasks or "document_retrieval_required" in raw:
+        return "document_retrieval_required"
+    if "watch" in signals or (opportunity.status or "").lower() == "watch":
+        return "watch"
+    if any(token in raw for token in ("pin", "planning", "early", "pipeline", "future")):
+        return "pin"
+    live_hint = any(token in raw for token in ("tender", "active", "open", "approved", "review_required", "needs_review"))
+    if deadline and today <= deadline <= today + timedelta(days=COF_CLOSING_SOON_DAYS) and live_hint:
+        return "closing_soon"
+    if live_hint or (deadline and deadline >= today):
+        return "live"
+    return "pin"
+
+
+def _is_public_notice_document(item: OpportunityDocument) -> bool:
+    return (item.document_type or "").lower() in COF_PUBLIC_NOTICE_DOCUMENT_TYPES
+
+
+def _is_cof_retrieved_document(item: OpportunityDocument) -> bool:
+    if _is_public_notice_document(item):
+        return False
+    doc_type = (item.document_type or "").lower()
+    status = (item.retrieval_status or "").lower()
+    classification = (item.classification_label or "").lower()
+    return (
+        doc_type in COF_RETRIEVED_DOCUMENT_TYPES
+        or status in {"retrieved", "completed", "automated_retrieval"}
+        or "permitted" in doc_type
+        or "permitted" in classification
+    )
 
 
 def _report_context(session: Session, customer_id: int | None, business_unit_id: int | None) -> dict:

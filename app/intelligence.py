@@ -1023,6 +1023,8 @@ def repair_mismatched_customer_assignments(session: Session) -> int:
         customer = session.get(Customer, opportunity.customer_id) if opportunity.customer_id else None
         if not customer:
             continue
+        if _is_cof_live_pilot_assignment(opportunity, customer):
+            continue
         candidate = CandidateOpportunity(
             title=opportunity.title,
             buyer_name=opportunity.buyer_name,
@@ -1061,6 +1063,16 @@ def repair_mismatched_customer_assignments(session: Session) -> int:
     if repaired:
         session.commit()
     return repaired
+
+
+def _is_cof_live_pilot_assignment(opportunity: Opportunity, customer: Customer) -> bool:
+    """Keep curated COF pack records attached to placeholder clients until real clients replace them."""
+    return bool(
+        customer.customer_name.startswith("COF Client ")
+        or customer.customer_name == "Procter Street COF Portfolio"
+        or (opportunity.notice_identifier or "").startswith("cof-live-pilot-")
+        or "Seeded live-pilot content for COF" in (opportunity.summary or "")
+    )
 
 
 def repair_low_quality_market_opportunities(session: Session) -> int:

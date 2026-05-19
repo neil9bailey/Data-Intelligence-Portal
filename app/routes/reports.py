@@ -45,7 +45,14 @@ async def create_intelligence_report(request: Request, session: Session = Depend
         return validation_error_response(errors, "/reports")
     if parse_bool(form.get("auto_retrieve")):
         run_enabled_portal_connectors(session, customer_id=customer_id, business_unit_id=business_unit_id)
-    report = create_report(session, name, str(form.get("report_type") or "executive_summary"), customer_id, business_unit_id)
+    report = create_report(
+        session,
+        name,
+        str(form.get("report_type") or "executive_summary"),
+        customer_id,
+        business_unit_id,
+        force_all_scope=parse_bool(form.get("force_all_scope")),
+    )
     return redirect(f"/reports/{report.id}")
 
 

@@ -42,9 +42,9 @@ The COF pack creates portal-family records for:
 
 These records document portal routing and document retrieval assumptions. The application does not store portal passwords, automate portal login, submit expressions of interest, contact customers or submit bids.
 
-## Denise Review Gate
+## Human Review Gate
 
-The review page is labelled as the Denise Review Gate. This is a workflow role label, not a hard-coded authenticated person.
+The review page uses a human review gate. This is a workflow role, not a hard-coded authenticated person.
 
 The queue shows the opportunity, buyer, value, deadline, matched client, score, matched terms and actions:
 
@@ -134,7 +134,7 @@ Sending remains manual or externally scheduled in this phase; no new Azure sched
 4. Preview the 11 active client placeholders, sources and portal families.
 5. Apply the pack.
 6. Replace placeholder client names, aliases, regions, keywords, CPV codes and reporting notes with approved live client data when available.
-7. Open Review to verify Denise and Donna queues.
+7. Open Review to verify the human review gate and relationship action queue.
 8. Open Client Feed to inspect PINs, live tenders, interested items and awards.
 9. Generate a COF weekly portfolio report from Reports.
 10. Download or send/store the report from the report detail page or digest profile.

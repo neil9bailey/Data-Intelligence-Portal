@@ -1,22 +1,27 @@
+from datetime import date, timedelta
+
 from fastapi.testclient import TestClient
 from sqlmodel import select
 
 from app.database import get_session
-from app.export_service import report_export
+from app.export_service import REPORT_CAVEAT, _pdf_text_lines, report_export
 from app.intelligence_packs import apply_intelligence_pack, get_preconfigured_customer_pack
 from app.main import app
 from app.models import (
+    BusinessUnit,
     BuyerPortalInstance,
     ClientInterestSignal,
     Customer,
     DocumentRetrievalTask,
     DigestProfile,
+    ExtractedQualityQuestion,
     Opportunity,
+    OpportunityDocument,
     ProcurementPlatform,
     ProcurementSource,
     IntelligenceReport,
 )
-from app.reports import create_report
+from app.reports import cof_stage_for_opportunity, create_report
 
 
 def client_for(session):
@@ -101,7 +106,7 @@ def test_cof_pack_seeds_client_portal_metrics_and_actions(reference_session):
     assert not reference_session.exec(select(DocumentRetrievalTask).where(DocumentRetrievalTask.opportunity_id == watch_opportunity.id)).first()
 
 
-def test_denise_review_gate_and_donna_queue(reference_session):
+def test_human_review_gate_and_donna_queue(reference_session):
     apply_cof_pack(reference_session)
     opportunity = reference_session.exec(select(Opportunity).where(Opportunity.status == "needs_review")).first()
     client = client_for(reference_session)
@@ -116,7 +121,7 @@ def test_denise_review_gate_and_donna_queue(reference_session):
         app.dependency_overrides.clear()
 
     assert page.status_code == 200
-    assert "Denise Review Gate" in page.text
+    assert "Human Review Gate" in page.text
     assert "Donna Relationship / Action Queue" in page.text
     assert response.status_code == 303
     reference_session.refresh(opportunity)
@@ -125,25 +130,127 @@ def test_denise_review_gate_and_donna_queue(reference_session):
 
 def test_cof_weekly_report_content_and_exports(reference_session):
     apply_cof_pack(reference_session)
+    cof_unit = reference_session.exec(select(BusinessUnit).where(BusinessUnit.name == "Contracted Opportunity Finder")).first()
+    public_notice_opportunity = reference_session.exec(select(Opportunity).where(Opportunity.title == "Highways maintenance framework PIN")).first()
+    reference_session.add(
+        OpportunityDocument(
+            opportunity_id=public_notice_opportunity.id,
+            title="COF public notice evidence record",
+            document_type="public_notice",
+            url_or_path=public_notice_opportunity.source_url,
+            retrieval_status="retrieved",
+            platform_name="Find a Tender",
+            content_summary="Public notice metadata retained as source evidence, not a retrieved tender pack.",
+        )
+    )
     rejected = Opportunity(title="Rejected noise record", status="rejected", summary="Should not appear in COF report.")
     reference_session.add(rejected)
+    for title in [
+        "South Devon College boiler maintenance notice",
+        "Home Office DSA Cyber Security framework",
+        "Telecommunications market sweep record",
+        "Waltham Forest minor works contract",
+        "Basildon CCTV maintenance opportunity",
+    ]:
+        reference_session.add(
+            Opportunity(
+                title=title,
+                buyer_name=title.split(" ", 2)[0],
+                status="live",
+                notice_type="tender",
+                procurement_stage="tender",
+                deadline_date=date.today() + timedelta(days=20),
+                source_url="https://www.find-tender.service.gov.uk/Notice/NOISE",
+                summary="Generic public-market sweep record that is not assigned to the COF workspace.",
+                relevance_score=80,
+            )
+        )
+    reference_session.add(
+        Opportunity(
+            title="Generic Telecommunications COF business-unit sweep record",
+            buyer_name="Generic Authority",
+            business_unit_id=cof_unit.id,
+            status="live",
+            notice_type="tender",
+            procurement_stage="tender",
+            deadline_date=date.today() + timedelta(days=20),
+            source_url="https://www.find-tender.service.gov.uk/Notice/BU-NOISE",
+            summary="BU-only public-market sweep record with no matched COF client.",
+            relevance_score=80,
+        )
+    )
     reference_session.commit()
 
     report = create_report(reference_session, "COF Weekly Portfolio Report", "cof_weekly_portfolio_report")
     markdown = report.markdown
+    interested_count = len([item for item in reference_session.exec(select(ClientInterestSignal)) if item.signal == "interested"])
 
+    assert report.business_unit_id == cof_unit.id
+    assert "**Scope:** Contracted Opportunity Finder" in markdown
+    assert "All customers and business units" not in markdown
     assert "PINs" in markdown
     assert "Live Tenders" in markdown
+    assert "0 live tender signal" not in markdown
     assert "Awards / Market Evidence" in markdown
     assert "Interested / Donna Actions" in markdown
+    assert f"{interested_count} interested item(s)" in markdown
     assert "Quality Questions And Weightings" in markdown
+    assert "Public Notice Evidence" in markdown
+    documents_section = markdown.split("## Documents Retrieved", 1)[1].split("## Public Notice Evidence", 1)[0]
+    public_notice_section = markdown.split("## Public Notice Evidence", 1)[1].split("## Quality Questions And Weightings", 1)[0]
     assert "Human review required" in markdown
     assert "Rejected noise record" not in markdown
+    assert "COF public notice evidence record" not in documents_section
+    assert "COF public notice evidence record" in public_notice_section
+    for title in [
+        "South Devon College",
+        "Home Office",
+        "Telecommunications",
+        "Waltham Forest",
+        "Basildon",
+        "Generic Telecommunications",
+    ]:
+        assert title not in markdown
     for export_format in ("pdf", "html", "json", "md", "txt"):
         payload, media_type, filename = report_export(report, export_format)
         assert payload
         assert filename.endswith("." + ("md" if export_format == "md" else export_format))
         assert media_type
+    pdf_payload, _, _ = report_export(report, "pdf")
+    assert REPORT_CAVEAT.encode("cp1252") in pdf_payload
+
+
+def test_cof_stage_classification_uses_lifecycle_not_review_status():
+    live_approved = Opportunity(
+        title="Approved live tender",
+        status="approved",
+        notice_type="tender",
+        procurement_stage="tender",
+        deadline_date=date.today() + timedelta(days=30),
+    )
+    closing = Opportunity(
+        title="Closing tender",
+        status="review_required",
+        notice_type="tender",
+        procurement_stage="tender",
+        deadline_date=date.today() + timedelta(days=5),
+    )
+    interested = ClientInterestSignal(signal="interested")
+    question = ExtractedQualityQuestion(question_text="Quality question", opportunity_id=1)
+
+    assert cof_stage_for_opportunity(live_approved, [], [], [], []) == "live"
+    assert cof_stage_for_opportunity(closing, [], [], [], []) == "closing_soon"
+    assert cof_stage_for_opportunity(live_approved, [interested], [], [], []) == "interested"
+    assert cof_stage_for_opportunity(live_approved, [], [], [], [question]) == "questions_extracted"
+
+
+def test_pdf_text_generation_sanitises_non_printable_characters():
+    lines = _pdf_text_lines("# live\u2011pilot\x00 report\nBad\ufffd control")
+    text = "\n".join(lines)
+
+    assert "live-pilot" in text
+    assert "\ufffd" not in text
+    assert all(ch in {"\n", "\t"} or ord(ch) >= 32 for ch in text)
 
 
 def test_customer_visible_pages_do_not_use_mvp_demo_or_concept_language(reference_session):

@@ -63,7 +63,7 @@ def seed_cof_live_pilot_content(session: Session, actor: str = "local-user") -> 
         ("COF Client 09", "Fire alarm and building controls maintenance", "Further Education College", "document_retrieval_required", "tender", today + timedelta(days=18), 720000, "Fire alarm, intruder alarm, building controls, compliance testing and reactive maintenance.", "building controls", "compliance_and_assurance"),
         ("COF Client 10", "Digital reporting dashboard and integration support", "Unitary Authority", "questions_extracted", "tender", today + timedelta(days=24), 650000, "Data platform integration, reporting dashboards, support services and service desk requirements.", "data platform", "digital_data_and_integration"),
         ("COF Client 11", "Specialist concrete repair and retaining wall works", "Scottish Local Authority", "needs_review", "tender", today + timedelta(days=34), 1450000, "Specialist concrete repairs, waterproofing and retaining wall maintenance. Needs source verification before client release.", "concrete repairs", "asset_and_field_operations"),
-        ("COF Client 04", "Legacy CCTV monitoring system replacement", "City Council", "review_required", "tender", today + timedelta(days=15), 820000, "CCTV monitoring, cyber hardening, network connectivity and support model. Denise review required.", "CCTV", "cyber_and_information_security"),
+        ("COF Client 04", "Legacy CCTV monitoring system replacement", "City Council", "review_required", "tender", today + timedelta(days=15), 820000, "CCTV monitoring, cyber hardening, network connectivity and support model. Human review required.", "CCTV", "cyber_and_information_security"),
         ("COF Client 05", "Minor works asset survey award evidence", "Housing Association", "awarded", "award", today - timedelta(days=20), 330000, "Award evidence for asset survey and minor works packages.", "asset survey", "commercial_and_procurement"),
     ]
     for index, row in enumerate(rows, start=1):
@@ -88,7 +88,7 @@ def seed_cof_live_pilot_content(session: Session, actor: str = "local-user") -> 
 
     created["signals"] += _ensure_interest(session, "COF Client 04", "Public estate cyber and CCTV services", "interested", "Donna action required: retrieve tender documents and confirm client follow-up.")
     created["signals"] += _ensure_interest(session, "COF Client 09", "Fire alarm and building controls maintenance", "interested", "Donna action required: confirm portal document access.")
-    created["signals"] += _ensure_interest(session, "COF Client 10", "Digital reporting dashboard and integration support", "interested", "Donna action required: share extracted quality questions after Denise review.")
+    created["signals"] += _ensure_interest(session, "COF Client 10", "Digital reporting dashboard and integration support", "interested", "Donna action required: share extracted quality questions after human review.")
     created["signals"] += _ensure_interest(session, "COF Client 05", "Facilities and asset management services", "watch", "Client asked to keep this under weekly watch.")
     created["signals"] += _ensure_interest(session, "COF Client 08", "Public realm drainage and grounds maintenance PIN", "watch", "PIN to monitor for tender publication.")
 
@@ -245,7 +245,7 @@ def _ensure_document_and_questions(session: Session, opportunity: Opportunity, t
             retrieval_status="review_required",
             human_review_status="pending",
             platform_name="COF portal family",
-            content_summary=f"Permitted text extract for {theme}; quality questions and weightings require Denise verification.",
+            content_summary=f"Permitted text extract for {theme}; quality questions and weightings require reviewer verification.",
             classification_label="COF permitted extract",
             source_access_notes="On-demand document retrieval triggered by client interest. No portal login is automated.",
             notes="Quality question 1: Describe your delivery approach, mobilisation controls and evidence of similar public-sector work. Weighting 35%. Quality question 2: Explain risk management, social value and reporting governance. Weighting 25%.",
@@ -295,6 +295,10 @@ def _ensure_interest(session: Session, client_name: str, opportunity_title: str,
         )
     ).first()
     if existing:
+        existing.notes = existing.notes or notes
+        existing.status = "donna_action_required" if signal == "interested" else "watching"
+        session.add(existing)
+        _reconcile_interest_workflow(session, client, opportunity, signal)
         return 0
     session.add(
         ClientInterestSignal(
@@ -307,6 +311,11 @@ def _ensure_interest(session: Session, client_name: str, opportunity_title: str,
             status="donna_action_required" if signal == "interested" else "watching",
         )
     )
+    _reconcile_interest_workflow(session, client, opportunity, signal)
+    return 1
+
+
+def _reconcile_interest_workflow(session: Session, client: Customer, opportunity: Opportunity, signal: str) -> None:
     if signal == "interested":
         opportunity.status = "interested"
         session.add(opportunity)
@@ -321,7 +330,9 @@ def _ensure_interest(session: Session, client_name: str, opportunity_title: str,
                     notes="Client interest triggered on-demand portal/document retrieval. No portal login is automated by COF.",
                 )
             )
-    return 1
+    elif signal == "watch" and opportunity.status not in {"interested", "awarded"}:
+        opportunity.status = "watch"
+        session.add(opportunity)
 
 
 def _ensure_cof_digest(session: Session, unit: BusinessUnit) -> None:
@@ -343,9 +354,20 @@ def _ensure_cof_digest(session: Session, unit: BusinessUnit) -> None:
 
 def _ensure_cof_seed_report(session: Session, unit: BusinessUnit) -> int:
     existing = session.exec(select(IntelligenceReport).where(IntelligenceReport.report_name == "COF weekly portfolio report - live pilot baseline")).first()
-    if existing:
-        return 0
     from app.reports import generate_cof_weekly_report_markdown
+
+    if existing:
+        existing.report_type = "cof_weekly_portfolio_report"
+        existing.customer_id = None
+        existing.business_unit_id = unit.id
+        existing.markdown = generate_cof_weekly_report_markdown(
+            session,
+            existing.report_name,
+            "cof_weekly_portfolio_report",
+            business_unit_id=unit.id,
+        )
+        session.add(existing)
+        return 0
 
     report = IntelligenceReport(
         report_name="COF weekly portfolio report - live pilot baseline",

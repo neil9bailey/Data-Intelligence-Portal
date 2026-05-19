@@ -10,7 +10,7 @@ packs:
     business_unit:
       name: Contracted Opportunity Finder
       parent: Procter Street
-      description: COF portfolio workspace for daily public-source ingestion, opportunity matching, Denise review, Donna action tracking and weekly client reporting.
+      description: COF portfolio workspace for daily public-source ingestion, opportunity matching, human review, relationship action tracking and weekly client reporting.
     customer:
       name: Procter Street COF Portfolio
       sector: Public-sector opportunity intelligence
@@ -249,5 +249,5 @@ packs:
         query: COF weekly client reporting PIN live tender award market evidence quality questions weightings
     missing_actions:
       - Replace COF Client placeholders with confirmed live client names, regions, keywords and CPV preferences.
-      - Confirm Denise review ownership and Monday report recipient list.
+      - Confirm review ownership and Monday report recipient list.
       - Confirm Donna relationship action owner and client follow-up process.

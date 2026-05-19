@@ -7,7 +7,23 @@ import textwrap
 from app.models import IntelligenceReport
 
 
-REPORT_CAVEAT = "Human-review intelligence only. Do not use as a bid/no-bid, legal, procurement or compliance decision without authorised review."
+REPORT_CAVEAT = "Human review required. Not a bid, legal, procurement or compliance decision."
+
+
+def sanitize_pdf_text(value: str) -> str:
+    replacements = {
+        "\u2010": "-",
+        "\u2011": "-",
+        "\u2012": "-",
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u2212": "-",
+        "\ufffd": "",
+    }
+    text = str(value or "")
+    for source, target in replacements.items():
+        text = text.replace(source, target)
+    return "".join(ch if ch in {"\n", "\t"} or ord(ch) >= 32 else " " for ch in text)
 
 
 def report_filename(report: IntelligenceReport, export_format: str) -> str:
@@ -38,7 +54,7 @@ def _html_report(report: IntelligenceReport) -> str:
 
 
 def _pdf_literal(text: str) -> bytes:
-    value = text.encode("cp1252", errors="replace")
+    value = sanitize_pdf_text(text).encode("cp1252", errors="replace")
     value = value.replace(b"\\", b"\\\\").replace(b"(", b"\\(").replace(b")", b"\\)")
     return b"(" + value + b")"
 
@@ -46,7 +62,7 @@ def _pdf_literal(text: str) -> bytes:
 def _pdf_text_lines(markdown: str) -> list[str]:
     lines: list[str] = []
     for raw in markdown.splitlines():
-        text = raw.strip()
+        text = sanitize_pdf_text(raw).strip()
         if not text:
             lines.append("")
             continue
@@ -62,7 +78,7 @@ def _content_stream(report: IntelligenceReport, page_number: int, page_count: in
     parts: list[bytes] = [
         b"BT /F1 9 Tf 50 760 Td " + _pdf_literal("CONTRACTED OPPORTUNITY FINDER | OPPORTUNITY INTELLIGENCE PACK") + b" Tj ET",
         b"0.30 0.08 0.38 rg 50 742 512 3 re f",
-        b"BT /F1 17 Tf 50 712 Td " + _pdf_literal(report.report_name[:72]) + b" Tj ET",
+        b"BT /F1 17 Tf 50 712 Td " + _pdf_literal(sanitize_pdf_text(report.report_name)[:72]) + b" Tj ET",
         b"BT /F1 9 Tf 50 690 Td " + _pdf_literal(f"Generated report export | page {page_number} of {page_count}") + b" Tj ET",
         b"BT /F1 9 Tf 50 668 Td 13 TL",
     ]
@@ -71,7 +87,7 @@ def _content_stream(report: IntelligenceReport, page_number: int, page_count: in
     parts.extend(
         [
             b"ET",
-            b"BT /F1 8 Tf 50 34 Td " + _pdf_literal(REPORT_CAVEAT[:110]) + b" Tj ET",
+            b"BT /F1 8 Tf 50 34 Td " + _pdf_literal(REPORT_CAVEAT) + b" Tj ET",
         ]
     )
     return b"\n".join(parts)
