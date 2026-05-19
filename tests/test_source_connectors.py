@@ -4,7 +4,7 @@ from sqlmodel import select
 
 from app.cof_readiness import cof_source_health
 from app.intelligence import FetchResult, run_kra_research, run_source_check
-from app.models import KRAResearchRun, Opportunity, OpportunityMatchEvidence, ProcurementSource
+from app.models import KRAResearchRun, Opportunity, OpportunityMatchEvidence, ProcurementSource, SourceCheckSnapshot
 from app.source_connectors import connector_for_source
 
 
@@ -171,3 +171,28 @@ def test_kra_query_failure_does_not_downgrade_source_catalogue_health(reference_
     health = {item.key: item for item in cof_source_health(reference_session)}
 
     assert health["find_a_tender"].status == "active"
+
+
+def test_source_health_ignores_failed_snapshot_from_previous_source_url(reference_session):
+    source = reference_session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "public_contracts_scotland")).first()
+    source.base_url = "https://www.publiccontractsscotland.gov.uk"
+    source.query_url = "https://www.publiccontractsscotland.gov.uk/"
+    source.connector_status = "live_public_source"
+    source.last_status = ""
+    reference_session.add(source)
+    reference_session.flush()
+    reference_session.add(
+        SourceCheckSnapshot(
+            source_id=source.id,
+            query_url="https://www.publiccontractsscotland.gov.uk/search/search_mainpage.aspx",
+            ok=False,
+            change_type="failed",
+            detected_schema="network_error",
+            notes="HTTP 429",
+        )
+    )
+    reference_session.commit()
+
+    health = {item.key: item for item in cof_source_health(reference_session)}
+
+    assert health["public_contracts_scotland"].status == "active"

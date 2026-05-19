@@ -502,6 +502,9 @@ def _ensure_source(session: Session, data: dict, result: dict) -> ProcurementSou
         }
         for field_name, value in updates.items():
             if getattr(source, field_name) != value:
+                if field_name in {"base_url", "query_url"}:
+                    source.last_checked_at = None
+                    source.last_status = ""
                 setattr(source, field_name, value)
                 changed = True
         if changed:

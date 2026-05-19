@@ -8,7 +8,7 @@ source_metadata:
     - name: Contracts Finder API documentation
       url: https://www.contractsfinder.service.gov.uk/apidocumentation
     - name: Public Contracts Scotland public search
-      url: https://www.publiccontractsscotland.gov.uk/search/search_mainpage.aspx
+      url: https://www.publiccontractsscotland.gov.uk/
     - name: Sell2Wales OCDS guide
       url: https://www.sell2wales.gov.wales/helpandresources/ocds/dataaccessinfo
     - name: TED API developer documentation
@@ -73,15 +73,15 @@ sources:
     source_family: official_notice
     source_type: web_page
     base_url: https://www.publiccontractsscotland.gov.uk
-    query_url: https://www.publiccontractsscotland.gov.uk/search/search_mainpage.aspx
+    query_url: https://www.publiccontractsscotland.gov.uk/
     official: true
     active: true
     coverage: Scotland public-sector procurement notices
     auth_model: none
-    data_format: Public search HTML; OCDS/API route retained for future normaliser validation
+    data_format: Public source health page; OCDS/API route retained for future normaliser validation
     dedupe_strategy: ocid_or_notice_reference
     connector_status: live_public_source
-    notes: Official Scottish public procurement source in the COF five-source pipeline. The public search page is used for live health checks because it is reachable from the container runtime; PCS OCDS/API normalisation remains a future connector hardening item.
+    notes: Official Scottish public procurement source in the COF five-source pipeline. The lightweight official PCS home page is used for live health checks because it is reliable from the container runtime; PCS OCDS/API normalisation remains a future connector hardening item.
   - key: sell2wales
     name: Sell2Wales public procurement source
     source_family: official_notice

@@ -292,12 +292,12 @@ def source_reference_for_report(opportunity: Opportunity, report_mode: str) -> s
 def cof_source_health(session: Session, freshness_days: int = SOURCE_FRESHNESS_DAYS) -> list[SourceHealthItem]:
     sources = list(session.exec(select(ProcurementSource)))
     snapshots = list(session.exec(select(SourceCheckSnapshot).order_by(col(SourceCheckSnapshot.checked_at).desc()).limit(200)))
-    latest_by_source: dict[int, SourceCheckSnapshot] = {}
+    snapshots_by_source: dict[int, list[SourceCheckSnapshot]] = {}
     for snapshot in snapshots:
         if _is_kra_query_snapshot(snapshot):
             continue
-        if snapshot.source_id and snapshot.source_id not in latest_by_source:
-            latest_by_source[snapshot.source_id] = snapshot
+        if snapshot.source_id:
+            snapshots_by_source.setdefault(snapshot.source_id, []).append(snapshot)
     by_key = {source.source_key: source for source in sources if source.source_key}
     health: list[SourceHealthItem] = []
     for key, label in {**REQUIRED_SOURCE_KEYS, **BACKUP_SOURCE_KEYS}.items():
@@ -321,7 +321,7 @@ def cof_source_health(session: Session, freshness_days: int = SOURCE_FRESHNESS_D
                 )
             )
             continue
-        latest = latest_by_source.get(source.id or 0)
+        latest = _latest_source_health_snapshot(source, snapshots_by_source.get(source.id or 0, []))
         last_checked = latest.checked_at if latest else source.last_checked_at
         status_text = " ".join(
             [
@@ -627,6 +627,23 @@ def _is_retrieved_document(item: OpportunityDocument) -> bool:
 
 def _is_kra_query_snapshot(snapshot: SourceCheckSnapshot) -> bool:
     return (snapshot.notes or "").lower().startswith("kra query:")
+
+
+def _latest_source_health_snapshot(source: ProcurementSource, snapshots: list[SourceCheckSnapshot]) -> SourceCheckSnapshot | None:
+    for snapshot in snapshots:
+        if _snapshot_matches_current_source_url(source, snapshot):
+            return snapshot
+    return None
+
+
+def _snapshot_matches_current_source_url(source: ProcurementSource, snapshot: SourceCheckSnapshot) -> bool:
+    if not snapshot.query_url:
+        return True
+    source_url = urlparse(source.query_url or source.base_url or "")
+    snapshot_url = urlparse(snapshot.query_url)
+    if not source_url.netloc or not snapshot_url.netloc:
+        return True
+    return source_url.netloc.lower() == snapshot_url.netloc.lower() and source_url.path.rstrip("/") == snapshot_url.path.rstrip("/")
 
 
 def _split_recipients(value: str) -> list[str]:

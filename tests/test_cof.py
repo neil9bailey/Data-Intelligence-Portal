@@ -117,7 +117,7 @@ def test_procter_street_cof_pack_applies_idempotently(reference_session):
     assert {"ProContract", "In-Tend", "Jaggaer", "Delta eSourcing"}.issubset(platforms)
     assert {"find_a_tender", "contracts_finder", "public_contracts_scotland", "sell2wales", "ted_eforms", "tenders_direct_backup"}.issubset(source_keys)
     pcs = reference_session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "public_contracts_scotland")).first()
-    assert pcs.query_url == "https://www.publiccontractsscotland.gov.uk/search/search_mainpage.aspx"
+    assert pcs.query_url == "https://www.publiccontractsscotland.gov.uk/"
     assert any("Customer: COF Client 01" in item for item in result["created"])
     assert second["created"] == []
 
