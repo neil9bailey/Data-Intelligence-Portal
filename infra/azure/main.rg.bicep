@@ -49,7 +49,7 @@ param managedCertificateName string = ''
 param imageRepositoryPrefix string = 'dip'
 
 @description('Container image tag.')
-param imageTag string = '1.0.31-live-test'
+param imageTag string = '1.0.40-cof-live'
 
 @allowed([
   'DELETE'
@@ -123,7 +123,7 @@ param kraApiKeySecretName string = ''
 param emailDeliveryMode string = 'file_outbox'
 
 @description('Default sender display name used by the report email workflow.')
-param emailSenderName string = 'Data Intelligence Portal'
+param emailSenderName string = 'Contracted Opportunity Finder'
 
 @description('Default sender address used by the report email workflow.')
 param emailSender string = 'no-reply@vendorlogic.io'
@@ -289,7 +289,11 @@ var appEnvironment = concat(
   [
     {
       name: 'APP_NAME'
-      value: 'Data Intelligence Portal'
+      value: 'Contracted Opportunity Finder'
+    }
+    {
+      name: 'DIP_ENVIRONMENT_LABEL'
+      value: 'Live COF workspace'
     }
     {
       name: 'DATABASE_URL'

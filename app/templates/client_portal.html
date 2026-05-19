@@ -1,14 +1,67 @@
 {% extends "base.html" %}
 {% block title %}Client Feed - {{ app_name }}{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Client Feed And Interest Tracker</h1><p>Phase-2 style live feed concept: approved opportunities, local interest signals and pipeline follow-up.</p></div></div>
-<section class="grid two">
+<div class="page-head">
+  <div>
+    <h1>Client Opportunity Portal</h1>
+    <p>Live COF opportunity view for PINs, tenders, award evidence and client interest signals.</p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/reports">Download reports</a>
+  </div>
+</div>
+
+<section class="grid metrics">
+  <div class="metric"><span class="value">{{ client_metrics.pins }}</span><span class="label">PINs</span></div>
+  <div class="metric"><span class="value">{{ client_metrics.live_tenders }}</span><span class="label">Live tenders</span></div>
+  <div class="metric"><span class="value">{{ client_metrics.interested }}</span><span class="label">Interested</span></div>
+  <div class="metric"><span class="value">{{ client_metrics.awarded }}</span><span class="label">Awarded</span></div>
+</section>
+
+<section class="grid two" style="margin-top:18px;">
   <div class="panel">
-    <h2>Approved Opportunities</h2>
+    <h2>Live Opportunity Board</h2>
     <div class="stack">
       {% for item in opportunities %}
-      <article class="list-item"><h3>{{ item.title }}</h3><p>{{ item.summary[:220] }}</p><p class="hint">{{ item.buyer_name }} | deadline {{ item.deadline_date or "not detected" }}</p></article>
-      {% else %}<p>No approved opportunities yet. Use the review queue to approve opportunities for this feed.</p>{% endfor %}
+      <article class="list-item opportunity-card">
+        <div class="list-heading">
+          <div>
+            <h3>{{ item.title }}</h3>
+            <p class="hint">{{ item.buyer_name or "Buyer not detected" }} | deadline {{ item.deadline_date or "not detected" }} | GBP {{ '{:,.0f}'.format(item.value_high or 0) }}</p>
+          </div>
+          <span class="badge {{ 'green' if item.status in ['live','interested','questions_extracted','approved'] else 'amber' if item.status in ['pin','closing_soon','watch','document_retrieval_required'] else 'weak' }}">{{ item.status | replace('_', ' ') }}</span>
+        </div>
+        <p>{{ item.summary[:260] }}</p>
+        <div class="record-actions">
+          <form method="post" action="/client-portal/interests">
+            <input type="hidden" name="opportunity_id" value="{{ item.id }}">
+            <input type="hidden" name="customer_id" value="{{ item.customer_id or '' }}">
+            <input type="hidden" name="signal" value="interested">
+            <input type="hidden" name="notes" value="Client interest raised from portal. Donna action required.">
+            <button class="compact" type="submit">I&rsquo;m interested</button>
+          </form>
+          <form method="post" action="/client-portal/interests">
+            <input type="hidden" name="opportunity_id" value="{{ item.id }}">
+            <input type="hidden" name="customer_id" value="{{ item.customer_id or '' }}">
+            <input type="hidden" name="signal" value="watch">
+            <input type="hidden" name="notes" value="Client asked COF to watch this opportunity.">
+            <button class="secondary compact" type="submit">Watch</button>
+          </form>
+          {% if questions_by_opportunity.get(item.id) %}
+          <details class="compact-drawer">
+            <summary>View questions</summary>
+            <ul class="plain-list">
+              {% for question in questions_by_opportunity.get(item.id) %}
+              <li><strong>{{ question.section_reference or question.requirement_theme }}</strong><span>{{ question.question_text }}{% if question.weighting %} | weighting {{ question.weighting }}{% endif %}</span></li>
+              {% endfor %}
+            </ul>
+          </details>
+          {% else %}
+          <span class="badge weak">Questions pending</span>
+          {% endif %}
+        </div>
+      </article>
+      {% else %}<p>No approved opportunities are visible yet. Admin review controls what reaches this client feed.</p>{% endfor %}
     </div>
   </div>
   <div class="panel">
@@ -21,6 +74,7 @@
       <div class="field"><label>Notes</label><textarea name="notes"></textarea></div>
       <button type="submit">Save signal</button>
     </form>
+    <div class="warning-text" style="margin-top:12px;">Client interest creates a Donna action queue item for on-demand document retrieval. COF does not automate portal login, customer contact or bid submission.</div>
   </div>
 </section>
 <section class="panel" style="margin-top:18px;">

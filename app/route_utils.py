@@ -77,6 +77,7 @@ def context(request: Request, **extra):
     base = {
         "request": request,
         "app_name": settings.app_name,
+        "environment_label": settings.environment_label,
         "rules_versions": rules_version_summary(),
         "kra_runtime": kra_runtime_status(),
         "current_user": get_current_user(request),
@@ -297,7 +298,7 @@ def portal_next_action(portal: BuyerPortalInstance, platform: ProcurementPlatfor
     if status == "access_requested":
         return "Track the access request and add due-date notes until the portal is usable."
     if status == "pending_mfa_owner":
-        return "Record the internal MFA/account owner and keep credentials outside the MVP."
+        return "Record the internal MFA/account owner and keep credentials outside the COF workspace."
     if status in {"blocked", "expired"}:
         return "Escalate portal access before relying on it for bid document retrieval."
     if open_task_count:

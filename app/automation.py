@@ -198,8 +198,8 @@ def run_admin_full_cycle(
 
         report = create_report(
             session,
-            f"DIP executive intelligence pack {datetime.now(UTC).strftime('%Y-%m-%d %H:%M')}",
-            report_type="executive_pack",
+            f"COF weekly portfolio report {datetime.now(UTC).strftime('%Y-%m-%d %H:%M')}",
+            report_type="cof_weekly_portfolio_report",
             include_ai_brief=False,
         )
         step("Generate a report", "completed", f"Report {report.id} generated.", report_id=report.id)
@@ -216,7 +216,7 @@ def run_admin_full_cycle(
                 config,
                 recipients=recipients,
                 subject=report.report_name,
-                body="Please find the attached Data Intelligence Portal report for review.",
+                body="Please find the attached Contracted Opportunity Finder weekly report for review.",
                 report=report,
                 export_format=export_format,
             )

@@ -50,7 +50,7 @@ async def lifespan(app: FastAPI):
 
 configure_logging()
 
-app = FastAPI(title="Data Intelligence Portal", lifespan=lifespan)
+app = FastAPI(title="Contracted Opportunity Finder", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 

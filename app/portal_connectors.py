@@ -88,7 +88,7 @@ def build_auth_request(connector: PortalInformationConnector) -> tuple[str, dict
     elif connector.auth_type == "api_key_query":
         url = url_with_api_key(url, connector.api_key_query_name or "api_key", api_key)
     else:
-        return url, headers, f"Auth type {connector.auth_type} is not supported by the MVP connector runner."
+        return url, headers, f"Auth type {connector.auth_type} is not supported by the current read-only connector runner."
     return url, headers, ""
 
 

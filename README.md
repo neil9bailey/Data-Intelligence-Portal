@@ -1,12 +1,12 @@
-# Data Intelligence Portal
+# Contracted Opportunity Finder
 
-Dedicated product concept for a general public-sector customer, framework, procurement-source and requirement intelligence platform.
+Live customer-pilot workspace for public-sector contracted opportunity monitoring, client matching, review gates, portal/document workflow and weekly intelligence reporting.
 
-This repo now contains a runnable local MVP for a standalone intelligence product. The solution focuses on gathering, normalising, tracking and reporting useful customer and opportunity intelligence for bid, sales, strategy, service design, delivery and account teams.
+This repo contains the Data Intelligence Portal application configured as a Contracted Opportunity Finder (COF) solution for the Procter Street proposal. It gathers, normalises, tracks and reports useful customer and opportunity intelligence for sales, bid, strategy, service design, delivery and account teams.
 
 ## What It Is
 
-Data Intelligence Portal is a configurable information-gathering workspace for:
+Contracted Opportunity Finder is a configurable information-gathering workspace for:
 
 - public-sector customers and account profiles
 - procurement frameworks and opportunity notices
@@ -26,17 +26,19 @@ Data Intelligence Portal is a configurable information-gathering workspace for:
 - a built-in KRA Knowledge Research Agent for guarded source checks, source-change tracking, customer memory and requirement extraction
 - AI provenance fields for KRA-assisted findings, including provider/model/prompt version hashes and human review status
 - MCP-style local agent/tool profiles ready for future connector orchestration
+- Procter Street COF configuration pack with 11 active client placeholders, five primary sources, Tenders Direct backup, four buyer-portal families, Denise review gate, Donna action queue and Monday report profile
 
 ## What It Is Not
 
 - It is not a bid/no-bid decision engine.
 - It is not a replacement for commercial, legal, procurement or compliance review.
 - It does not automate customer contact, portal submissions or expressions of interest without explicit future governance.
-- It does not store portal passwords or secrets in the MVP.
+- It does not store portal passwords or secrets.
 
 ## Review Artefacts
 
 - [Documentation index](docs/README.md)
+- [COF Procter Street alignment](docs/cof-procter-street-alignment.md)
 - [Solution plan](docs/solution_plan.md)
 - [Architecture blueprint](docs/architecture_blueprint.md)
 - [Implementation epics](docs/implementation_epics.md)
@@ -55,12 +57,12 @@ Open the mockup directly in a browser:
 F:\code\Data-Intelligence-Portal\docs\ui_mockups\data_intelligence_portal_mockup.html
 ```
 
-## Current MVP Stack
+## Current Pilot Stack
 
 - Python 3.12
 - FastAPI
 - SQLModel / SQLAlchemy
-- SQLite for local MVP persistence
+- SQLite for local and current Azure pilot persistence
 - Jinja2 server-rendered HTML
 - HTMX for dynamic interactions
 - YAML-backed source and extraction configuration

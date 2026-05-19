@@ -1,0 +1,253 @@
+version: 2026.05.19
+last_reviewed: 2026-05-19
+purpose: Contracted Opportunity Finder customer-pilot packs.
+packs:
+  - key: procter_street_cof
+    display_name: Procter Street COF
+    description: Contracted Opportunity Finder workspace for 11 active clients, source-to-inbox review and weekly opportunity reporting.
+    service_name: Contracted Opportunity Finder
+    template_key: cof_portfolio
+    business_unit:
+      name: Contracted Opportunity Finder
+      parent: Procter Street
+      description: COF portfolio workspace for daily public-source ingestion, opportunity matching, Denise review, Donna action tracking and weekly client reporting.
+    customer:
+      name: Procter Street COF Portfolio
+      sector: Public-sector opportunity intelligence
+      domain: public procurement; frameworks; client opportunity matching
+      customer_type: portfolio workspace
+      region: UK
+      aliases: [Procter Street, Contracted Opportunity Finder, COF]
+      buying_entities: [Procter Street]
+      strategic_notes:
+        - Portfolio record used to group the COF service, reporting workflow and operating model.
+        - Customer-facing records are the 11 COF client placeholders and should be replaced with live client names when confirmed.
+    watch_profile:
+      name: Procter Street COF portfolio watch
+      keywords: [public sector tender, framework, construction, highways, bridges, decarbonisation, cyber security, facilities management, asset management, transport maintenance]
+      cpv_codes: ["45000000 - Construction work", "45233139 - Highway maintenance work", "72000000 - IT services", "50000000 - Repair and maintenance services"]
+      domains: [public procurement, construction, highways, estates, security, facilities]
+    clients:
+      - name: COF Client 01
+        sector: Highways and civil engineering
+        region: UK
+        aliases: [COF Client 01, Client 01 Highways]
+        keywords: [highways maintenance, surfacing, bridge works, traffic management, drainage, winter maintenance]
+        cpv_codes: ["45233139 - Highway maintenance work", "45221100 - Construction work for bridges", "45233210 - Surface work for highways"]
+        value_band: "GBP 250k-5m"
+        portal_family: ProContract
+        report_notes: Replace placeholder with the live client name and preferred geography before external use.
+      - name: COF Client 02
+        sector: School estates and decarbonisation
+        region: England
+        aliases: [COF Client 02, Client 02 Estates]
+        keywords: [school estate, decarbonisation, retrofit, heat pumps, solar PV, building fabric, energy efficiency]
+        cpv_codes: ["45214200 - Construction work for school buildings", "71314300 - Energy-efficiency consultancy services", "45331000 - Heating works"]
+        value_band: "GBP 100k-3m"
+        portal_family: In-Tend
+        report_notes: Placeholder client for education-estates opportunity matching.
+      - name: COF Client 03
+        sector: Bridges and structures
+        region: UK
+        aliases: [COF Client 03, Client 03 Structures]
+        keywords: [bridge strengthening, bridge refurbishment, structural repairs, concrete repairs, inspections, parapets]
+        cpv_codes: ["45221119 - Bridge renewal construction work", "45221100 - Construction work for bridges", "71631450 - Bridge-inspection services"]
+        value_band: "GBP 250k-10m"
+        portal_family: Jaggaer
+        report_notes: Placeholder client for structures-led opportunities.
+      - name: COF Client 04
+        sector: Cyber and security services
+        region: UK
+        aliases: [COF Client 04, Client 04 Security]
+        keywords: [cyber security, CCTV, access control, SOC, security systems, network security, managed security]
+        cpv_codes: ["72000000 - IT services", "79710000 - Security services", "35120000 - Surveillance and security systems"]
+        value_band: "GBP 50k-2m"
+        portal_family: Delta eSourcing
+        report_notes: Placeholder client for cyber/security opportunity matching.
+      - name: COF Client 05
+        sector: Facilities and asset management
+        region: UK
+        aliases: [COF Client 05, Client 05 FM]
+        keywords: [facilities management, asset management, planned maintenance, reactive maintenance, estates services, lifecycle works]
+        cpv_codes: ["79993000 - Building and facilities management services", "50000000 - Repair and maintenance services", "71315300 - Building surveying services"]
+        value_band: "GBP 100k-5m"
+        portal_family: ProContract
+        report_notes: Placeholder client for FM and asset-management opportunities.
+      - name: COF Client 06
+        sector: Transport maintenance
+        region: UK
+        aliases: [COF Client 06, Client 06 Transport]
+        keywords: [transport maintenance, depots, bus infrastructure, rail stations, passenger information, fleet maintenance]
+        cpv_codes: ["50220000 - Repair and maintenance services of rolling stock", "45213310 - Construction work for buildings relating to road transport", "48813000 - Passenger information system"]
+        value_band: "GBP 100k-4m"
+        portal_family: In-Tend
+        report_notes: Placeholder client for transport-maintenance opportunities.
+      - name: COF Client 07
+        sector: Public building works
+        region: England and Wales
+        aliases: [COF Client 07, Client 07 Buildings]
+        keywords: [public building works, refurbishment, civic buildings, libraries, leisure centres, roofing, M&E upgrades]
+        cpv_codes: ["45210000 - Building construction work", "45453100 - Refurbishment work", "45300000 - Building installation work"]
+        value_band: "GBP 100k-6m"
+        portal_family: Jaggaer
+        report_notes: Placeholder client for public-building works.
+      - name: COF Client 08
+        sector: Environmental and grounds maintenance
+        region: UK
+        aliases: [COF Client 08, Client 08 Environment]
+        keywords: [grounds maintenance, public realm, environmental services, drainage, flood resilience, tree works]
+        cpv_codes: ["77314000 - Grounds maintenance services", "45232452 - Drainage works", "77211500 - Tree-maintenance services"]
+        value_band: "GBP 50k-2m"
+        portal_family: Delta eSourcing
+        report_notes: Placeholder client for public-realm and environmental works.
+      - name: COF Client 09
+        sector: Mechanical and electrical services
+        region: UK
+        aliases: [COF Client 09, Client 09 M&E]
+        keywords: [mechanical services, electrical maintenance, fire alarm, intruder alarm, building controls, compliance testing]
+        cpv_codes: ["50710000 - Repair and maintenance services of electrical and mechanical building installations", "31625200 - Fire-alarm systems", "45310000 - Electrical installation work"]
+        value_band: "GBP 50k-2m"
+        portal_family: ProContract
+        report_notes: Placeholder client for M&E service opportunities.
+      - name: COF Client 10
+        sector: Digital and data services
+        region: UK
+        aliases: [COF Client 10, Client 10 Digital]
+        keywords: [data platform, digital services, integration, reporting dashboards, cloud services, service desk]
+        cpv_codes: ["72000000 - IT services", "72222300 - Information technology services", "72250000 - System and support services"]
+        value_band: "GBP 50k-2m"
+        portal_family: In-Tend
+        report_notes: Placeholder client for digital/data opportunities.
+      - name: COF Client 11
+        sector: Specialist construction and maintenance
+        region: Scotland, Wales and UK
+        aliases: [COF Client 11, Client 11 Specialist Works]
+        keywords: [specialist maintenance, concrete repairs, structural waterproofing, coastal defence, retaining walls]
+        cpv_codes: ["45262330 - Concrete repair work", "45243000 - Coastal-defence works", "45262600 - Miscellaneous special-trade construction work"]
+        value_band: "GBP 100k-5m"
+        portal_family: Jaggaer
+        report_notes: Placeholder client for specialist construction opportunities.
+    sources:
+      - key: find_a_tender
+        name: Find a Tender OCDS release package API
+        source_family: official_notice
+        source_type: ocds_api
+        base_url: https://www.find-tender.service.gov.uk
+        query_url: https://www.find-tender.service.gov.uk/api/1.0/ocdsReleasePackages?updatedFrom={updated_from}&updatedTo={updated_to}&stages=planning,tender&limit={limit}
+        official: true
+        active: true
+        coverage: UK above-threshold public and utilities procurement notices.
+        auth_model: none
+        data_format: REST OCDS JSON
+        connector_status: live_public_source
+        review_frequency: daily
+        notes: One of five COF primary sources.
+      - key: contracts_finder
+        name: Contracts Finder OCDS search API
+        source_family: official_notice
+        source_type: ocds_api
+        base_url: https://www.contractsfinder.service.gov.uk
+        query_url: https://www.contractsfinder.service.gov.uk/Published/Notices/OCDS/Search?publishedFrom={published_from}&publishedTo={published_to}&stages=planning,tender&limit={limit}
+        official: true
+        active: true
+        coverage: UK below-threshold, future and live public-sector notices.
+        auth_model: public reads
+        data_format: REST OCDS JSON
+        connector_status: live_public_source
+        review_frequency: daily
+        notes: One of five COF primary sources.
+      - key: public_contracts_scotland
+        name: Public Contracts Scotland OCDS API
+        source_family: official_notice
+        source_type: ocds_api
+        base_url: https://api.publiccontractsscotland.gov.uk
+        query_url: https://api.publiccontractsscotland.gov.uk/v1/Notices
+        official: true
+        active: false
+        coverage: Scotland public-sector procurement notices.
+        auth_model: none
+        data_format: REST OCDS JSON
+        connector_status: configured_reference
+        review_frequency: daily
+        notes: COF primary source, held as reference until endpoint validation is confirmed.
+      - key: sell2wales
+        name: Sell2Wales public procurement source
+        source_family: official_notice
+        source_type: bulk_ocds
+        base_url: https://www.sell2wales.gov.wales
+        query_url: https://www.sell2wales.gov.wales/helpandresources/ocds/dataaccessinfo
+        official: true
+        active: true
+        coverage: Wales public-sector procurement notices.
+        auth_model: none for browsing; connector validation required
+        data_format: Web/bulk/OCDS
+        connector_status: live_public_source
+        review_frequency: daily
+        notes: COF primary source.
+      - key: ted_eforms
+        name: TED eForms notice data
+        source_family: official_notice
+        source_type: eforms_api
+        base_url: https://ted.europa.eu
+        query_url: https://docs.ted.europa.eu/api/latest/search.html
+        official: true
+        active: true
+        coverage: EU and Ireland procurement notices where relevant.
+        auth_model: public reads
+        data_format: REST/eForms XML
+        connector_status: live_public_source
+        review_frequency: daily
+        notes: COF primary source.
+      - key: tenders_direct_backup
+        name: Tenders Direct backup aggregator
+        source_family: commercial_aggregator
+        source_type: commercial_aggregator
+        base_url: https://www.tendersdirect.co.uk
+        query_url: https://www.tendersdirect.co.uk/
+        official: false
+        active: false
+        coverage: Backup source when licensed by the customer.
+        auth_model: commercial account required
+        data_format: provider-specific
+        connector_status: disabled_requires_contract
+        review_frequency: manual
+        notes: Backup only; do not activate without terms and approved secret handling.
+    portals:
+      - name: COF ProContract portal family
+        platform_name: ProContract
+        portal_url: https://procontract.due-north.com/
+        access_status: active
+        document_retrieval_mode: account_required_manual
+        account_reference: COF portal-family reference only; credentials stay outside the service.
+        notes: One of four COF buyer portal families. Document retrieval is on-demand after client interest.
+      - name: COF In-Tend portal family
+        platform_name: In-Tend
+        portal_url: https://in-tendhost.co.uk/
+        access_status: active
+        document_retrieval_mode: account_required_manual
+        account_reference: COF portal-family reference only; credentials stay outside the service.
+        notes: One of four COF buyer portal families. Document retrieval is on-demand after client interest.
+      - name: COF Jaggaer portal family
+        platform_name: Jaggaer
+        portal_url: https://www.jaggaer.com/
+        access_status: active
+        document_retrieval_mode: account_required_manual
+        account_reference: COF portal-family reference only; credentials stay outside the service.
+        notes: One of four COF buyer portal families. Document retrieval is on-demand after client interest.
+      - name: COF Delta eSourcing portal family
+        platform_name: Delta eSourcing
+        portal_url: https://www.delta-esourcing.com/
+        access_status: active
+        document_retrieval_mode: account_required_manual
+        account_reference: COF portal-family reference only; credentials stay outside the service.
+        notes: One of four COF buyer portal families. Document retrieval is on-demand after client interest.
+    connectors: []
+    kra_queries:
+      - agent: Official Source Scout
+        query: COF public sector opportunities highways bridges decarbonisation cyber facilities asset management transport maintenance public building works
+      - agent: Customer Memory Curator
+        query: COF weekly client reporting PIN live tender award market evidence quality questions weightings
+    missing_actions:
+      - Replace COF Client placeholders with confirmed live client names, regions, keywords and CPV preferences.
+      - Confirm Denise review ownership and Monday report recipient list.
+      - Confirm Donna relationship action owner and client follow-up process.

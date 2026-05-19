@@ -72,6 +72,24 @@
   {% endif %}
 </section>
 
+<section class="panel" style="margin-top:18px;">
+  <div class="panel-title">
+    <div>
+      <h2>Friday Review Readiness</h2>
+      <p class="hint">COF checks for the Friday review and Monday report send rhythm.</p>
+    </div>
+    <span class="badge {{ 'green' if cof_readiness.configured and cof_readiness.reports_ready_to_send else 'amber' }}">{{ 'configured' if cof_readiness.configured else 'pack not applied' }}</span>
+  </div>
+  <div class="grid metrics">
+    <div class="metric"><span class="value">{{ cof_readiness.unreviewed_opportunities }}</span><span class="label">unreviewed opportunities</span></div>
+    <div class="metric"><span class="value">{{ cof_readiness.clients_without_visible_items }}</span><span class="label">clients without visible items</span></div>
+    <div class="metric"><span class="value">{{ cof_readiness.missing_source_url }}</span><span class="label">missing source URLs</span></div>
+    <div class="metric"><span class="value">{{ cof_readiness.missing_deadline }}</span><span class="label">missing deadlines</span></div>
+    <div class="metric"><span class="value">{{ cof_readiness.interested_missing_retrieval_task }}</span><span class="label">interested without retrieval task</span></div>
+    <div class="metric"><span class="value">{{ cof_readiness.reports_ready_to_send }}</span><span class="label">Monday report profile</span></div>
+  </div>
+</section>
+
 <section class="panel admin-hub" style="margin-top:18px;">
   <div class="panel-title">
     <div>
@@ -206,8 +224,8 @@
         <div class="field"><label>Sender name</label><input name="sender_name" value="{{ email_config.sender_name }}"></div>
         <div class="field"><label>Sender email</label><input name="sender_email" value="{{ email_config.sender_email }}"></div>
       </div>
-      <div class="field"><label>Subject</label><input name="subject" value="Data Intelligence Portal test email"></div>
-      <div class="field"><label>Message</label><textarea name="message">This is a local MVP email configuration test.</textarea></div>
+      <div class="field"><label>Subject</label><input name="subject" value="Contracted Opportunity Finder test email"></div>
+      <div class="field"><label>Message</label><textarea name="message">This is a controlled COF workspace email configuration test.</textarea></div>
       <button type="submit">Send test</button>
     </form>
     <p class="hint">Local file outbox writes `.eml` files to `.outbox`. SMTP mode sends only when enabled and configured.</p>
@@ -235,7 +253,7 @@
         <div class="field"><label>Business unit</label><select name="business_unit_id"><option value="">All</option>{% for unit in business_units %}<option value="{{ unit.id }}">{{ unit.name }}</option>{% endfor %}</select></div>
       </div>
       <div class="form-grid">
-        <div class="field"><label>Report type</label><input name="report_type" value="executive_summary"></div>
+        <div class="field"><label>Report type</label><input name="report_type" value="cof_weekly_portfolio_report"></div>
         <div class="field"><label>Export format</label><select name="export_format"><option value="pdf">PDF</option><option value="md">Markdown</option><option value="html">HTML</option></select></div>
       </div>
       <div class="field"><label>Recipients</label><input name="recipients" placeholder="name@example.com; another@example.com"></div>

@@ -11,11 +11,11 @@
     <header class="topbar">
       <div class="topbar-inner">
         <a class="brand" href="/">
-          <span class="mark">DI</span>
+          <span class="mark">COF</span>
           <span><strong>{{ app_name }}</strong><span>Customer, framework and requirement intelligence</span></span>
         </a>
         <div class="chips">
-          <span class="chip"><span class="dot"></span>Local secure MVP</span>
+          <span class="chip"><span class="dot"></span>{{ environment_label }}</span>
           <span class="chip">KRA {{ kra_runtime.provider }}</span>
           <span class="chip">{{ current_user.role | replace('-', ' ') | title }}</span>
         </div>

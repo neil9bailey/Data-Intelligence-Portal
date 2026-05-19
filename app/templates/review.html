@@ -1,23 +1,44 @@
 {% extends "base.html" %}
 {% block title %}Review Queue - {{ app_name }}{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Agent Decisions & Overrides</h1><p>High-confidence signals can be auto-approved into the catalogue. Use this page to correct, hold, reject or reassign records where the agent confidence is not enough.</p></div></div>
+<div class="page-head">
+  <div>
+    <h1>Denise Review Gate</h1>
+    <p>Approve, reject, reassign or hold COF opportunity intelligence before it reaches the client feed.</p>
+  </div>
+  <div class="actions"><a class="button secondary" href="/client-portal">Client feed</a></div>
+</div>
 <section class="panel">
+  <div class="panel-title">
+    <div>
+      <h2>Opportunity Review Queue</h2>
+      <p class="hint">Records are grouped by matched client context and show why the agent matched the opportunity.</p>
+    </div>
+  </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Opportunity</th><th>Status</th><th>Assignment</th><th>Review action</th></tr></thead>
+      <thead><tr><th>Opportunity</th><th>Buyer / value / deadline</th><th>Status</th><th>Assignment and match</th><th>Review action</th></tr></thead>
       <tbody>
         {% for item in opportunities %}
+        {% set evidence_items = match_evidence_by_opportunity.get(item.id) or [] %}
         <tr>
           <td><strong>{{ item.title }}</strong><p class="hint">{{ item.buyer_name or "Buyer not detected" }} | {{ item.summary[:180] }}</p></td>
+          <td>{{ item.buyer_name or "Buyer not detected" }}<p class="hint">GBP {{ '{:,.0f}'.format(item.value_high or 0) }} | {{ item.deadline_date or "deadline not captured" }}</p></td>
           <td><span class="badge {{ 'green' if item.status == 'approved' else 'red' if item.status == 'rejected' else 'amber' }}">{{ item.status }}</span></td>
-          <td>{{ customer_map.get(item.customer_id).customer_name if customer_map.get(item.customer_id) else "Unassigned" }}</td>
+          <td>
+            <strong>{{ customer_map.get(item.customer_id).customer_name if customer_map.get(item.customer_id) else "Unassigned" }}</strong>
+            <p class="hint">{{ business_unit_map.get(item.business_unit_id).name if business_unit_map.get(item.business_unit_id) else "No BU" }} | score {{ item.relevance_score }}</p>
+            {% for evidence in evidence_items[:3] %}
+            <span class="badge weak">{{ evidence.matched_term }} +{{ evidence.score_delta | int }}</span>
+            {% else %}<span class="badge weak">No match evidence recorded</span>{% endfor %}
+          </td>
           <td>
             <form method="post" action="/opportunities/{{ item.id }}/review" class="inline-form">
               <select name="action">
                 <option value="approve">Approve</option>
                 <option value="hold">Hold</option>
                 <option value="reassign">Reassign</option>
+                <option value="needs_more_evidence">Needs more evidence</option>
                 <option value="reject">Reject</option>
               </select>
               <select name="customer_id"><option value="">Customer</option>{% for customer in customers %}<option value="{{ customer.id }}">{{ customer.customer_name }}</option>{% endfor %}</select>
@@ -33,6 +54,33 @@
       </tbody>
     </table>
     {% with pagination=opportunities_pagination %}{% include "_pagination.html" %}{% endwith %}
+  </div>
+</section>
+
+<section class="panel" style="margin-top:18px;">
+  <div class="panel-title">
+    <div>
+      <h2>Donna Relationship / Action Queue</h2>
+      <p class="hint">Client interest signals that need relationship follow-up and on-demand document retrieval.</p>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Signal date</th><th>Interested client</th><th>Opportunity</th><th>Document retrieval</th><th>Follow-up status</th></tr></thead>
+      <tbody>
+        {% for signal in donna_signals %}
+        {% set opportunity = all_opportunities|selectattr('id', 'equalto', signal.opportunity_id)|first if all_opportunities is defined else none %}
+        {% set task = tasks_by_opportunity.get(signal.opportunity_id) %}
+        <tr>
+          <td>{{ signal.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td>{{ customer_map.get(signal.customer_id).customer_name if customer_map.get(signal.customer_id) else "Not linked" }}</td>
+          <td>{{ opportunity.title if opportunity else signal.opportunity_id }}</td>
+          <td><span class="badge {{ 'green' if task and task.status in ['completed','done'] else 'amber' if task else 'red' }}">{{ task.status if task else "missing task" }}</span></td>
+          <td>{{ signal.status }}<p class="hint">{{ signal.notes }}</p></td>
+        </tr>
+        {% else %}<tr><td colspan="5">No interested-client actions are waiting.</td></tr>{% endfor %}
+      </tbody>
+    </table>
   </div>
 </section>
 {% endblock %}

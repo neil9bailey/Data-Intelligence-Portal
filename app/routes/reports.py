@@ -112,7 +112,7 @@ async def send_report_email(report_id: int, request: Request, session: Session =
         config,
         recipients=recipients,
         subject=str(form.get("subject") or report.report_name),
-        body=str(form.get("message") or "Please find the attached Data Intelligence Portal report for review."),
+        body=str(form.get("message") or "Please find the attached Contracted Opportunity Finder report for review."),
         report=report,
         sender_name=str(form.get("sender_name") or config.sender_name),
         sender_email=str(form.get("sender_email") or config.sender_email),

@@ -384,7 +384,7 @@ def test_admin_full_cycle_automation_preconfigures_and_exports(reference_session
     assert reference_session.exec(select(AutomationRun)).first() is not None
     report = reference_session.exec(select(IntelligenceReport)).first()
     assert report is not None
-    assert report.report_type == "executive_pack"
+    assert report.report_type == "cof_weekly_portfolio_report"
     assert "KRA Runtime" not in report.markdown
     assert reference_session.exec(select(EmailDeliveryLog)).first().status == "stored"
     assert reference_session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "find_a_tender_national_highways")).first().active is False

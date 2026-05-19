@@ -4,7 +4,8 @@ services:
     ports:
       - "8091:8080"
     environment:
-      - APP_NAME=${APP_NAME:-Data Intelligence Portal}
+      - APP_NAME=${APP_NAME:-Contracted Opportunity Finder}
+      - DIP_ENVIRONMENT_LABEL=${DIP_ENVIRONMENT_LABEL:-Live COF workspace}
       - DATABASE_URL=${DATABASE_URL:-sqlite:///data/data-intelligence-portal.sqlite}
       - SQLITE_JOURNAL_MODE=${SQLITE_JOURNAL_MODE:-DELETE}
       - SQLITE_PERSISTENT_COPY_PATH=${SQLITE_PERSISTENT_COPY_PATH:-}

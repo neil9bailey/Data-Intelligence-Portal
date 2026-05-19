@@ -23,6 +23,8 @@
           <div class="field"><label>Report name</label><input name="report_name" value="{{ report.report_name }}" required></div>
           <div class="field"><label>Report type</label><select name="report_type">
             <option value="executive_summary" {% if report.report_type in ['executive_summary', 'executive_pack', 'executive_intelligence_pack'] %}selected{% endif %}>Executive intelligence pack</option>
+            <option value="cof_weekly_portfolio_report" {% if report.report_type == 'cof_weekly_portfolio_report' %}selected{% endif %}>COF weekly portfolio report</option>
+            <option value="cof_weekly_client_report" {% if report.report_type == 'cof_weekly_client_report' %}selected{% endif %}>COF weekly client report</option>
             <option value="admin_run_log" {% if report.report_type in ['admin_run_log', 'automation_run_log', 'technical_run_log'] %}selected{% endif %}>Admin automation run log</option>
           </select></div>
         </div>
@@ -47,7 +49,7 @@
       </div>
       <div class="field"><label>Subject</label><input name="subject" value="{{ report.report_name }}"></div>
       <div class="field"><label>Attachment format</label><select name="export_format"><option value="pdf">PDF</option><option value="md">Markdown</option><option value="html">HTML</option><option value="json">JSON</option><option value="txt">Text</option></select></div>
-      <div class="field"><label>Message</label><textarea name="message">Please find the attached Data Intelligence Portal report for review.</textarea></div>
+      <div class="field"><label>Message</label><textarea name="message">Please find the attached Contracted Opportunity Finder report for review.</textarea></div>
       <button type="submit">Send / store email</button>
     </form>
     <p class="hint">Email uses the Admin configuration. In local outbox mode it creates an `.eml` file instead of sending externally.</p>

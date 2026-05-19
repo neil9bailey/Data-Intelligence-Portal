@@ -6,6 +6,7 @@ This folder is the single home for Data Intelligence Portal guides, operating no
 
 | Document | Purpose |
 | --- | --- |
+| [COF Procter Street alignment](cof-procter-street-alignment.md) | How the live COF workspace aligns to the Procter Street proposal, including sources, portal families, review gates and weekly reports. |
 | [Executive buyer overview](executive_buyer_overview.md) | Walkthrough for MD, buyer or stakeholder conversations. |
 | [Solution plan](solution_plan.md) | Product intent, user journeys and operating guardrails. |
 | [Architecture blueprint](architecture_blueprint.md) | Current MVP architecture and production evolution. |
@@ -44,4 +45,4 @@ This folder is the single home for Data Intelligence Portal guides, operating no
 - Do not commit generated Entra output files or customer parameter files from `infra/azure/generated/`.
 - Keep customer-specific secrets out of the repo; use environment variables locally and Key Vault for hosted deployments.
 - For live showcases, KRA AI summaries can be enabled through Key Vault-backed `KRA_API_KEY` plus `KRA_LLM_PROVIDER=openai_direct`; generated intelligence still requires human review.
-- Use executive intelligence packs for MD/buyer/demo conversations and admin automation run logs for technical traceability.
+- Use COF weekly reports for Procter Street client/portfolio review and admin automation run logs for technical traceability.

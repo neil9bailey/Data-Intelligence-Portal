@@ -33,7 +33,7 @@ def _html_report(report: IntelligenceReport) -> str:
     pre {{ white-space: pre-wrap; font: 14px/1.55 ui-monospace, Consolas, monospace; }}
   </style>
 </head>
-<body><main><header><h1>{escape(report.report_name)}</h1><p class="meta">Data Intelligence Portal export | {escape(report.report_type)}</p></header><p class="caveat">{escape(REPORT_CAVEAT)}</p><section><pre>{escape(report.markdown)}</pre></section></main></body>
+<body><main><header><h1>{escape(report.report_name)}</h1><p class="meta">Contracted Opportunity Finder export | {escape(report.report_type)}</p></header><p class="caveat">{escape(REPORT_CAVEAT)}</p><section><pre>{escape(report.markdown)}</pre></section></main></body>
 </html>"""
 
 
@@ -60,7 +60,7 @@ def _pdf_text_lines(markdown: str) -> list[str]:
 
 def _content_stream(report: IntelligenceReport, page_number: int, page_count: int, lines: list[str]) -> bytes:
     parts: list[bytes] = [
-        b"BT /F1 9 Tf 50 760 Td " + _pdf_literal("DATA INTELLIGENCE PORTAL | OPPORTUNITY INTELLIGENCE PACK") + b" Tj ET",
+        b"BT /F1 9 Tf 50 760 Td " + _pdf_literal("CONTRACTED OPPORTUNITY FINDER | OPPORTUNITY INTELLIGENCE PACK") + b" Tj ET",
         b"0.30 0.08 0.38 rg 50 742 512 3 re f",
         b"BT /F1 17 Tf 50 712 Td " + _pdf_literal(report.report_name[:72]) + b" Tj ET",
         b"BT /F1 9 Tf 50 690 Td " + _pdf_literal(f"Generated report export | page {page_number} of {page_count}") + b" Tj ET",

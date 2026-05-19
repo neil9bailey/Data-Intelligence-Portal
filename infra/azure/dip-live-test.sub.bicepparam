@@ -19,7 +19,7 @@ param customDomainBindingEnabled = true
 param managedCertificateName = 'mc-acae-dip-vl-te-dip-vendorlogic--9882'
 
 param imageRepositoryPrefix = 'dip'
-param imageTag = '1.0.37-live-test'
+param imageTag = '1.0.40-cof-live'
 param sqliteJournalMode = 'DELETE'
 param minReplicas = 1
 
@@ -42,7 +42,7 @@ param kraMcpMode = 'local_registry'
 param kraApiKeySecretName = 'diiac-openai-api-key'
 
 param emailDeliveryMode = 'file_outbox'
-param emailSenderName = 'Data Intelligence Portal'
+param emailSenderName = 'Contracted Opportunity Finder'
 param emailSender = 'no-reply@vendorlogic.io'
 param emailDefaultRecipients = 'neil.bailey@gmail.com'
 param smtpHost = ''

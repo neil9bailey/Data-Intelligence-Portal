@@ -5,6 +5,7 @@ from sqlmodel import Session, col, select
 from app.audit import compact_snapshot, log_event
 from app.auth import require_admin
 from app.automation import automation_summary, create_queued_automation_run, run_admin_full_cycle_background
+from app.cof import cof_friday_readiness
 from app.database import get_session
 from app.digests import send_digest
 from app.email_service import get_email_configuration, send_or_store_email, split_recipients
@@ -32,6 +33,7 @@ def admin(request: Request, session: Session = Depends(get_session), _user=Depen
             health=health_dashboard_context(session, request),
             automation=automation,
             digest_profiles=digest_profiles,
+            cof_readiness=cof_friday_readiness(session),
             **reference_context(session),
         ),
     )
@@ -95,8 +97,8 @@ async def send_test_email(request: Request, session: Session = Depends(get_sessi
         session,
         config,
         recipients=recipients,
-        subject=str(form.get("subject") or "Data Intelligence Portal test email"),
-        body=str(form.get("message") or "This is a local MVP email configuration test."),
+        subject=str(form.get("subject") or "Contracted Opportunity Finder test email"),
+        body=str(form.get("message") or "This is a controlled COF workspace email configuration test."),
         sender_name=str(form.get("sender_name") or config.sender_name),
         sender_email=str(form.get("sender_email") or config.sender_email),
     )

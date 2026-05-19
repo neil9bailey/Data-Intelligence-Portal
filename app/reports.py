@@ -11,7 +11,9 @@ from app.intelligence import kra_runtime_status, requirement_themes_for_text
 from app.llm import LLMError, generate_llm_text, kra_system_prompt, llm_enabled
 from app.models import (
     BusinessUnit,
+    ClientInterestSignal,
     Customer,
+    DocumentRetrievalTask,
     ExtractedQualityQuestion,
     ExtractedRequirement,
     IntelligenceReport,
@@ -29,6 +31,7 @@ from app.rule_loader import rules_version_summary
 
 ADMIN_REPORT_TYPES = {"admin_run_log", "automation_run_log", "technical_run_log"}
 EXECUTIVE_REPORT_TYPES = {"executive_summary", "executive_pack", "executive_intelligence_pack"}
+COF_REPORT_TYPES = {"cof_weekly_client_report", "cof_weekly_portfolio_report"}
 REVIEW_READY_STATUSES = {"review_required", "review_ready", "accepted", "approved", "complete", "completed"}
 AI_ARTIFACT_PHRASES = (
     "if helpful",
@@ -314,7 +317,7 @@ def create_report(
     include_ai_brief: bool = True,
 ) -> IntelligenceReport:
     report_type = (report_type or "executive_summary").strip() or "executive_summary"
-    if report_type not in ADMIN_REPORT_TYPES | EXECUTIVE_REPORT_TYPES:
+    if report_type not in ADMIN_REPORT_TYPES | EXECUTIVE_REPORT_TYPES | COF_REPORT_TYPES:
         report_type = "executive_summary"
     report = IntelligenceReport(
         report_name=report_name,
@@ -341,7 +344,98 @@ def generate_report_markdown(
 ) -> str:
     if (report_type or "").strip() in ADMIN_REPORT_TYPES:
         return generate_admin_run_log_markdown(session, report_name, customer_id, business_unit_id, include_ai_brief)
+    if (report_type or "").strip() in COF_REPORT_TYPES:
+        return generate_cof_weekly_report_markdown(session, report_name, report_type, customer_id, business_unit_id)
     return generate_executive_intelligence_pack_markdown(session, report_name, customer_id, business_unit_id, include_ai_brief)
+
+
+def generate_cof_weekly_report_markdown(
+    session: Session,
+    report_name: str,
+    report_type: str,
+    customer_id: int | None = None,
+    business_unit_id: int | None = None,
+) -> str:
+    context = _report_context(session, customer_id, business_unit_id)
+    generated_at = datetime.now(UTC).isoformat(timespec="seconds")
+    customer = context["customer"]
+    unit = context["unit"]
+    scope = _scope_label(customer, unit)
+    opportunities = [item for item in context["opportunities"] if item.status != "rejected"]
+    pins = [item for item in opportunities if item.status == "pin" or item.notice_type == "planning"]
+    live = [item for item in opportunities if item.status in {"live", "closing_soon", "document_retrieval_required", "questions_extracted"}]
+    closing = [item for item in opportunities if item.status == "closing_soon"]
+    awards = [item for item in opportunities if item.status == "awarded" or item.notice_type == "award"]
+    interested = [item for item in opportunities if item.status == "interested"]
+    documents = _documents_for_opportunities(context["documents"], opportunities)
+    questions = _questions_for_opportunities(context["questions"], opportunities)
+    requirements = _requirements_for_opportunities(context["requirements"], opportunities)
+    interests = list(session.exec(select(ClientInterestSignal).order_by(col(ClientInterestSignal.created_at).desc()).limit(100)))
+    tasks = list(session.exec(select(DocumentRetrievalTask).order_by(col(DocumentRetrievalTask.created_at).desc()).limit(100)))
+    opportunity_ids = {item.id for item in opportunities if item.id}
+    interests = [item for item in interests if item.opportunity_id in opportunity_ids]
+    tasks = [item for item in tasks if item.opportunity_id in opportunity_ids]
+    missing_source = sum(1 for item in opportunities if not item.source_url)
+    missing_deadline = sum(1 for item in opportunities if not item.deadline_date and item.status != "awarded")
+    missing_task = sum(1 for item in interested if item.id not in {task.opportunity_id for task in tasks if task.opportunity_id})
+    report_label = "Client Weekly COF Report" if report_type == "cof_weekly_client_report" else "Portfolio Weekly COF Report"
+    return f"""# {report_name}
+
+**Report type:** {report_label}  
+**Generated at:** {generated_at}  
+**Scope:** {scope}  
+**Human review caveat:** Human review required before bid, customer-contact, procurement, legal or compliance decisions.
+
+## Client / Portfolio Summary
+
+- {len(opportunities)} opportunity signal(s) are included for this COF scope.
+- {len(pins)} PIN / early-market signal(s), {len(live)} live tender signal(s), {len(interested)} interested item(s) and {len(awards)} award / market evidence record(s).
+- {len(requirements)} requirement theme(s), {len(questions)} quality question(s) and {len(documents)} document extract(s) are available for review.
+
+## PINs
+
+{_cof_opportunity_lines(pins) if pins else "- No PINs are currently visible for this scope."}
+
+## Live Tenders
+
+{_cof_opportunity_lines(live) if live else "- No live tenders are currently visible for this scope."}
+
+## Closing Soon
+
+{_cof_opportunity_lines(closing) if closing else "- No closing-soon tenders are currently visible for this scope."}
+
+## Awards / Market Evidence
+
+{_cof_opportunity_lines(awards) if awards else "- No awards or market evidence are currently visible for this scope."}
+
+## Interested / Donna Actions
+
+{_cof_interest_lines(interests, context["opportunities"]) if interests else "- No client interest signals are waiting for Donna action."}
+
+## Documents Retrieved
+
+{chr(10).join(_document_line(item) for item in documents) if documents else "- No permitted document extracts have been captured yet."}
+
+## Quality Questions And Weightings
+
+{chr(10).join(_question_line(item) for item in questions) if questions else "- No quality questions or weightings have been extracted yet."}
+
+## Requirement Themes
+
+{chr(10).join(_requirement_line(item) for item in requirements[:20]) if requirements else "- No requirement themes have been extracted yet."}
+
+## Review Gaps
+
+- {missing_source} opportunity record(s) are missing a source URL.
+- {missing_deadline} live or early-stage opportunity record(s) are missing a deadline.
+- {missing_task} interested opportunity record(s) do not yet have a document retrieval task.
+
+## Monday Send Readiness
+
+- Report export formats available: PDF, HTML, Markdown, JSON and text.
+- Default COF digest profile can store or send the Monday report using the configured email mode.
+- Human review remains required before onward circulation or customer action.
+"""
 
 
 def _report_context(session: Session, customer_id: int | None, business_unit_id: int | None) -> dict:
@@ -727,6 +821,32 @@ def _executive_opportunity_line(item: Opportunity, sources_by_id: dict[int, str]
         f"- **{item.title}** ({signal}) | buyer {item.buyer_name or 'not detected'} | "
         f"deadline {deadline} | relevance {item.relevance_score:g} | source {source}. {summary}"
     )
+
+
+def _cof_opportunity_lines(items: list[Opportunity]) -> str:
+    lines = []
+    for item in sorted(items, key=lambda row: (row.deadline_date or date.max, row.title))[:30]:
+        deadline = item.deadline_date.isoformat() if item.deadline_date else "deadline not captured"
+        value = _money(item.value_high, item.currency)
+        summary = clean_ai_text(item.summary, 220) or "No summary captured."
+        lines.append(
+            f"- **{item.title}** | {item.buyer_name or 'buyer not detected'} | {item.status.replace('_', ' ')} | "
+            f"deadline {deadline} | {value}. {summary}"
+        )
+    return "\n".join(lines)
+
+
+def _cof_interest_lines(interests: list[ClientInterestSignal], opportunities: list[Opportunity]) -> str:
+    opportunity_map = {item.id: item for item in opportunities if item.id}
+    lines = []
+    for signal in interests[:20]:
+        opportunity = opportunity_map.get(signal.opportunity_id)
+        title = opportunity.title if opportunity else f"Opportunity {signal.opportunity_id}"
+        lines.append(
+            f"- **{title}** | signal {signal.signal} | status {signal.status or 'new'} | "
+            f"{clean_ai_text(signal.notes, 180) or 'Donna action required.'}"
+        )
+    return "\n".join(lines)
 
 
 def _historical_opportunity_line(item: Opportunity) -> str:

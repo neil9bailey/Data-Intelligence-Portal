@@ -17,6 +17,7 @@ from app.models import (
     ProcurementSource,
 )
 from app.rule_loader import load_rule_file
+from app.cof import seed_cof_live_pilot_content
 
 
 def slugify_key(value: str) -> str:
@@ -36,7 +37,9 @@ def get_public_sector_template(template_key: str) -> dict:
 
 
 def list_preconfigured_customer_packs() -> list[dict]:
-    return sorted(load_rule_file("customer_packs.yml").get("packs") or [], key=lambda item: item["display_name"])
+    packs = list(load_rule_file("customer_packs.yml").get("packs") or [])
+    packs.extend(load_rule_file("cof_packs.yml").get("packs") or [])
+    return sorted(packs, key=lambda item: item["display_name"])
 
 
 def get_preconfigured_customer_pack(pack_key: str) -> dict:
@@ -149,6 +152,7 @@ def pack_summary_counts(pack: dict) -> dict[str, int]:
         "sources": len(pack.get("sources") or []),
         "portals": len(pack.get("portals") or []),
         "connectors": len(pack.get("connectors") or []),
+        "clients": len(pack.get("clients") or []),
         "watch_terms": len((pack.get("watch_profile") or {}).get("keywords") or []),
         "missing_actions": len(pack.get("missing_actions") or []),
     }
@@ -161,6 +165,13 @@ def apply_intelligence_pack(session: Session, pack: dict, actor: str = "local-us
     unit = _ensure_business_unit(session, normalised.get("business_unit") or {}, result)
     customer = _ensure_customer(session, normalised.get("customer") or {}, unit, result)
     watch_profile = _ensure_watch_profile(session, normalised.get("watch_profile") or {}, customer, unit, result)
+    client_ids: list[int] = []
+    client_by_name: dict[str, Customer] = {}
+    for client_data in normalised.get("clients") or []:
+        client = _ensure_client(session, client_data, unit, result)
+        if client and client.id:
+            client_ids.append(client.id)
+            client_by_name[client.customer_name] = client
 
     source_ids: list[int] = []
     for source_data in normalised.get("sources") or []:
@@ -172,6 +183,11 @@ def apply_intelligence_pack(session: Session, pack: dict, actor: str = "local-us
     for portal_data in normalised.get("portals") or []:
         portal = _ensure_portal(session, portal_data, customer, unit, result)
         portal_by_name[portal.portal_name] = portal
+    for client_data in normalised.get("clients") or []:
+        client = client_by_name.get(str(client_data.get("name") or ""))
+        if client:
+            portal = _ensure_client_portal(session, client_data, client, unit, result)
+            portal_by_name[portal.portal_name] = portal
 
     connector_ids: list[int] = []
     for connector_data in normalised.get("connectors") or []:
@@ -183,10 +199,13 @@ def apply_intelligence_pack(session: Session, pack: dict, actor: str = "local-us
     result["ids"] = {
         "business_unit_id": unit.id if unit else None,
         "customer_id": customer.id if customer else None,
+        "client_ids": client_ids,
         "watch_profile_id": watch_profile.id if watch_profile else None,
         "source_ids": source_ids,
         "connector_ids": connector_ids,
     }
+    if normalised.get("key") == "procter_street_cof":
+        seed_cof_live_pilot_content(session, actor=actor)
     event = AuditEvent(
         actor=actor,
         entity_type="IntelligencePack",
@@ -225,6 +244,7 @@ def _normalise_pack(pack: dict) -> dict:
     normalised["sources"] = [dict(item) for item in normalised.get("sources") or []]
     normalised["portals"] = [dict(item) for item in normalised.get("portals") or []]
     normalised["connectors"] = [dict(item) for item in normalised.get("connectors") or []]
+    normalised["clients"] = [dict(item) for item in normalised.get("clients") or []]
     normalised["kra_queries"] = [dict(item) for item in normalised.get("kra_queries") or []]
     normalised["missing_actions"] = _unique_list(normalised.get("missing_actions") or [])
     normalised["summary_counts"] = pack_summary_counts(normalised)
@@ -268,6 +288,64 @@ def _ensure_business_unit(session: Session, data: dict, result: dict) -> Busines
     else:
         result["skipped"].append(f"Business unit already configured: {unit.name}")
     return unit
+
+
+def _ensure_client(session: Session, data: dict, unit: BusinessUnit | None, result: dict) -> Customer | None:
+    client_pack = {
+        "name": data.get("name", ""),
+        "sector": data.get("sector", "Public sector"),
+        "domain": "; ".join(data.get("keywords") or []),
+        "customer_type": "COF client",
+        "region": data.get("region", "UK"),
+        "aliases": data.get("aliases") or [data.get("name", "")],
+        "buying_entities": data.get("aliases") or [data.get("name", "")],
+        "strategic_notes": [
+            f"COF active client placeholder. Value band: {data.get('value_band', 'to confirm')}.",
+            f"Portal family: {data.get('portal_family', 'to confirm')}.",
+            data.get("report_notes", ""),
+        ],
+    }
+    client = _ensure_customer(session, client_pack, unit, result)
+    if not client:
+        return None
+    _ensure_watch_profile(
+        session,
+        {
+            "name": f"{client.customer_name} COF watch",
+            "keywords": data.get("keywords") or [],
+            "cpv_codes": data.get("cpv_codes") or [],
+            "domains": [data.get("sector", ""), data.get("region", "")],
+        },
+        client,
+        unit,
+        result,
+    )
+    return client
+
+
+def _ensure_client_portal(session: Session, data: dict, client: Customer, unit: BusinessUnit | None, result: dict) -> BuyerPortalInstance:
+    family = str(data.get("portal_family") or "ProContract").strip()
+    urls = {
+        "ProContract": "https://procontract.due-north.com/",
+        "In-Tend": "https://in-tendhost.co.uk/",
+        "Jaggaer": "https://www.jaggaer.com/",
+        "Delta eSourcing": "https://www.delta-esourcing.com/",
+    }
+    return _ensure_portal(
+        session,
+        {
+            "name": f"{client.customer_name} - {family} portal route",
+            "platform_name": family,
+            "portal_url": urls.get(family, ""),
+            "access_status": "registered",
+            "document_retrieval_mode": "account_required_manual",
+            "account_reference": "COF client portal route. Credentials stay outside the service.",
+            "notes": "COF client-specific portal route. Retrieval is on-demand after client interest and human approval.",
+        },
+        client,
+        unit,
+        result,
+    )
 
 
 def _ensure_customer(session: Session, data: dict, unit: BusinessUnit | None, result: dict) -> Customer | None:

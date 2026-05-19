@@ -21,7 +21,8 @@ def env_int(name: str, default: str) -> int:
 
 class Settings:
     def __init__(self) -> None:
-        self.app_name: str = os.getenv("APP_NAME", "Data Intelligence Portal")
+        self.app_name: str = os.getenv("APP_NAME", "Contracted Opportunity Finder")
+        self.environment_label: str = os.getenv("DIP_ENVIRONMENT_LABEL", "Live COF workspace")
         self.database_url: str = os.getenv("DATABASE_URL", "sqlite:///data/data-intelligence-portal.sqlite")
         self.database_auto_create_all: bool = env_bool("DATABASE_AUTO_CREATE_ALL", "false")
         self.sqlite_journal_mode: str = os.getenv("SQLITE_JOURNAL_MODE", "DELETE")
