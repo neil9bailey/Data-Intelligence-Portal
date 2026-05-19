@@ -65,7 +65,7 @@ It gives users a practical opportunity inbox showing what is known, what changed
 
 KRA stands for **Knowledge Research Agent**.
 
-In the MVP, KRA operates as a controlled research agent. It uses configured rules and approved source lists rather than unrestricted browsing. In the live-demo Azure environment it can also use a Key Vault-backed OpenAI model to draft concise briefing summaries from the captured source data; those summaries remain review-required.
+In the MVP, KRA operates as a controlled research agent. It uses configured rules and approved source lists rather than unrestricted browsing. In the Live showcase Azure environment it can also use a Key Vault-backed OpenAI model to draft concise briefing summaries from the captured source data; those summaries remain review-required.
 
 KRA can:
 

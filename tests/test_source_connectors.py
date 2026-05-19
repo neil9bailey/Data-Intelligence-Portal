@@ -43,6 +43,30 @@ def test_contracts_finder_connector_builds_official_query():
     assert "National+Highways" in url
 
 
+def test_contracts_finder_connector_renders_configured_date_placeholders(reference_session):
+    source = reference_session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "contracts_finder")).first()
+
+    url = connector_for_source(source).build_query(["National Highways", "SCADA"])
+
+    assert "{published_from}" not in url
+    assert "{published_to}" not in url
+    assert "publishedFrom=" in url
+    assert "publishedTo=" in url
+    assert "limit=100" in url
+
+
+def test_find_a_tender_connector_renders_configured_date_placeholders(reference_session):
+    source = reference_session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "find_a_tender")).first()
+
+    url = connector_for_source(source).build_query(["National Highways", "SCADA"])
+
+    assert "{updated_from}" not in url
+    assert "{updated_to}" not in url
+    assert "updatedFrom=" in url
+    assert "updatedTo=" in url
+    assert "limit=100" in url
+
+
 def test_find_a_tender_connector_creates_opportunity_and_match_evidence(reference_session):
     source = reference_session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "find_a_tender")).first()
 

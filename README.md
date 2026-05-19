@@ -112,7 +112,7 @@ The default local run is now a clean operational baseline:
 
 - `SEED_REFERENCE_DATA=true` keeps configurable source definitions, portal platform families, KRA agent profiles and official feed sources available.
 - `SEED_DEMO_DATA=false` prevents demo customers, opportunities, extracted requirements and findings from being created.
-- `AUTO_APPLY_CUSTOMER_PACKS=true` applies the built-in customer packs automatically at startup for a live demo. Set it to `false` when you need a clean-start workspace.
+- `AUTO_APPLY_CUSTOMER_PACKS=true` applies the built-in customer packs automatically at startup for a live showcase. Set it to `false` when you need a clean-start workspace.
 
 To reset local captured content completely:
 
@@ -266,7 +266,7 @@ Open `/admin`, then **Customer packs**, to reduce manual customer setup.
 
 The page supports:
 
-- preconfigured customer packs for live-demo public-sector accounts including National Highways, Transport for London, Network Rail, Department for Transport, Crown Commercial Service and NHS England
+- preconfigured customer packs for Live showcase public-sector accounts including National Highways, Transport for London, Network Rail, Department for Transport, Crown Commercial Service and NHS England
 - semi-configured packs for any public-sector organisation using templates such as local authority, transport authority, NHS body, emergency services, education, housing and regulated infrastructure
 - one-action creation of the customer, business unit, watch profile, official public-source searches, portal assumptions and KRA prompt guidance
 - idempotent apply behaviour, so reapplying a pack updates or skips existing records instead of duplicating them
@@ -322,7 +322,7 @@ Pages 2 and 3 of the COF design draft have been mapped into the product as the u
 
 The workflow covers:
 
-- live-demo automation through the broad official Find a Tender and Contracts Finder OCDS APIs, with customer matching performed inside DIP
+- Live showcase automation through the broad official Find a Tender and Contracts Finder OCDS APIs, with customer matching performed inside DIP
 - configurable public-source coverage for Public Contracts Scotland, Sell2Wales, TED and approved customer websites
 - customer-specific public search URLs retained as inactive `search_reference` records for human validation and drill-through
 - one ingestion pipeline with OCDS/eForms normalisation and dedupe by OCID or stable notice reference

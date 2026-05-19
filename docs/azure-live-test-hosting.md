@@ -12,9 +12,9 @@ The Data Intelligence Portal live-test stack is designed to sit alongside existi
 - Auth: Microsoft Entra ID via Azure Container Apps built-in auth
 - Roles: `Data Intelligence Portal Admin Users` and `Data Intelligence Portal Standard Users`
 - Secrets: existing Key Vault `kv-diiac-vendorlogic`, including `dip-entra-client-secret` and the shared DIIaC OpenAI secret reference `diiac-openai-api-key`
-- KRA live-demo AI: `openai_direct` using model `gpt-5.4`; summaries remain human-review-required
-- Live-demo preconfiguration: built-in customer packs are applied on startup with `AUTO_APPLY_CUSTOMER_PACKS=true`
-- Sizing: `1.0` CPU / `2Gi` memory for the live-demo KRA, PDF export and email-outbox cycle
+- KRA Live showcase AI: `openai_direct` using model `gpt-5.4`; summaries remain human-review-required
+- Live showcase preconfiguration: built-in customer packs are applied on startup with `AUTO_APPLY_CUSTOMER_PACKS=true`
+- Sizing: `1.0` CPU / `2Gi` memory for the Live showcase KRA, PDF export and email-outbox cycle
 - Persistence: Azure Files mounted at `/app/data` for the live-test SQLite snapshot and email outbox
 - SQLite live-test tuning: the active MVP database runs on local container storage, with a compact snapshot copied to Azure Files after write operations
 

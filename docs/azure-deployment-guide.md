@@ -87,9 +87,9 @@ Vendorlogic live-test currently uses:
 | Admin group | Data Intelligence Portal Admin Users |
 | Standard group | Data Intelligence Portal Standard Users |
 | Persistence | SQLite active DB on `/tmp/dip`, snapshot and outbox on Azure Files `/app/data` |
-| Container sizing | `1.0` CPU / `2Gi` memory for live-demo KRA, PDF export and email-outbox cycle |
-| KRA live-demo AI | `openai_direct`, model `gpt-5.4`, Key Vault secret `diiac-openai-api-key` |
-| Live-demo preconfiguration | `AUTO_APPLY_CUSTOMER_PACKS=true` |
+| Container sizing | `1.0` CPU / `2Gi` memory for Live showcase KRA, PDF export and email-outbox cycle |
+| KRA Live showcase AI | `openai_direct`, model `gpt-5.4`, Key Vault secret `diiac-openai-api-key` |
+| Live showcase preconfiguration | `AUTO_APPLY_CUSTOMER_PACKS=true` |
 
 ## Standard Deployment Order
 
@@ -299,7 +299,7 @@ Container environment variables include:
 | `DIP_ACCESS_SCOPES_JSON` | Optional JSON map for standard-user customer/business-unit scoping |
 | `SEED_REFERENCE_DATA` | Keeps source/platform/KRA reference data seeded |
 | `SEED_DEMO_DATA` | Should remain false for live customer environments |
-| `AUTO_APPLY_CUSTOMER_PACKS` | Applies built-in customer packs at startup for a preconfigured live demo |
+| `AUTO_APPLY_CUSTOMER_PACKS` | Applies built-in customer packs at startup for a preconfigured live showcase |
 | `KRA_LLM_PROVIDER` | `disabled` for deterministic local-only KRA, or `openai_direct` for approved AI-assisted summaries |
 | `KRA_MODEL` | AI model used for KRA summaries when enabled |
 | `KRA_MCP_MODE` | Runtime mode label shown in Admin/KRA |

@@ -100,7 +100,7 @@ Use KRA to:
 
 KRA findings stay review-required until a user reviews them.
 
-For live-demo automation, KRA prioritises broad official OCDS APIs and review-required customer matching. Inactive `search_reference` records remain available for a human to open when validating a specific customer or notice.
+For Live showcase automation, KRA prioritises broad official OCDS APIs and review-required customer matching. Inactive `search_reference` records remain available for a human to open when validating a specific customer or notice.
 
 ## 7. Admin: Review Opportunities And Requirements
 
@@ -194,7 +194,7 @@ Select **Send / store email**.
 
 In local safe mode, the portal stores an `.eml` file in the local outbox instead of sending externally. In SMTP mode, it sends using the configuration in **Admin**.
 
-The live-demo Azure configuration preloads the default recipient as `neil.bailey@gmail.com` and stores messages in the Azure Files outbox until an approved SMTP sender secret is added. When SMTP is enabled, the same test form performs a real delivery test and the delivery log should show `sent`.
+The Live showcase Azure configuration preloads the default recipient as `neil.bailey@gmail.com` and stores messages in the Azure Files outbox until an approved SMTP sender secret is added. When SMTP is enabled, the same test form performs a real delivery test and the delivery log should show `sent`.
 
 ## 13. Admin: Check Email Configuration
 

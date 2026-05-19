@@ -104,10 +104,10 @@ param seedReferenceData bool = true
 @description('Seed demo/sample data on startup. Keep false for live-test customer data capture.')
 param seedDemoData bool = false
 
-@description('Apply all built-in customer intelligence packs on startup to preconfigure the live-demo catalogue.')
+@description('Apply all built-in customer intelligence packs on startup to preconfigure the Live showcase catalogue.')
 param autoApplyCustomerPacks bool = false
 
-@description('KRA LLM provider mode. Use disabled for deterministic local-only operation, or openai_direct for the approved live-demo OpenAI route.')
+@description('KRA LLM provider mode. Use disabled for deterministic local-only operation, or openai_direct for the approved Live showcase OpenAI route.')
 param kraLlmProvider string = 'disabled'
 
 @description('KRA LLM model name for AI-assisted summaries. Only used when KRA_LLM_PROVIDER is openai_direct and an API key secret is configured.')
@@ -119,7 +119,7 @@ param kraMcpMode string = 'local_registry'
 @description('Key Vault secret name containing the KRA/OpenAI API key. Leave blank to run KRA without AI-assisted summaries.')
 param kraApiKeySecretName string = ''
 
-@description('Default email delivery mode for the demo. Use file_outbox until an approved SMTP sender is configured.')
+@description('Default email delivery mode for the live showcase. Use file_outbox until an approved SMTP sender is configured.')
 param emailDeliveryMode string = 'file_outbox'
 
 @description('Default sender display name used by the report email workflow.')
@@ -140,7 +140,7 @@ param smtpPort string = '587'
 @description('SMTP username for live email delivery when enabled.')
 param smtpUsername string = ''
 
-@description('Key Vault secret name containing the SMTP password/API key. Leave blank for file-outbox demo mode.')
+@description('Key Vault secret name containing the SMTP password/API key. Leave blank for file-outbox safe mode.')
 param smtpPasswordSecretName string = ''
 
 @description('Whether SMTP should use STARTTLS.')

@@ -471,7 +471,7 @@ def _readiness_assessment(
     if opportunities and requirements and documents and ok_sources and not excluded:
         confidence = "Green - credible pack ready for human approval"
     elif opportunities and (requirements or documents or ok_sources):
-        confidence = "Amber - credible internal demo pack, review required"
+        confidence = "Amber - credible live showcase pack, review required"
     else:
         confidence = "Red - not enough evidence for onward use"
 
@@ -590,7 +590,7 @@ def _executive_brief(
                     "Known gaps:",
                     *(f"- {item}" for item in gaps),
                     "",
-                    "Write a concise executive intelligence brief for a live demo. Do not mention prompts or offer follow-up content. Include public-source caveats, data gaps and next human actions.",
+                    "Write a concise executive intelligence brief for a live showcase environment. Do not mention prompts or offer follow-up content. Include public-source caveats, data gaps and next human actions.",
                 ]
             ),
             max_output_tokens=800,

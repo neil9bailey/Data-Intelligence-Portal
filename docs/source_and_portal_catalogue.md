@@ -12,7 +12,7 @@ Checked on 2026-05-18 against official/public source routes where available.
 | Sell2Wales | Welsh public-sector procurement notices | Web/bulk/OCDS route to validate | Configurable source |
 | TED / eForms | EU and Ireland horizon scanning where relevant | eForms/TED developer tooling | Future connector |
 
-Find a Tender and Contracts Finder broad OCDS APIs are the primary live-demo automation sources. DIP filters the returned notices against customer aliases and watch terms internally, which avoids repeatedly scraping public search result pages and reduces rate-limit warnings.
+Find a Tender and Contracts Finder broad OCDS APIs are the primary Live showcase automation sources. DIP filters the returned notices against customer aliases and watch terms internally, which avoids repeatedly scraping public search result pages and reduces rate-limit warnings.
 
 Customer-specific Find a Tender and Contracts Finder search URLs are kept as inactive `search_reference` records for human drill-through. They are useful context, but the full-cycle automation does not hit those web pages.
 

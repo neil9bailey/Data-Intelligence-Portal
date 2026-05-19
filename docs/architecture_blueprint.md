@@ -68,7 +68,7 @@ flowchart LR
 | `app/jobs.py` | CLI job runner for controlled source, feed, connector and admin-cycle execution. |
 | `app/evaluation.py` | Offline matching evaluation harness and metrics. |
 | `app/access_scope.py` | MVP customer/business-unit scope checks for standard-user report and client-feed access. |
-| `app/llm.py` | Small guarded OpenAI Responses API client used only when KRA live-demo settings are enabled. |
+| `app/llm.py` | Small guarded OpenAI Responses API client used only when KRA Live showcase settings are enabled. |
 | `app/automation.py` | Admin-side full-cycle automation for packs, source refresh, KRA, review preparation, approved retrieval, report export, email and audit logging. |
 | `app/portal_connectors.py` | Read-only connector guardrails and retrieval runs. |
 | `app/reports.py` | Credibility-gated executive packs and separate admin run logs for PDF, Markdown, HTML, JSON and text export. |

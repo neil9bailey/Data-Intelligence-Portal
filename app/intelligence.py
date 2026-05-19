@@ -715,7 +715,7 @@ def run_public_market_keyword_sweep(
     limit_per_keyword: int = 60,
     poster=None,
 ) -> dict[str, int | list[str]]:
-    """Read-only Contracts Finder v2 search used to enrich the demo with current opportunity signals."""
+    """Read-only Contracts Finder v2 search used to enrich current opportunity signals."""
     source = session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "contracts_finder")).first()
     if not source:
         source = ProcurementSource(
@@ -1358,7 +1358,7 @@ def run_kra_research(
                     "Candidate opportunities:",
                     source_context,
                     "",
-                    "Create a concise live-demo briefing with: key signals, data-quality warnings, likely next human actions, and report readiness.",
+                    "Create a concise live showcase briefing with: key signals, data-quality warnings, likely next human actions, and report readiness.",
                 ]
             )
             system_prompt = kra_system_prompt()
