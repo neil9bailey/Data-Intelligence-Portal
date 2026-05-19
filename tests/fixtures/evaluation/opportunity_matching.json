@@ -28,5 +28,37 @@
     "expected_relevant": false,
     "expected_status": "rejected",
     "notes": "Short alias false-positive guard case."
+  },
+  {
+    "title": "Award of a call-off contract for cyber security support",
+    "buyer_name": "Home Office",
+    "notice_type": "award",
+    "procurement_stage": "complete",
+    "summary": "Award notice for cyber security services. This is not a live opportunity requiring inbox action.",
+    "cpv_codes": ["72000000 IT services"],
+    "expected_customer": "",
+    "expected_relevant": false,
+    "expected_status": "rejected",
+    "notes": "Award notice should not be promoted as a current live opportunity."
+  },
+  {
+    "title": "Traffic management communications platform",
+    "buyer_name": "National Housing Association",
+    "summary": "Managed network communications and traffic management platform for housing estate operations.",
+    "cpv_codes": ["72000000 IT services"],
+    "expected_customer": "National Highways",
+    "expected_relevant": true,
+    "expected_status": "matched",
+    "notes": "Buyer mismatch is counted for quality reporting even where capability terms are relevant."
+  },
+  {
+    "title": "Cyber security services framework",
+    "buyer_name": "Home Office",
+    "summary": "Public sector cyber security, service desk and network services support.",
+    "cpv_codes": ["72000000 IT services"],
+    "expected_customer": "",
+    "expected_relevant": true,
+    "expected_status": "matched",
+    "notes": "Generic public-sector cyber opportunity can be relevant without a configured customer assignment."
   }
 ]

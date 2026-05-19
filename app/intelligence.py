@@ -173,6 +173,7 @@ class FetchResult:
     text: str
     content_type: str = ""
     error: str = ""
+    retry_after_seconds: float | None = None
 
 
 @dataclass
@@ -342,6 +343,7 @@ def fetch_source_url(url: str) -> FetchResult:
             response.text or "",
             response.headers.get("content-type", ""),
             "" if response.status_code < 400 else fetch_error_message(response.status_code, response.headers),
+            numberish(response.headers.get("retry-after")) if response.headers.get("retry-after") else None,
         )
     except httpx.HTTPError as exc:
         return FetchResult(False, 0, url, "", error=f"Source check failed: {exc}")
@@ -485,6 +487,18 @@ def failure_schema(fetch: FetchResult) -> str:
     if error:
         return "network_error"
     return "unknown"
+
+
+def connector_status_for_fetch(fetch: FetchResult) -> str:
+    if fetch.ok:
+        return "checked"
+    if fetch.status_code == 429 or "rate" in (fetch.error or "").lower():
+        return "rate_limited"
+    if fetch.status_code >= 500:
+        return "failed"
+    if "schema" in (fetch.error or "").lower():
+        return "schema_changed"
+    return "failed"
 
 
 def record_snapshot(session: Session, source: ProcurementSource, fetch: FetchResult, query_url: str) -> SourceCheckSnapshot:
@@ -1237,7 +1251,8 @@ def run_source_check(session: Session, source_id: int, fetcher=fetch_source_url)
     before = compact_snapshot(source)
     source.last_checked_at = datetime.now(UTC)
     source.last_status = f"HTTP {fetch.status_code}" if fetch.ok else (fetch.error or "failed")
-    source.connector_status = f"{connector.connector_name}_checked" if fetch.ok else "warning"
+    status = connector_status_for_fetch(fetch)
+    source.connector_status = f"{connector.connector_name}_{status}"
     session.add(source)
     snapshot = record_snapshot(session, source, fetch, url)
     log_event(session, entity_type="ProcurementSource", entity_id=source.id, action="update", summary=f"Checked source {source.name}", before=before, after=source)
@@ -1292,6 +1307,7 @@ def run_kra_research(
             fetch = connector.fetch_page(url, fetcher)
             source.last_checked_at = datetime.now(UTC)
             source.last_status = f"HTTP {fetch.status_code}" if fetch.ok else (fetch.error or "failed")
+            source.connector_status = f"{connector.connector_name}_{connector_status_for_fetch(fetch)}"
             session.add(source)
             snapshot = record_snapshot(session, source, fetch, url)
             finding = KRAFinding(

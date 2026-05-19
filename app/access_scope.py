@@ -4,8 +4,11 @@ from dataclasses import dataclass
 import json
 from typing import Iterable
 
+from sqlalchemy import false, or_
+from sqlmodel import col, select
+
 from app.auth import CurrentUser
-from app.models import ClientInterestSignal, IntelligenceReport, Opportunity
+from app.models import BusinessUnit, ClientInterestSignal, Customer, IntelligenceReport, KRAFinding, Opportunity
 from app.settings import get_settings
 
 
@@ -63,6 +66,68 @@ def scope_for_user(user: CurrentUser) -> AccessScope:
         if isinstance(value, dict):
             return _scope_from_mapping(value)
     return AccessScope()
+
+
+def _scope_filter_for_customer(scope: AccessScope):
+    if not scope.restricted:
+        return None
+    return col(Customer.id).in_(scope.customer_ids) if scope.customer_ids else false()
+
+
+def _scope_filter_for_business_unit(scope: AccessScope):
+    if not scope.restricted:
+        return None
+    return col(BusinessUnit.id).in_(scope.business_unit_ids) if scope.business_unit_ids else false()
+
+
+def _scope_filter_for_customer_linked_model(model, scope: AccessScope):
+    if not scope.restricted:
+        return None
+    conditions = []
+    if scope.customer_ids and hasattr(model, "customer_id"):
+        conditions.append(col(model.customer_id).in_(scope.customer_ids))
+    if scope.business_unit_ids and hasattr(model, "business_unit_id"):
+        conditions.append(col(model.business_unit_id).in_(scope.business_unit_ids))
+    return or_(*conditions) if conditions else false()
+
+
+def scoped_customer_statement(user: CurrentUser):
+    statement = select(Customer).order_by(col(Customer.customer_name))
+    scope_filter = _scope_filter_for_customer(scope_for_user(user))
+    return statement.where(scope_filter) if scope_filter is not None else statement
+
+
+def scoped_business_unit_statement(user: CurrentUser):
+    statement = select(BusinessUnit).order_by(col(BusinessUnit.name))
+    scope_filter = _scope_filter_for_business_unit(scope_for_user(user))
+    return statement.where(scope_filter) if scope_filter is not None else statement
+
+
+def scoped_opportunity_statement(user: CurrentUser):
+    statement = select(Opportunity)
+    scope_filter = _scope_filter_for_customer_linked_model(Opportunity, scope_for_user(user))
+    return statement.where(scope_filter) if scope_filter is not None else statement
+
+
+def scoped_report_statement(user: CurrentUser):
+    statement = select(IntelligenceReport)
+    scope_filter = _scope_filter_for_customer_linked_model(IntelligenceReport, scope_for_user(user))
+    return statement.where(scope_filter) if scope_filter is not None else statement
+
+
+def scoped_kra_finding_statement(user: CurrentUser):
+    statement = select(KRAFinding)
+    scope = scope_for_user(user)
+    if not scope.restricted:
+        return statement
+    conditions = []
+    if scope.customer_ids:
+        conditions.append(col(KRAFinding.customer_id).in_(scope.customer_ids))
+    opportunity_filter = _scope_filter_for_customer_linked_model(Opportunity, scope)
+    if opportunity_filter is not None:
+        opportunity_ids = select(Opportunity.id).where(opportunity_filter)
+        conditions.append(col(KRAFinding.opportunity_id).in_(opportunity_ids))
+    return statement.where(or_(*conditions) if conditions else false())
 
 
 def is_scope_restricted(user: CurrentUser) -> bool:

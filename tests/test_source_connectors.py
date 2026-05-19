@@ -91,3 +91,65 @@ def test_source_check_classifies_rate_limit(reference_session):
 
     assert snapshot.ok is False
     assert snapshot.detected_schema == "rate_limited"
+    assert snapshot.connector_status == "contracts_finder_rate_limited"
+
+
+def test_contracts_finder_connector_retries_rate_limit_then_success():
+    source = ProcurementSource(
+        name="Contracts Finder",
+        source_key="contracts_finder",
+        base_url="https://www.contractsfinder.service.gov.uk",
+        query_url="https://www.contractsfinder.service.gov.uk/Published/Notices/OCDS/Search?limit=50",
+    )
+    connector = connector_for_source(source)
+    calls = []
+
+    def fake_fetcher(url):
+        calls.append(url)
+        if len(calls) == 1:
+            return FetchResult(False, 429, url, "", "application/json", error="Rate limited", retry_after_seconds=0)
+        return FetchResult(True, 200, url, ocds_payload(), "application/json")
+
+    result = connector.fetch_page(connector.build_query(["National Highways"]), fake_fetcher)
+
+    assert result.ok is True
+    assert result.status_code == 200
+    assert len(calls) == 2
+    assert connector.detect_schema(result) == "ocds_json"
+
+
+def test_find_a_tender_connector_stops_after_retryable_failure():
+    source = ProcurementSource(
+        name="Find a Tender",
+        source_key="find_a_tender",
+        base_url="https://www.find-tender.service.gov.uk",
+        query_url="https://www.find-tender.service.gov.uk/api/1.0/ocdsReleasePackages",
+    )
+    connector = connector_for_source(source)
+    calls = []
+
+    def fake_fetcher(url):
+        calls.append(url)
+        return FetchResult(False, 503, url, "", "application/json", error="Service unavailable", retry_after_seconds=0)
+
+    result = connector.fetch_page(connector.build_query(["SCADA"]), fake_fetcher)
+
+    assert result.ok is False
+    assert result.status_code == 503
+    assert len(calls) == 3
+    assert "Retried 2 time(s)" in result.error
+
+
+def test_provider_next_page_keeps_to_approved_domains():
+    source = ProcurementSource(
+        name="Find a Tender",
+        source_key="find_a_tender",
+        base_url="https://www.find-tender.service.gov.uk",
+        query_url="https://www.find-tender.service.gov.uk/api/1.0/ocdsReleasePackages",
+    )
+    connector = connector_for_source(source)
+    payload = json.dumps({"links": {"next": "https://www.find-tender.service.gov.uk/api/1.0/ocdsReleasePackages?page=2"}})
+
+    assert connector.next_page(FetchResult(True, 200, source.query_url, payload, "application/json")).endswith("page=2")
+    blocked = json.dumps({"links": {"next": "https://example.com/not-approved"}})
+    assert connector.next_page(FetchResult(True, 200, source.query_url, blocked, "application/json")) == ""

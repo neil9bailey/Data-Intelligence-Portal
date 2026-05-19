@@ -6,10 +6,19 @@ import httpx
 from fastapi import Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import false, or_
 from sqlmodel import Session, col, select
 
 from app.audit import compact_snapshot, log_event
-from app.auth import get_current_user
+from app.access_scope import (
+    interest_in_scope,
+    scope_for_user,
+    scoped_business_unit_statement,
+    scoped_customer_statement,
+    scoped_kra_finding_statement,
+    scoped_opportunity_statement,
+)
+from app.auth import CurrentUser, get_current_user
 from app.database import database_mode, sqlite_db_path, sqlite_persistent_copy_path
 from app.email_service import get_email_configuration
 from app.intelligence import kra_runtime_status
@@ -162,6 +171,76 @@ def reference_context(session: Session) -> dict:
         "portal_connector_map": {item.id: item for item in connectors},
         "agent_map": {item.id: item for item in agents},
         "news_feed_map": {item.id: item for item in news_feeds},
+        "requirement_categories": sorted(requirement_categories().keys()),
+    }
+
+
+def scoped_reference_context(session: Session, user) -> dict:
+    scope = scope_for_user(user)
+    if not scope.restricted:
+        return reference_context(session)
+
+    customers = list(session.exec(scoped_customer_statement(user)))
+    customer_unit_ids = {item.business_unit_id for item in customers if item.business_unit_id}
+    unit_ids = set(scope.business_unit_ids) | customer_unit_ids
+    units = (
+        list(session.exec(select(BusinessUnit).where(col(BusinessUnit.id).in_(unit_ids)).order_by(col(BusinessUnit.name))))
+        if unit_ids
+        else []
+    )
+    opportunities = list(session.exec(scoped_opportunity_statement(user)))
+    source_ids = {item.source_id for item in opportunities if item.source_id}
+
+    sources = (
+        list(session.exec(select(ProcurementSource).where(col(ProcurementSource.id).in_(source_ids)).order_by(col(ProcurementSource.name))))
+        if source_ids
+        else []
+    )
+    portals = []
+    if scope.customer_ids or scope.business_unit_ids:
+        portal_conditions = []
+        if scope.customer_ids:
+            portal_conditions.append(col(BuyerPortalInstance.customer_id).in_(scope.customer_ids))
+        if scope.business_unit_ids:
+            portal_conditions.append(col(BuyerPortalInstance.business_unit_id).in_(scope.business_unit_ids))
+        portals = list(session.exec(select(BuyerPortalInstance).where(or_(*portal_conditions)).order_by(col(BuyerPortalInstance.portal_name))))
+
+    portal_ids = {item.id for item in portals if item.id}
+    connectors = (
+        list(
+            session.exec(
+                select(PortalInformationConnector)
+                .where(col(PortalInformationConnector.portal_instance_id).in_(portal_ids))
+                .order_by(col(PortalInformationConnector.connector_name))
+            )
+        )
+        if portal_ids
+        else []
+    )
+    platforms = []
+    platform_ids = {item.platform_id for item in portals if item.platform_id}
+    if platform_ids:
+        platforms = list(session.exec(select(ProcurementPlatform).where(col(ProcurementPlatform.id).in_(platform_ids)).order_by(col(ProcurementPlatform.name))))
+
+    agents: list[KRAAgentProfile] = []
+    news_feeds: list[NewsFeedSource] = []
+    return {
+        "customers": customers,
+        "business_units": units,
+        "sources": sources,
+        "platforms": platforms,
+        "portal_instances": portals,
+        "portal_connectors": connectors,
+        "agents": agents,
+        "news_feeds": news_feeds,
+        "customer_map": {item.id: item for item in customers},
+        "business_unit_map": {item.id: item for item in units},
+        "source_map": {item.id: item for item in sources},
+        "platform_map": {item.id: item for item in platforms},
+        "portal_map": {item.id: item for item in portals},
+        "portal_connector_map": {item.id: item for item in connectors},
+        "agent_map": {},
+        "news_feed_map": {},
         "requirement_categories": sorted(requirement_categories().keys()),
     }
 
@@ -334,24 +413,70 @@ def portal_workbench_context(session: Session) -> dict:
     }
 
 
-def dashboard_metrics(session: Session) -> dict:
+def scoped_dashboard_metrics(session: Session, user) -> dict:
+    scope = scope_for_user(user)
+    if not scope.restricted:
+        return {
+            "customers": len(list(session.exec(select(Customer)))),
+            "sources": len(list(session.exec(select(ProcurementSource)))),
+            "active_sources": len(list(session.exec(select(ProcurementSource).where(ProcurementSource.active == True)))),  # noqa: E712
+            "platforms": len(list(session.exec(select(ProcurementPlatform)))),
+            "portal_connectors": len(list(session.exec(select(PortalInformationConnector)))),
+            "enabled_portal_connectors": len(list(session.exec(select(PortalInformationConnector).where(PortalInformationConnector.enabled == True)))),  # noqa: E712
+            "opportunities": len(list(session.exec(select(Opportunity)))),
+            "documents": len(list(session.exec(select(OpportunityDocument)))),
+            "requirements": len(list(session.exec(select(ExtractedRequirement)))),
+            "questions": len(list(session.exec(select(ExtractedQualityQuestion)))),
+            "pending_findings": len(list(session.exec(select(KRAFinding).where(KRAFinding.human_review_status == "pending")))),
+            "source_changes": len(list(session.exec(select(SourceCheckSnapshot).where(SourceCheckSnapshot.change_type == "changed")))),
+            "news_items": len(list(session.exec(select(NewsFeedItem)))),
+            "review_queue": len(list(session.exec(select(Opportunity).where(col(Opportunity.status).in_(["new", "pending_review", "matched", "needs_review"]))))),
+            "client_interests": len(list(session.exec(select(ClientInterestSignal)))),
+        }
+
+    opportunities = list(session.exec(scoped_opportunity_statement(user)))
+    opportunity_ids = [item.id for item in opportunities if item.id]
+    source_ids = {item.source_id for item in opportunities if item.source_id}
+    opportunity_map = {item.id: item for item in opportunities if item.id}
+
+    requirements_statement = select(ExtractedRequirement)
+    req_conditions = []
+    if scope.customer_ids:
+        req_conditions.append(col(ExtractedRequirement.customer_id).in_(scope.customer_ids))
+    if opportunity_ids:
+        req_conditions.append(col(ExtractedRequirement.opportunity_id).in_(opportunity_ids))
+    requirements = list(session.exec(requirements_statement.where(or_(*req_conditions)) if req_conditions else requirements_statement.where(false())))
+
+    questions_statement = select(ExtractedQualityQuestion)
+    question_conditions = []
+    if scope.customer_ids:
+        question_conditions.append(col(ExtractedQualityQuestion.customer_id).in_(scope.customer_ids))
+    if opportunity_ids:
+        question_conditions.append(col(ExtractedQualityQuestion.opportunity_id).in_(opportunity_ids))
+    questions = list(session.exec(questions_statement.where(or_(*question_conditions)) if question_conditions else questions_statement.where(false())))
+
+    raw_interests = list(session.exec(select(ClientInterestSignal)))
     return {
-        "customers": len(list(session.exec(select(Customer)))),
-        "sources": len(list(session.exec(select(ProcurementSource)))),
-        "active_sources": len(list(session.exec(select(ProcurementSource).where(ProcurementSource.active == True)))),  # noqa: E712
-        "platforms": len(list(session.exec(select(ProcurementPlatform)))),
-        "portal_connectors": len(list(session.exec(select(PortalInformationConnector)))),
-        "enabled_portal_connectors": len(list(session.exec(select(PortalInformationConnector).where(PortalInformationConnector.enabled == True)))),  # noqa: E712
-        "opportunities": len(list(session.exec(select(Opportunity)))),
-        "documents": len(list(session.exec(select(OpportunityDocument)))),
-        "requirements": len(list(session.exec(select(ExtractedRequirement)))),
-        "questions": len(list(session.exec(select(ExtractedQualityQuestion)))),
-        "pending_findings": len(list(session.exec(select(KRAFinding).where(KRAFinding.human_review_status == "pending")))),
-        "source_changes": len(list(session.exec(select(SourceCheckSnapshot).where(SourceCheckSnapshot.change_type == "changed")))),
-        "news_items": len(list(session.exec(select(NewsFeedItem)))),
-        "review_queue": len(list(session.exec(select(Opportunity).where(col(Opportunity.status).in_(["new", "pending_review", "matched"]))))),
-        "client_interests": len(list(session.exec(select(ClientInterestSignal)))),
+        "customers": len(list(session.exec(scoped_customer_statement(user)))),
+        "sources": len(source_ids),
+        "active_sources": len(list(session.exec(select(ProcurementSource).where(col(ProcurementSource.id).in_(source_ids), ProcurementSource.active == True)))) if source_ids else 0,  # noqa: E712
+        "platforms": len(list(session.exec(scoped_business_unit_statement(user)))),
+        "portal_connectors": 0,
+        "enabled_portal_connectors": 0,
+        "opportunities": len(opportunities),
+        "documents": len(list(session.exec(select(OpportunityDocument).where(col(OpportunityDocument.opportunity_id).in_(opportunity_ids))))) if opportunity_ids else 0,
+        "requirements": len(requirements),
+        "questions": len(questions),
+        "pending_findings": len(list(session.exec(scoped_kra_finding_statement(user).where(KRAFinding.human_review_status == "pending")))),
+        "source_changes": len(list(session.exec(select(SourceCheckSnapshot).where(col(SourceCheckSnapshot.source_id).in_(source_ids), SourceCheckSnapshot.change_type == "changed")))) if source_ids else 0,
+        "news_items": 0,
+        "review_queue": len([item for item in opportunities if normalise_status(item.status) in {"new", "pending_review", "matched", "needs_review"}]),
+        "client_interests": len([item for item in raw_interests if interest_in_scope(item, user, opportunity_map)]),
     }
+
+
+def dashboard_metrics(session: Session) -> dict:
+    return scoped_dashboard_metrics(session, CurrentUser())
 
 
 def file_status(path: Path | None) -> dict:

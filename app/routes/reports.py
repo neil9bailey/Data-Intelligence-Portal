@@ -13,7 +13,7 @@ from app.form_utils import parse_bool, parse_optional_int, validation_error_resp
 from app.models import EmailDeliveryLog, IntelligenceReport
 from app.portal_connectors import run_enabled_portal_connectors
 from app.reports import create_report
-from app.route_utils import clear_links, context, delete_with_audit, paged, redirect, reference_context, templates, update_with_audit
+from app.route_utils import clear_links, context, delete_with_audit, paged, redirect, scoped_reference_context, templates, update_with_audit
 
 
 router = APIRouter()
@@ -31,7 +31,7 @@ def reports(request: Request, session: Session = Depends(get_session), user=Depe
             conditions.append(col(IntelligenceReport.business_unit_id).in_(scope.business_unit_ids))
         statement = statement.where(or_(*conditions) if conditions else false())
     items, pagination = paged(session, statement, request)
-    return templates.TemplateResponse(request, "reports.html", context(request, reports=items, reports_pagination=pagination, **reference_context(session)))
+    return templates.TemplateResponse(request, "reports.html", context(request, reports=items, reports_pagination=pagination, **scoped_reference_context(session, user)))
 
 
 @router.post("/reports")
@@ -94,7 +94,7 @@ def report_detail(report_id: int, request: Request, format: str | None = None, s
         payload, media_type, filename = report_export(report, format)
         return Response(payload, media_type=media_type, headers={"Content-Disposition": f'attachment; filename="{filename}"'})
     email_config = get_email_configuration(session)
-    return templates.TemplateResponse(request, "report_detail.html", context(request, report=report, email_config=email_config, **reference_context(session)))
+    return templates.TemplateResponse(request, "report_detail.html", context(request, report=report, email_config=email_config, **scoped_reference_context(session, user)))
 
 
 @router.post("/reports/{report_id}/send-email")

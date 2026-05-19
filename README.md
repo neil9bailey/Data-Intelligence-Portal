@@ -46,6 +46,7 @@ Data Intelligence Portal is a configurable information-gathering workspace for:
 - [End user operating process](docs/end-user-operating-process.md)
 - [National Highways onboarding guide](docs/national-highways-onboarding-guide.md)
 - [Azure deployment guide](docs/azure-deployment-guide.md)
+- [Current-cost operating model](docs/current-cost-operating-model.md)
 - [UI mockup](docs/ui_mockups/data_intelligence_portal_mockup.html)
 
 Open the mockup directly in a browser:
@@ -210,6 +211,7 @@ If no scope is configured for a standard user, existing MVP behaviour is preserv
 
 SQLite remains the default local and live-test MVP persistence option. PostgreSQL is now supported through `DATABASE_URL` for production-shaped environments, with Alembic migrations in `alembic/`.
 
+- Current-cost operation continues on the existing Azure Container Apps, Key Vault reference and Azure Files snapshot model. Do not treat PostgreSQL, immutable audit storage, Front Door/WAF or new tenant work as required for this phase; those items are deferred to the future production tenant migration. See [current-cost operating model](docs/current-cost-operating-model.md).
 - `docker compose run --rm app alembic upgrade head` applies migrations.
 - `DATABASE_AUTO_CREATE_ALL=true` is available only for controlled compatibility/testing; production PostgreSQL should use Alembic.
 - `/healthz` is a public liveness check.

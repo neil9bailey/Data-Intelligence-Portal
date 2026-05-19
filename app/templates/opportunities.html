@@ -16,7 +16,14 @@
             {% if evidence_map.get(item.id) %}
             <details class="compact-drawer"><summary>Why matched</summary>
               {% for evidence in evidence_map.get(item.id, [])[:3] %}
-              <p class="hint"><strong>{{ evidence.evidence_type }}</strong>: {{ evidence.rationale }}{% if evidence.matched_term %} Terms: {{ evidence.matched_term }}{% endif %}</p>
+              <p class="hint"><strong>{{ evidence.evidence_type }}</strong>: {{ evidence.rationale }}{% if evidence.matched_term %} Terms: {{ evidence.matched_term }}{% endif %}{% if evidence.source_field %} Source field: {{ evidence.source_field }}{% endif %}{% if evidence.score_delta %} Score: {{ evidence.score_delta|round(0) }}{% endif %}</p>
+              {% endfor %}
+            </details>
+            {% endif %}
+            {% if feedback_map.get(item.id) %}
+            <details class="compact-drawer"><summary>Feedback history</summary>
+              {% for feedback in feedback_map.get(item.id, [])[:4] %}
+              <p class="hint"><strong>{{ feedback.feedback_type | replace('_', ' ') }}</strong> by {{ feedback.reviewer }} at {{ feedback.created_at.strftime('%Y-%m-%d %H:%M') }}{% if feedback.notes %}: {{ feedback.notes }}{% endif %}</p>
               {% endfor %}
             </details>
             {% endif %}
@@ -71,7 +78,7 @@
               <summary>Feedback</summary>
               <form method="post" action="/opportunities/{{ item.id }}/feedback">
                 <div class="field"><label>Feedback type</label><select name="feedback_type">
-                  {% for option in ['relevant','not_relevant','wrong_customer','wrong_business_unit','duplicate','stale','other'] %}
+                  {% for option in ['approve','needs_more_evidence','not_relevant','wrong_customer','wrong_business_unit','duplicate','stale','other'] %}
                   <option value="{{ option }}">{{ option | replace('_', ' ') }}</option>
                   {% endfor %}
                 </select></div>

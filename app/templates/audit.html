@@ -1,7 +1,25 @@
 {% extends "base.html" %}
 {% block title %}Audit - {{ app_name }}{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Audit</h1><p>Local MVP event log for source checks, KRA runs, document extraction and report generation.</p></div><div class="actions"><a class="button secondary" href="/audit?format=csv">CSV</a><a class="button secondary" href="/audit?format=json">JSON</a></div></div>
+<div class="page-head"><div><h1>Audit</h1><p>Event log for source checks, KRA runs, document extraction and report generation. Secret-like fields are redacted before export.</p></div><div class="actions"><a class="button secondary" href="/audit?format=csv">CSV</a><a class="button secondary" href="/audit?format=json">JSON</a></div></div>
+<section class="panel">
+  <h2>Filter Audit Events</h2>
+  <form method="get" action="/audit">
+    <div class="form-grid">
+      <div class="field"><label>Entity type</label><input name="entity_type" value="{{ audit_filters.entity_type }}"></div>
+      <div class="field"><label>Entity ID</label><input name="entity_id" value="{{ audit_filters.entity_id }}"></div>
+    </div>
+    <div class="form-grid">
+      <div class="field"><label>Action</label><input name="action" value="{{ audit_filters.action }}"></div>
+      <div class="field"><label>Actor</label><input name="actor" value="{{ audit_filters.actor }}"></div>
+    </div>
+    <div class="form-grid">
+      <div class="field"><label>From</label><input type="date" name="date_from" value="{{ audit_filters.date_from }}"></div>
+      <div class="field"><label>To</label><input type="date" name="date_to" value="{{ audit_filters.date_to }}"></div>
+    </div>
+    <div class="actions"><button type="submit">Apply filters</button><a class="button secondary" href="/audit">Clear</a></div>
+  </form>
+</section>
 <section class="panel">
   <div class="table-wrap"><table><thead><tr><th>Time</th><th>Entity</th><th>Action</th><th>Summary</th></tr></thead><tbody>{% for event in events %}<tr><td>{{ event.created_at.strftime('%Y-%m-%d %H:%M') }}</td><td>{{ event.entity_type }} {{ event.entity_id or "" }}</td><td>{{ event.action }}</td><td>{{ event.summary }}</td></tr>{% else %}<tr><td colspan="4">No audit events yet.</td></tr>{% endfor %}</tbody></table>{% with pagination=audit_pagination %}{% include "_pagination.html" %}{% endwith %}</div>
 </section>

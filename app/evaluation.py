@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from app.intelligence import CandidateOpportunity, has_capability_match, market_relevance_for_candidate
+from app.intelligence import CandidateOpportunity, has_capability_match, is_award_candidate, is_current_candidate, market_relevance_for_candidate
 
 
 def load_evaluation_cases(path: str | Path) -> list[dict]:
@@ -15,9 +15,20 @@ def classify_evaluation_case(case: dict) -> dict:
         title=case.get("title", ""),
         buyer_name=case.get("buyer_name", ""),
         notice_identifier=case.get("notice_identifier", case.get("title", "")),
+        notice_type=case.get("notice_type", ""),
+        procurement_stage=case.get("procurement_stage", ""),
         summary=case.get("summary", ""),
         cpv_codes="; ".join(case.get("cpv_codes", [])) if isinstance(case.get("cpv_codes"), list) else str(case.get("cpv_codes", "")),
     )
+    if is_award_candidate(candidate) or not is_current_candidate(candidate):
+        return {
+            "title": candidate.title,
+            "buyer_name": candidate.buyer_name,
+            "score": 0,
+            "rationale": "Rejected because the notice is an award, closed, complete or no longer current.",
+            "relevant": False,
+            "status": "rejected",
+        }
     score, rationale = market_relevance_for_candidate(candidate)
     relevant = score >= 44 and has_capability_match(candidate)
     return {

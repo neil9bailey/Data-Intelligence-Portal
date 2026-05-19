@@ -44,17 +44,30 @@ def opportunities(request: Request, session: Session = Depends(get_session), _us
     items, pagination = paged(session, select(Opportunity).order_by(col(Opportunity.updated_at).desc()), request)
     documents = list(session.exec(select(OpportunityDocument)))
     evidence = list(session.exec(select(OpportunityMatchEvidence)))
+    feedback_rows = list(session.exec(select(OpportunityFeedback).order_by(col(OpportunityFeedback.created_at).desc())))
     evidence_map: dict[int, list[OpportunityMatchEvidence]] = {}
     for item in evidence:
         if item.opportunity_id:
             evidence_map.setdefault(item.opportunity_id, []).append(item)
+    feedback_map: dict[int, list[OpportunityFeedback]] = {}
+    for item in feedback_rows:
+        if item.opportunity_id:
+            feedback_map.setdefault(item.opportunity_id, []).append(item)
     doc_counts: dict[int, int] = {}
     for doc in documents:
         doc_counts[doc.opportunity_id] = doc_counts.get(doc.opportunity_id, 0) + 1
     return templates.TemplateResponse(
         request,
         "opportunities.html",
-        context(request, opportunities=items, opportunities_pagination=pagination, doc_counts=doc_counts, evidence_map=evidence_map, **reference_context(session)),
+        context(
+            request,
+            opportunities=items,
+            opportunities_pagination=pagination,
+            doc_counts=doc_counts,
+            evidence_map=evidence_map,
+            feedback_map=feedback_map,
+            **reference_context(session),
+        ),
     )
 
 
@@ -164,20 +177,31 @@ async def create_opportunity_feedback(opportunity_id: int, request: Request, ses
         return redirect("/opportunities")
     form = await request.form()
     feedback_type = str(form.get("feedback_type") or "other")
-    allowed = {"relevant", "not_relevant", "wrong_customer", "wrong_business_unit", "duplicate", "stale", "other"}
+    allowed = {"approve", "relevant", "not_relevant", "wrong_customer", "wrong_business_unit", "duplicate", "stale", "needs_more_evidence", "other"}
     if feedback_type not in allowed:
         return validation_error_response(["Feedback type is not recognised."], "/opportunities")
+    before = compact_snapshot(opportunity)
     feedback = OpportunityFeedback(
         opportunity_id=opportunity.id,
         reviewer=get_current_user(request).username,
         feedback_type=feedback_type,
         notes=str(form.get("notes") or ""),
     )
+    if feedback_type in {"approve", "relevant"}:
+        opportunity.status = "approved"
+        opportunity.relevance_rationale = f"{opportunity.relevance_rationale}\nReviewer feedback: {feedback_type}".strip()
     if feedback_type in {"not_relevant", "wrong_customer", "wrong_business_unit", "duplicate", "stale"}:
         opportunity.status = "needs_review"
         opportunity.relevance_rationale = f"{opportunity.relevance_rationale}\nReviewer feedback: {feedback_type}".strip()
+    if feedback_type == "needs_more_evidence":
+        opportunity.status = "review_required"
+        opportunity.relevance_rationale = f"{opportunity.relevance_rationale}\nReviewer feedback: needs_more_evidence".strip()
+    if feedback_type != "other":
         session.add(opportunity)
     save_with_audit(session, feedback, "create", f"Feedback {feedback_type} for opportunity {opportunity.title}")
+    if feedback_type != "other":
+        log_event(session, entity_type="Opportunity", entity_id=opportunity.id, action="update", summary=f"Reviewer feedback changed status to {opportunity.status}", before=before, after=opportunity)
+        session.commit()
     return redirect("/opportunities")
 
 

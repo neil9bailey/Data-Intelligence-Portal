@@ -9,7 +9,7 @@ from app.auth import require_standard_or_admin
 from app.database import get_session
 from app.form_utils import parse_optional_int, validation_error_response
 from app.models import ClientInterestSignal, Opportunity
-from app.route_utils import context, delete_with_audit, redirect, reference_context, save_with_audit, templates, update_with_audit
+from app.route_utils import context, delete_with_audit, redirect, save_with_audit, scoped_reference_context, templates, update_with_audit
 
 
 router = APIRouter()
@@ -37,7 +37,7 @@ def client_portal(request: Request, session: Session = Depends(get_session), use
     return templates.TemplateResponse(
         request,
         "client_portal.html",
-        context(request, opportunities=opportunities, all_opportunities=all_opportunities, interests=interests, **reference_context(session)),
+        context(request, opportunities=opportunities, all_opportunities=all_opportunities, interests=interests, **scoped_reference_context(session, user)),
     )
 
 
