@@ -118,7 +118,7 @@ packs:
         data_format: HTML / OCDS links
         connector_status: reference_only
         review_frequency: daily
-        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Find a Tender OCDS API and DIP customer filtering to avoid search-page rate limits.
+        notes: Reference search URL for human drill-through. Automated live pilot retrieval uses the official broad Find a Tender OCDS API and DIP customer filtering to avoid search-page rate limits.
       - key: contracts_finder_national_highways
         name: Contracts Finder - National Highways
         source_family: official_notice
@@ -132,7 +132,7 @@ packs:
         data_format: HTML / OCDS links
         connector_status: reference_only
         review_frequency: daily
-        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Contracts Finder OCDS API and DIP customer filtering to avoid search-page rate limits.
+        notes: Reference search URL for human drill-through. Automated live pilot retrieval uses the official broad Contracts Finder OCDS API and DIP customer filtering to avoid search-page rate limits.
     portals:
       - name: National Highways - Jaggaer eSourcing
         platform_name: Jaggaer
@@ -157,7 +157,7 @@ packs:
         auth_type: none
         enabled: true
         allowed_operations: retrieve_metadata; retrieve_documents; detect_changes
-        notes: Enabled for read-only live-demo retrieval. The official Contracts Finder OCDS search endpoint is broad; DIP must filter results for National Highways, National Highways Limited and Highways England before assignment.
+        notes: Enabled for read-only live pilot retrieval. The official Contracts Finder OCDS search endpoint is broad; DIP must filter results for National Highways, National Highways Limited and Highways England before assignment.
     kra_queries:
       - agent: Official Source Scout
         query: National Highways highways operational technology roadside technology cyber resilience asset management service management SCADA network communications maintenance response framework
@@ -209,7 +209,7 @@ packs:
         data_format: HTML / OCDS links
         connector_status: reference_only
         review_frequency: daily
-        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Find a Tender OCDS API and DIP customer filtering to avoid search-page rate limits.
+        notes: Reference search URL for human drill-through. Automated live pilot retrieval uses the official broad Find a Tender OCDS API and DIP customer filtering to avoid search-page rate limits.
       - key: contracts_finder_tfl
         name: Contracts Finder - Transport for London
         source_family: official_notice
@@ -223,7 +223,7 @@ packs:
         data_format: HTML / OCDS links
         connector_status: reference_only
         review_frequency: daily
-        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Contracts Finder OCDS API and DIP customer filtering to avoid search-page rate limits.
+        notes: Reference search URL for human drill-through. Automated live pilot retrieval uses the official broad Contracts Finder OCDS API and DIP customer filtering to avoid search-page rate limits.
     portals:
       - name: TfL - Supplier portal tracking
         platform_name: SAP Ariba / TfL supplier portal
@@ -281,7 +281,7 @@ packs:
         data_format: HTML / OCDS links
         connector_status: reference_only
         review_frequency: daily
-        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Find a Tender OCDS API and DIP customer filtering to avoid search-page rate limits.
+        notes: Reference search URL for human drill-through. Automated live pilot retrieval uses the official broad Find a Tender OCDS API and DIP customer filtering to avoid search-page rate limits.
       - key: contracts_finder_network_rail
         name: Contracts Finder - Network Rail
         source_family: official_notice
@@ -295,7 +295,7 @@ packs:
         data_format: HTML / OCDS links
         connector_status: reference_only
         review_frequency: daily
-        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Contracts Finder OCDS API and DIP customer filtering to avoid search-page rate limits.
+        notes: Reference search URL for human drill-through. Automated live pilot retrieval uses the official broad Contracts Finder OCDS API and DIP customer filtering to avoid search-page rate limits.
     portals:
       - name: Network Rail - procurement portal tracking
         platform_name: BravoSolution / Jaggaer
@@ -350,7 +350,7 @@ packs:
         data_format: HTML / OCDS links
         connector_status: reference_only
         review_frequency: daily
-        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Find a Tender OCDS API and DIP customer filtering to avoid search-page rate limits.
+        notes: Reference search URL for human drill-through. Automated live pilot retrieval uses the official broad Find a Tender OCDS API and DIP customer filtering to avoid search-page rate limits.
       - key: contracts_finder_dft
         name: Contracts Finder - Department for Transport
         source_family: official_notice
@@ -364,7 +364,7 @@ packs:
         data_format: HTML / OCDS links
         connector_status: reference_only
         review_frequency: daily
-        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Contracts Finder OCDS API and DIP customer filtering to avoid search-page rate limits.
+        notes: Reference search URL for human drill-through. Automated live pilot retrieval uses the official broad Contracts Finder OCDS API and DIP customer filtering to avoid search-page rate limits.
     portals: []
     connectors: []
     kra_queries:
@@ -412,7 +412,7 @@ packs:
         data_format: HTML / OCDS links
         connector_status: reference_only
         review_frequency: daily
-        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Find a Tender OCDS API and DIP customer filtering to avoid search-page rate limits.
+        notes: Reference search URL for human drill-through. Automated live pilot retrieval uses the official broad Find a Tender OCDS API and DIP customer filtering to avoid search-page rate limits.
       - key: contracts_finder_ccs
         name: Contracts Finder - Crown Commercial Service
         source_family: official_notice
@@ -426,7 +426,7 @@ packs:
         data_format: HTML / OCDS links
         connector_status: reference_only
         review_frequency: daily
-        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Contracts Finder OCDS API and DIP customer filtering to avoid search-page rate limits.
+        notes: Reference search URL for human drill-through. Automated live pilot retrieval uses the official broad Contracts Finder OCDS API and DIP customer filtering to avoid search-page rate limits.
     portals: []
     connectors: []
     kra_queries:
@@ -474,7 +474,7 @@ packs:
         data_format: HTML / OCDS links
         connector_status: reference_only
         review_frequency: daily
-        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Find a Tender OCDS API and DIP customer filtering to avoid search-page rate limits.
+        notes: Reference search URL for human drill-through. Automated live pilot retrieval uses the official broad Find a Tender OCDS API and DIP customer filtering to avoid search-page rate limits.
       - key: contracts_finder_nhs_england
         name: Contracts Finder - NHS England
         source_family: official_notice
@@ -488,7 +488,7 @@ packs:
         data_format: HTML / OCDS links
         connector_status: reference_only
         review_frequency: daily
-        notes: Reference search URL for human drill-through. Automated live-demo retrieval uses the official broad Contracts Finder OCDS API and DIP customer filtering to avoid search-page rate limits.
+        notes: Reference search URL for human drill-through. Automated live pilot retrieval uses the official broad Contracts Finder OCDS API and DIP customer filtering to avoid search-page rate limits.
     portals: []
     connectors: []
     kra_queries:

@@ -81,7 +81,7 @@ sources:
     data_format: REST OCDS JSON
     dedupe_strategy: ocid_or_notice_reference
     connector_status: disabled_requires_endpoint_validation
-    notes: Official OCDS API endpoint is configured as a reference source. Keep disabled in the live demo until TLS/certificate validation and date-scoped retrieval behaviour are confirmed.
+    notes: Official OCDS API endpoint is configured as a reference source. Keep disabled for automated live pilot retrieval until TLS/certificate validation and date-scoped retrieval behaviour are confirmed.
   - key: sell2wales
     name: Sell2Wales public procurement source
     source_family: official_notice
