@@ -8,12 +8,13 @@ from sqlmodel import Session
 from sqlmodel import select
 
 from app.audit import log_event
-from app.automation import refresh_public_sources, run_admin_full_cycle
+from app.automation import refresh_public_sources, run_admin_full_cycle, store_report_export
 from app.database import backup_sqlite_persistent_copy, engine, init_db
 from app.digests import send_digest
 from app.intelligence import refresh_news_feeds
 from app.models import AutomationRun, DigestProfile
 from app.portal_connectors import run_enabled_portal_connectors
+from app.reports import create_report
 
 
 def record_job_run(session: Session, run_type: str, status: str, summary: str, details: dict | list | None = None) -> AutomationRun:
@@ -67,6 +68,21 @@ def run_job(job_name: str, session: Session) -> AutomationRun:
             )
         if job_name == "admin-cycle":
             return run_admin_full_cycle(session)
+        if job_name == "generate-cof-report":
+            report = create_report(
+                session,
+                f"COF final customer pack {datetime.now(UTC).strftime('%Y-%m-%d %H:%M')}",
+                report_type="cof_final_customer_pack",
+                include_ai_brief=False,
+            )
+            stored_path = store_report_export(report, "pdf")
+            return record_job_run(
+                session,
+                "generate_cof_report",
+                "completed",
+                f"Generated COF report {report.id} at {stored_path}.",
+                {"report_id": report.id, "stored_path": stored_path},
+            )
     except Exception as exc:
         return record_job_run(session, job_name.replace("-", "_"), "failed", f"Job {job_name} failed: {str(exc)[:220]}")
     return record_job_run(session, job_name.replace("-", "_"), "failed", f"Unknown job {job_name}")
@@ -74,7 +90,7 @@ def run_job(job_name: str, session: Session) -> AutomationRun:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Data Intelligence Portal job runner")
-    parser.add_argument("job", choices=["refresh-sources", "refresh-feeds", "run-connectors", "send-digests", "admin-cycle"])
+    parser.add_argument("job", choices=["refresh-sources", "refresh-feeds", "run-connectors", "send-digests", "admin-cycle", "generate-cof-report"])
     args = parser.parse_args()
     init_db()
     with Session(engine) as session:
