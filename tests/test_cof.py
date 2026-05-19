@@ -116,6 +116,8 @@ def test_procter_street_cof_pack_applies_idempotently(reference_session):
     assert len(list(reference_session.exec(select(BuyerPortalInstance)))) == first_portal_count
     assert {"ProContract", "In-Tend", "Jaggaer", "Delta eSourcing"}.issubset(platforms)
     assert {"find_a_tender", "contracts_finder", "public_contracts_scotland", "sell2wales", "ted_eforms", "tenders_direct_backup"}.issubset(source_keys)
+    pcs = reference_session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "public_contracts_scotland")).first()
+    assert pcs.query_url == "https://www.publiccontractsscotland.gov.uk/search/search_mainpage.aspx"
     assert any("Customer: COF Client 01" in item for item in result["created"])
     assert second["created"] == []
 
@@ -505,7 +507,8 @@ def test_failed_source_health_does_not_empty_existing_curated_cof_report(referen
 
     report = create_report(reference_session, "COF source warning report", "cof_final_customer_pack")
 
-    assert "Find a Tender: failed" in report.markdown
+    assert "Find a Tender: attention" in report.markdown
+    assert "Find a Tender: failed" not in report.markdown
     assert "School estate decarbonisation programme" in report.markdown
     assert "0 live tender signal" not in report.markdown
 

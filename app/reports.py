@@ -534,7 +534,7 @@ def generate_cof_weekly_report_markdown(
     readiness_lines = _cof_monday_send_readiness_lines(send_readiness, report_mode=report_mode)
     source_detail_lines = _cof_source_detail_lines(section_opportunities, customer_map, report_mode)
     requirement_lines = _cof_requirement_lines(section_requirements, section_opportunities, customer_map)
-    source_status_lines = _cof_source_status_lines(context["sources"], readiness.source_health)
+    source_status_lines = _cof_source_status_lines(context["sources"], readiness.source_health, report_mode=report_mode)
     portal_status_lines = _cof_portal_status_lines(session, clients)
     kra_status_lines = _cof_kra_status_lines(session, readiness)
     retrieval_task_lines = _cof_retrieval_task_lines(tasks, section_opportunities if report_mode == "final" else opportunities)
@@ -833,9 +833,21 @@ def _cof_final_ready_opportunities(
     return ready
 
 
-def _cof_source_status_lines(sources: list[ProcurementSource], source_health: list | None = None) -> list[str]:
+def _cof_source_status_lines(sources: list[ProcurementSource], source_health: list | None = None, report_mode: str = "internal") -> list[str]:
     if source_health:
-        return [f"- {item.label}: {item.status}; {item.message}" for item in source_health]
+        lines = []
+        for item in source_health:
+            status = item.status
+            message = item.message
+            if report_mode == "final":
+                if status == "failed":
+                    status = "attention"
+                    message = "Refresh needs attention; existing curated records remain reportable while ingestion is reviewed."
+                elif status == "stale":
+                    status = "refresh due"
+                    message = "Refresh is due before relying on new ingestion; existing curated records remain reportable."
+            lines.append(f"- {item.label}: {status}; {message}")
+        return lines
     source_by_key = {source.source_key: source for source in sources}
     lines = []
     for key, label in {**REQUIRED_SOURCE_KEYS, **BACKUP_SOURCE_KEYS}.items():

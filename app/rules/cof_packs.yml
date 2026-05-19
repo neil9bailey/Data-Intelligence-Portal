@@ -157,19 +157,19 @@ packs:
         review_frequency: daily
         notes: One of five COF primary sources.
       - key: public_contracts_scotland
-        name: Public Contracts Scotland OCDS API
+        name: Public Contracts Scotland public search
         source_family: official_notice
-        source_type: ocds_api
-        base_url: https://api.publiccontractsscotland.gov.uk
-        query_url: https://api.publiccontractsscotland.gov.uk/v1/Notices
+        source_type: web_page
+        base_url: https://www.publiccontractsscotland.gov.uk
+        query_url: https://www.publiccontractsscotland.gov.uk/search/search_mainpage.aspx
         official: true
         active: true
         coverage: Scotland public-sector procurement notices.
         auth_model: none
-        data_format: REST OCDS JSON
+        data_format: Public search HTML; OCDS/API route retained for future normaliser validation
         connector_status: live_public_source
         review_frequency: daily
-        notes: One of five COF primary sources.
+        notes: One of five COF primary sources. The public search page is used for live health checks because it is reachable from the container runtime; PCS OCDS/API normalisation remains a future connector hardening item.
       - key: sell2wales
         name: Sell2Wales public procurement source
         source_family: official_notice

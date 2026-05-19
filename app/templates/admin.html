@@ -112,7 +112,7 @@
   <div class="panel-title">
     <div>
       <h2>COF Source Health</h2>
-      <p class="hint">Advisory source-to-inbox health for the weekly opportunity pack. Reports still generate; stale or failed source records are ignored from opportunity output until healthy.</p>
+      <p class="hint">Advisory source-to-inbox health for the weekly opportunity pack. Reports still generate; source refresh warnings are surfaced without removing curated COF opportunities.</p>
     </div>
     <span class="badge {{ 'green' if cof_production_readiness.status == 'Ready for weekly send' else 'red' if cof_production_readiness.status == 'Needs source attention' else 'amber' }}">{{ cof_production_readiness.status }}</span>
   </div>
