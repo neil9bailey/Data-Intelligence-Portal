@@ -297,21 +297,21 @@ def test_cof_weekly_report_content_and_exports(reference_session):
     assert "Live Tenders" in markdown
     assert "0 live tender signal" not in markdown
     assert "School estate decarbonisation programme" in markdown
-    assert "matched client Client B - Estates" in markdown
-    assert "portal/source: In-Tend" in markdown
+    assert "Matched client: Client B - Estates" in markdown
+    assert "Portal route: In-Tend" in markdown
     assert "Review Lead approved for report inclusion" in markdown
     assert "Awards / Market Evidence" in markdown
     assert "Client Action Queue" in markdown
-    assert "Account Lead action status account lead action required" in markdown
+    assert "account action status: account lead action required" in markdown
     assert f"{interested_count} interested item(s)" in markdown
     assert "Quality Questions and Weightings" in markdown
     questions_section = markdown.split("## Quality Questions and Weightings", 1)[1].split("## Requirement Themes", 1)[0]
-    assert "pending Review Lead review" in questions_section
+    assert "pending Review Lead review" not in questions_section
     assert "approved status" not in questions_section
     assert "Public Notice Evidence" in markdown
     documents_section = markdown.split("## Documents Retrieved", 1)[1].split("## Public Notice Evidence", 1)[0]
     public_notice_section = markdown.split("## Public Notice Evidence", 1)[1].split("## Quality Questions and Weightings", 1)[0]
-    review_gaps_section = markdown.split("## Review Gaps", 1)[1].split("## Monday Send Readiness", 1)[0]
+    review_gaps_section = markdown.split("## Report Review Notes", 1)[1].split("## Monday Send Readiness", 1)[0]
     assert "Human review required" in markdown
     assert "Source Health" in markdown
     assert "Rejected noise record" not in markdown
@@ -319,10 +319,12 @@ def test_cof_weekly_report_content_and_exports(reference_session):
         assert forbidden not in lower_markdown
     assert markdown.count("Human review required") <= 2
     assert "Source evidence captured for Review Lead review. Human verification required before client action." not in markdown
-    assert "Pending document review: " in review_gaps_section
-    assert "Pending document review: 0" not in review_gaps_section
+    assert "Held outside customer-facing sections:" in review_gaps_section
+    assert "Pending document review:" not in review_gaps_section
     assert "COF public notice evidence record" not in documents_section
     assert "COF public notice evidence record" in public_notice_section
+    assert "Source search reference" in markdown
+    assert "Verified source" not in markdown
     for title in [
         "South Devon College",
         "Home Office",

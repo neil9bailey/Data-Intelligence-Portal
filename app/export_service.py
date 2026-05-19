@@ -1,11 +1,26 @@
 from __future__ import annotations
 
+from io import BytesIO
 from html import escape
 import json
+import re
 import textwrap
 
 from app.models import IntelligenceReport
 from app.settings import get_settings
+
+try:  # pragma: no cover - fallback kept for extremely small/offline runtimes.
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_LEFT
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+except ImportError:  # pragma: no cover
+    colors = None
+    A4 = landscape = mm = None
+    ParagraphStyle = getSampleStyleSheet = None
+    PageBreak = Paragraph = SimpleDocTemplate = Spacer = Table = TableStyle = None
 
 
 REPORT_CAVEAT = "Human review required. Not a bid, legal, procurement or compliance decision."
@@ -179,7 +194,7 @@ def _content_stream(report: IntelligenceReport, page_number: int, page_count: in
     return b"\n".join(parts)
 
 
-def _pdf_report(report: IntelligenceReport) -> bytes:
+def _legacy_pdf_report(report: IntelligenceReport) -> bytes:
     lines = _pdf_text_lines(report.markdown)
     body_lines_per_page = 46
     pages = [lines[index : index + body_lines_per_page] for index in range(0, len(lines), body_lines_per_page)] or [[]]
@@ -219,6 +234,183 @@ def _pdf_report(report: IntelligenceReport) -> bytes:
     pdf.extend(b"trailer\n<< /Size " + str(max_obj + 1).encode("ascii") + b" /Root 1 0 R >>\nstartxref\n")
     pdf.extend(str(xref_at).encode("ascii") + b"\n%%EOF\n")
     return bytes(pdf)
+
+
+def _pdf_report(report: IntelligenceReport) -> bytes:
+    if SimpleDocTemplate is None:
+        return _legacy_pdf_report(report)
+
+    settings = get_settings()
+    brand = settings.report_brand_name or "Contracted Opportunity Finder"
+    prepared_for = settings.report_prepared_for or "Procter Street"
+    footer = settings.report_footer or REPORT_CAVEAT
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        leftMargin=18 * mm,
+        rightMargin=18 * mm,
+        topMargin=18 * mm,
+        bottomMargin=16 * mm,
+        title=sanitize_pdf_text(report.report_name),
+        author=brand,
+        pageCompression=0,
+    )
+    styles = _pdf_styles()
+    story: list = [
+        Paragraph(escape(brand.upper()), styles["Kicker"]),
+        Paragraph(escape(report.report_name), styles["Title"]),
+        Paragraph(escape(f"Prepared for {prepared_for} | {report.report_type}"), styles["Meta"]),
+        Spacer(1, 5 * mm),
+        Table(
+            [[Paragraph(escape(footer), styles["Caveat"])]],
+            colWidths=[doc.width],
+            style=TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fff2c7")),
+                    ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#e1c45c")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                    ("TOPPADDING", (0, 0), (-1, -1), 7),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+                ]
+            ),
+        ),
+        Spacer(1, 7 * mm),
+    ]
+    story.extend(_markdown_to_pdf_flowables(report.markdown, styles, doc.width))
+    doc.build(story, onFirstPage=_pdf_footer(footer), onLaterPages=_pdf_footer(footer))
+    return buffer.getvalue()
+
+
+def _pdf_styles() -> dict[str, ParagraphStyle]:
+    base = getSampleStyleSheet()
+    return {
+        "Kicker": ParagraphStyle(
+            "Kicker",
+            parent=base["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=8,
+            leading=10,
+            textColor=colors.HexColor("#00a7bd"),
+            spaceAfter=4,
+        ),
+        "Title": ParagraphStyle(
+            "Title",
+            parent=base["Title"],
+            fontName="Helvetica-Bold",
+            fontSize=24,
+            leading=29,
+            textColor=colors.HexColor("#2b113a"),
+            spaceAfter=6,
+        ),
+        "Meta": ParagraphStyle("Meta", parent=base["Normal"], fontSize=9, leading=12, textColor=colors.HexColor("#546071")),
+        "H1": ParagraphStyle("H1", parent=base["Heading1"], fontName="Helvetica-Bold", fontSize=18, leading=22, textColor=colors.HexColor("#2b113a"), spaceBefore=8, spaceAfter=8),
+        "H2": ParagraphStyle("H2", parent=base["Heading2"], fontName="Helvetica-Bold", fontSize=13, leading=16, textColor=colors.HexColor("#4b155f"), spaceBefore=10, spaceAfter=6),
+        "H3": ParagraphStyle("H3", parent=base["Heading3"], fontName="Helvetica-Bold", fontSize=10.5, leading=13, textColor=colors.HexColor("#25314f"), spaceBefore=7, spaceAfter=4),
+        "Body": ParagraphStyle("Body", parent=base["BodyText"], fontSize=8.6, leading=11.2, textColor=colors.HexColor("#172033"), spaceAfter=3),
+        "Bullet": ParagraphStyle(
+            "Bullet",
+            parent=base["BodyText"],
+            fontSize=8.4,
+            leading=10.8,
+            leftIndent=9,
+            firstLineIndent=-5,
+            bulletIndent=0,
+            textColor=colors.HexColor("#172033"),
+            spaceAfter=2.5,
+        ),
+        "Detail": ParagraphStyle("Detail", parent=base["BodyText"], fontSize=7.9, leading=10.2, leftIndent=14, textColor=colors.HexColor("#4f5b70"), spaceAfter=2),
+        "Caveat": ParagraphStyle("Caveat", parent=base["BodyText"], fontName="Helvetica-Bold", fontSize=8.5, leading=11, textColor=colors.HexColor("#4b3300"), alignment=TA_LEFT),
+    }
+
+
+def _markdown_to_pdf_flowables(markdown: str, styles: dict[str, ParagraphStyle], width: float) -> list:
+    flowables: list = []
+    table_rows: list[list[str]] = []
+    section_count = 0
+
+    def flush_table() -> None:
+        nonlocal table_rows
+        if not table_rows:
+            return
+        header, rows = table_rows[0], table_rows[1:]
+        if rows and all(set(cell.replace(":", "").replace("-", "").strip()) == set() for cell in rows[0]):
+            rows = rows[1:]
+        data = [[Paragraph(_pdf_inline(cell), styles["Body"]) for cell in header]]
+        data.extend([[Paragraph(_pdf_inline(cell), styles["Body"]) for cell in row] for row in rows])
+        column_count = max(1, len(header))
+        table = Table(data, colWidths=[width / column_count] * column_count, repeatRows=1, hAlign="LEFT")
+        table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f0edf5")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#4b155f")),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#d9deea")),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                    ("TOPPADDING", (0, 0), (-1, -1), 4),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ]
+            )
+        )
+        flowables.extend([table, Spacer(1, 4 * mm)])
+        table_rows = []
+
+    for raw in markdown.splitlines():
+        line = sanitize_pdf_text(raw).rstrip()
+        stripped = line.strip()
+        if not stripped:
+            flush_table()
+            flowables.append(Spacer(1, 1.8 * mm))
+            continue
+        if stripped.startswith("|") and stripped.endswith("|"):
+            cells = [cell.strip().replace("**", "") for cell in stripped.strip("|").split("|")]
+            table_rows.append(cells)
+            continue
+        flush_table()
+        if stripped.startswith("#"):
+            hashes = len(stripped) - len(stripped.lstrip("#"))
+            text = stripped.lstrip("#").strip()
+            style = styles["H1"] if hashes == 1 else styles["H2"] if hashes == 2 else styles["H3"]
+            if hashes == 2:
+                section_count += 1
+                if section_count in {5, 9, 13}:
+                    flowables.append(PageBreak())
+            flowables.append(Paragraph(_pdf_inline(text), style))
+        elif stripped.startswith("- "):
+            flowables.append(Paragraph(_pdf_inline(stripped[2:]), styles["Bullet"], bulletText="-"))
+        elif line.startswith("  "):
+            flowables.append(Paragraph(_pdf_inline(stripped), styles["Detail"]))
+        else:
+            flowables.append(Paragraph(_pdf_inline(stripped), styles["Body"]))
+    flush_table()
+    return flowables
+
+
+def _pdf_inline(text: str) -> str:
+    safe = escape(sanitize_pdf_text(text)).replace("**", "")
+    safe = re.sub(r"`([^`]+)`", r"\1", safe)
+    return safe
+
+
+def _pdf_footer(footer: str):
+    safe_footer = sanitize_pdf_text(footer)
+
+    def draw(canvas, doc) -> None:
+        canvas.saveState()
+        canvas.setStrokeColor(colors.HexColor("#d9deea"))
+        canvas.setLineWidth(0.4)
+        canvas.line(doc.leftMargin, 12 * mm, doc.pagesize[0] - doc.rightMargin, 12 * mm)
+        canvas.setFillColor(colors.HexColor("#5d6678"))
+        canvas.setFont("Helvetica", 7.5)
+        canvas.drawString(doc.leftMargin, 7.5 * mm, safe_footer)
+        canvas.drawRightString(doc.pagesize[0] - doc.rightMargin, 7.5 * mm, f"Page {doc.page}")
+        canvas.restoreState()
+
+    return draw
 
 
 def report_export(report: IntelligenceReport, export_format: str) -> tuple[bytes, str, str]:

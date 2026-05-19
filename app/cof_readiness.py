@@ -279,7 +279,13 @@ def source_status_for_opportunity(opportunity: Opportunity) -> SourceStatus:
         return SourceStatus("Source reference pending validation", "source reference pending validation", False, True, False)
     if not is_valid_official_source_url(url):
         return SourceStatus("Source URL needs validation", "source URL needs validation", False, False, False)
-    return SourceStatus("Verified source", url, True, False, False)
+    parsed = urlparse(url)
+    path = parsed.path.lower()
+    if "find-tender.service.gov.uk" in parsed.netloc.lower() and path.startswith("/search/results"):
+        return SourceStatus("Source search reference", url, True, False, False)
+    if "contractsfinder.service.gov.uk" in parsed.netloc.lower() and path.lower().startswith("/search"):
+        return SourceStatus("Source search reference", url, True, False, False)
+    return SourceStatus("Verified notice source", url, True, False, False)
 
 
 def source_reference_for_report(opportunity: Opportunity, report_mode: str) -> str:
