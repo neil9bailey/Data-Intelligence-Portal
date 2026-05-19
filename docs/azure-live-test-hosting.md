@@ -7,7 +7,7 @@ The Data Intelligence Portal live-test stack is designed to sit alongside existi
 ## Target
 
 - Hostname: `dip.vendorlogic.io`
-- Current image: `acrdipvltest01.azurecr.io/dip/app:1.0.45-clean-output`
+- Current image: `acrdipvltest01.azurecr.io/dip/app:1.0.46-cof-report-demo`
 - Azure model: isolated resource group plus Azure Container Apps
 - Auth: Microsoft Entra ID via Azure Container Apps built-in auth
 - Roles: `Data Intelligence Portal Admin Users` and `Data Intelligence Portal Standard Users`

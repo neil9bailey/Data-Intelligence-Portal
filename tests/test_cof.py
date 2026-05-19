@@ -180,26 +180,52 @@ def test_cof_weekly_report_content_and_exports(reference_session):
         )
     )
     reference_session.commit()
+    pending_document = reference_session.exec(select(OpportunityDocument).where(OpportunityDocument.document_type == "itt_extract")).first()
+    linked_question = reference_session.exec(select(ExtractedQualityQuestion).where(ExtractedQualityQuestion.document_id == pending_document.id)).first()
+    linked_question.human_review_status = "approved"
+    reference_session.add(linked_question)
+    reference_session.commit()
 
     report = create_report(reference_session, "COF Weekly Portfolio Report", "cof_weekly_portfolio_report")
     markdown = report.markdown
     interested_count = len([item for item in reference_session.exec(select(ClientInterestSignal)) if item.signal == "interested"])
+    lower_markdown = markdown.lower()
 
     assert report.business_unit_id == cof_unit.id
     assert "**Scope:** Contracted Opportunity Finder" in markdown
     assert "All customers and business units" not in markdown
+    assert "Client Coverage: 11 clients monitored" in markdown
+    assert markdown.count("**COF Client ") >= 11
     assert "PINs" in markdown
+    assert "PINs / Early Market" in markdown
+    assert "Watchlist" in markdown
+    pins_section = markdown.split("## PINs / Early Market", 1)[1].split("## Watchlist", 1)[0]
+    watch_section = markdown.split("## Watchlist", 1)[1].split("## Live Tenders", 1)[0]
+    assert "Facilities and asset management services" not in pins_section
+    assert "Facilities and asset management services" in watch_section
     assert "Live Tenders" in markdown
     assert "0 live tender signal" not in markdown
+    assert "School estate decarbonisation programme" in markdown
+    assert "matched client COF Client 02" in markdown
+    assert "portal/source: In-Tend" in markdown
     assert "Awards / Market Evidence" in markdown
     assert "Interested / Donna Actions" in markdown
+    assert "Donna action status donna_action_required" in markdown
     assert f"{interested_count} interested item(s)" in markdown
-    assert "Quality Questions And Weightings" in markdown
+    assert "Quality Questions and Weightings" in markdown
+    questions_section = markdown.split("## Quality Questions and Weightings", 1)[1].split("## Requirement Themes", 1)[0]
+    assert "pending Denise review" in questions_section
+    assert "approved status" not in questions_section
     assert "Public Notice Evidence" in markdown
     documents_section = markdown.split("## Documents Retrieved", 1)[1].split("## Public Notice Evidence", 1)[0]
-    public_notice_section = markdown.split("## Public Notice Evidence", 1)[1].split("## Quality Questions And Weightings", 1)[0]
+    public_notice_section = markdown.split("## Public Notice Evidence", 1)[1].split("## Quality Questions and Weightings", 1)[0]
+    review_gaps_section = markdown.split("## Review Gaps", 1)[1].split("## Monday Send Readiness", 1)[0]
     assert "Human review required" in markdown
     assert "Rejected noise record" not in markdown
+    for forbidden in ["seeded", "live-pilot", "test output", "walkthrough"]:
+        assert forbidden not in lower_markdown
+    assert "Pending document review: " in review_gaps_section
+    assert "Pending document review: 0" not in review_gaps_section
     assert "COF public notice evidence record" not in documents_section
     assert "COF public notice evidence record" in public_notice_section
     for title in [

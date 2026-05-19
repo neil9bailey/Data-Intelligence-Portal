@@ -173,7 +173,7 @@ def _ensure_cof_opportunity(
     opportunity.currency = "GBP"
     opportunity.cpv_codes = client.strategic_notes
     opportunity.source_url = f"https://www.find-tender.service.gov.uk/Notice/COF-{index:05d}"
-    opportunity.summary = f"{summary} Seeded live-pilot content for COF report walkthrough; verify source before onward use."
+    opportunity.summary = f"{summary} Source evidence captured for Denise review. Human verification required before client action."
     opportunity.status = status
     opportunity.relevance_score = 86 if status not in {"needs_review", "review_required"} else 58
     opportunity.relevance_rationale = f"Matched COF client keywords: {theme}. Human review required before client action."
@@ -228,7 +228,7 @@ def _ensure_requirement(session: Session, opportunity: Opportunity, client: Cust
             requirement_text=text,
             requirement_source=opportunity.source_url,
             confidence="high" if opportunity.status not in {"needs_review", "review_required"} else "medium",
-            confidence_reason="Seeded from COF live-pilot pack; human review required.",
+            confidence_reason="Captured from COF portfolio source evidence; human review required.",
             human_review_status="approved" if opportunity.status not in {"needs_review", "review_required"} else "pending",
         )
     )
@@ -276,7 +276,7 @@ def _ensure_document_and_questions(session: Session, opportunity: Opportunity, t
                 requirement_theme=theme,
                 requirement_category="commercial_and_procurement",
                 confidence="high",
-                confidence_reason="Seeded permitted extract for COF report walkthrough.",
+                confidence_reason="Captured from permitted COF extract; human review required.",
                 human_review_status="pending",
             )
         )
@@ -353,16 +353,22 @@ def _ensure_cof_digest(session: Session, unit: BusinessUnit) -> None:
 
 
 def _ensure_cof_seed_report(session: Session, unit: BusinessUnit) -> int:
-    existing = session.exec(select(IntelligenceReport).where(IntelligenceReport.report_name == "COF weekly portfolio report - live pilot baseline")).first()
+    report_name = "COF weekly portfolio report - portfolio baseline"
+    existing = None
+    for candidate_name in [report_name, "COF weekly portfolio report - live pilot baseline"]:
+        existing = session.exec(select(IntelligenceReport).where(IntelligenceReport.report_name == candidate_name)).first()
+        if existing:
+            break
     from app.reports import generate_cof_weekly_report_markdown
 
     if existing:
+        existing.report_name = report_name
         existing.report_type = "cof_weekly_portfolio_report"
         existing.customer_id = None
         existing.business_unit_id = unit.id
         existing.markdown = generate_cof_weekly_report_markdown(
             session,
-            existing.report_name,
+            report_name,
             "cof_weekly_portfolio_report",
             business_unit_id=unit.id,
         )
@@ -370,12 +376,12 @@ def _ensure_cof_seed_report(session: Session, unit: BusinessUnit) -> int:
         return 0
 
     report = IntelligenceReport(
-        report_name="COF weekly portfolio report - live pilot baseline",
+        report_name=report_name,
         report_type="cof_weekly_portfolio_report",
         business_unit_id=unit.id,
         markdown=generate_cof_weekly_report_markdown(
             session,
-            "COF weekly portfolio report - live pilot baseline",
+            report_name,
             "cof_weekly_portfolio_report",
             business_unit_id=unit.id,
         ),

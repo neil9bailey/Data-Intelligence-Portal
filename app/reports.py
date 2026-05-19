@@ -11,6 +11,7 @@ from app.intelligence import kra_runtime_status, requirement_themes_for_text
 from app.llm import LLMError, generate_llm_text, kra_system_prompt, llm_enabled
 from app.models import (
     BusinessUnit,
+    BuyerPortalInstance,
     ClientInterestSignal,
     Customer,
     DocumentRetrievalTask,
@@ -22,6 +23,7 @@ from app.models import (
     OpportunityDocument,
     PortalInformationConnector,
     PortalRetrievalRun,
+    ProcurementPlatform,
     ProcurementSource,
     SourceCheckSnapshot,
 )
@@ -33,6 +35,7 @@ ADMIN_REPORT_TYPES = {"admin_run_log", "automation_run_log", "technical_run_log"
 EXECUTIVE_REPORT_TYPES = {"executive_summary", "executive_pack", "executive_intelligence_pack"}
 COF_REPORT_TYPES = {"cof_weekly_client_report", "cof_weekly_portfolio_report"}
 REVIEW_READY_STATUSES = {"review_required", "review_ready", "accepted", "approved", "complete", "completed"}
+COF_APPROVED_REVIEW_STATUSES = {"approved", "accepted", "review_ready", "complete", "completed"}
 COF_BUSINESS_UNIT_NAME = "Contracted Opportunity Finder"
 COF_CLIENT_PREFIX = "COF Client "
 COF_PORTFOLIO_CUSTOMER_NAME = "Procter Street COF Portfolio"
@@ -417,6 +420,9 @@ def generate_cof_weekly_report_markdown(
     documents = _documents_for_opportunities(_records_for_opportunities(session, OpportunityDocument, opportunity_ids), opportunities)
     questions = _questions_for_opportunities(_records_for_opportunities(session, ExtractedQualityQuestion, opportunity_ids), opportunities)
     requirements = _requirements_for_opportunities(_records_for_opportunities(session, ExtractedRequirement, opportunity_ids), opportunities)
+    clients = _cof_clients(session, customer_id)
+    customer_map = {customer.id: customer.customer_name for customer in clients if customer.id}
+    portal_routes = _cof_portal_routes(session)
     interests = list(session.exec(select(ClientInterestSignal).order_by(col(ClientInterestSignal.created_at).desc()).limit(250)))
     interests = [item for item in interests if item.opportunity_id in opportunity_ids]
     interested_signals = [item for item in interests if (item.signal or "").lower() == "interested"]
@@ -426,6 +432,7 @@ def generate_cof_weekly_report_markdown(
     tasks_by_opportunity = _group_by_opportunity(tasks)
     documents_by_opportunity = _group_by_opportunity(documents)
     questions_by_opportunity = _group_by_opportunity(questions)
+    documents_by_id = {document.id: document for document in documents if document.id}
     stages = {
         item.id: cof_stage_for_opportunity(
             item,
@@ -437,16 +444,40 @@ def generate_cof_weekly_report_markdown(
         for item in opportunities
         if item.id
     }
-    pins = [item for item in opportunities if stages.get(item.id) in {"pin", "watch"}]
+    review_states = {
+        item.id: _cof_denise_review_status(
+            item,
+            documents_by_opportunity.get(item.id or 0, []),
+            questions_by_opportunity.get(item.id or 0, []),
+        )
+        for item in opportunities
+        if item.id
+    }
+    pins = [item for item in opportunities if stages.get(item.id) == "pin"]
+    watch = [item for item in opportunities if stages.get(item.id) == "watch"]
     live = [item for item in opportunities if stages.get(item.id) in {"live", "closing_soon", "document_retrieval_required", "questions_extracted"}]
     closing = [item for item in opportunities if stages.get(item.id) == "closing_soon"]
     awards = [item for item in opportunities if stages.get(item.id) == "awarded"]
+    denise_queue = [item for item in opportunities if review_states.get(item.id) != "Denise approved"]
     retrieved_documents = [item for item in documents if _is_cof_retrieved_document(item)]
     public_notice_documents = [item for item in documents if _is_public_notice_document(item)]
     missing_source = sum(1 for item in opportunities if not item.source_url)
     missing_deadline = sum(1 for item in opportunities if not item.deadline_date and stages.get(item.id) != "awarded")
     task_opportunity_ids = {task.opportunity_id for task in tasks if task.opportunity_id}
     missing_task = sum(1 for signal in interested_signals if signal.opportunity_id not in task_opportunity_ids)
+    pending_document_review = sum(1 for item in retrieved_documents if not _review_is_approved(item.human_review_status))
+    pending_question_review = sum(1 for item in questions if _cof_question_review_status(item, documents_by_id) != "approved")
+    clients_without_visible_items = _cof_clients_without_visible_items(clients, opportunities)
+    coverage_lines = _cof_client_coverage_lines(clients, opportunities, stages, review_states)
+    review_gap_lines = _cof_review_gap_lines(
+        missing_source,
+        missing_deadline,
+        missing_task,
+        pending_document_review,
+        pending_question_review,
+        len(denise_queue),
+        clients_without_visible_items,
+    )
     report_label = "Client Weekly COF Report" if report_type == "cof_weekly_client_report" else "Portfolio Weekly COF Report"
     return f"""# {report_name}
 
@@ -457,51 +488,62 @@ def generate_cof_weekly_report_markdown(
 
 ## Client / Portfolio Summary
 
-- {len(opportunities)} opportunity signal(s) are included for this COF scope.
-- {len(pins)} PIN / early-market signal(s), {len(live)} live tender signal(s), {len(interested_signals)} interested item(s) and {len(awards)} award / market evidence record(s).
-- {len(requirements)} requirement theme(s), {len(questions)} quality question(s), {len(retrieved_documents)} retrieved/permitted document extract(s) and {len(public_notice_documents)} public notice evidence record(s) are available for review.
+- Client Coverage: {len(clients)} clients monitored.
+- Opportunity Coverage: {len(opportunities)} COF-scoped opportunity signal(s), filtered to matched clients and the Contracted Opportunity Finder workspace.
+- Pipeline: {len(pins)} PIN / early-market signal(s), {len(watch)} watch item(s), {len(live)} live tender signal(s), {len(closing)} closing-soon tender(s), {len(interested_signals)} interested item(s) and {len(awards)} award / market evidence record(s).
+- Evidence: {len(requirements)} requirement theme(s), {len(questions)} quality question(s), {len(retrieved_documents)} retrieved/permitted document extract(s) and {len(public_notice_documents)} public notice evidence record(s).
 
-## PINs
+## Client Coverage
 
-{_cof_opportunity_lines(pins, stages) if pins else "- No PINs are currently visible for this scope."}
+{chr(10).join(coverage_lines) if coverage_lines else "- No COF clients are configured for this scope."}
+
+## PINs / Early Market
+
+{_cof_opportunity_lines(pins, stages, customer_map, portal_routes, review_states) if pins else "- No PINs are currently visible for this scope."}
+
+## Watchlist
+
+{_cof_opportunity_lines(watch, stages, customer_map, portal_routes, review_states) if watch else "- No watchlist items are currently visible for this scope."}
 
 ## Live Tenders
 
-{_cof_opportunity_lines(live, stages) if live else "- No live tenders are currently visible for this scope."}
+{_cof_opportunity_lines(live, stages, customer_map, portal_routes, review_states) if live else "- No live tenders are currently visible for this scope."}
 
 ## Closing Soon
 
-{_cof_opportunity_lines(closing, stages) if closing else "- No closing-soon tenders are currently visible for this scope."}
+{_cof_opportunity_lines(closing, stages, customer_map, portal_routes, review_states) if closing else "- No closing-soon tenders are currently visible for this scope."}
 
 ## Awards / Market Evidence
 
-{_cof_opportunity_lines(awards, stages) if awards else "- No awards or market evidence are currently visible for this scope."}
+{_cof_opportunity_lines(awards, stages, customer_map, portal_routes, review_states) if awards else "- No awards or market evidence are currently visible for this scope."}
 
 ## Interested / Donna Actions
 
-{_cof_interest_lines(interested_signals, opportunities) if interested_signals else "- No client interest signals are waiting for Donna action."}
+{_cof_interest_lines(interested_signals, opportunities, customer_map, portal_routes, review_states) if interested_signals else "- No client interest signals are waiting for Donna action."}
 
 ## Documents Retrieved
 
-{chr(10).join(_document_line(item) for item in retrieved_documents) if retrieved_documents else "- No permitted document extracts have been captured yet."}
+{chr(10).join(_cof_document_line(item) for item in retrieved_documents) if retrieved_documents else "- No permitted document extracts have been captured yet."}
 
 ## Public Notice Evidence
 
-{chr(10).join(_document_line(item) for item in public_notice_documents) if public_notice_documents else "- No public notice evidence records are linked to this COF scope yet."}
+{chr(10).join(_cof_document_line(item) for item in public_notice_documents) if public_notice_documents else "- No public notice evidence records are linked to this COF scope yet."}
 
-## Quality Questions And Weightings
+## Quality Questions and Weightings
 
-{chr(10).join(_question_line(item) for item in questions) if questions else "- No quality questions or weightings have been extracted yet."}
+{chr(10).join(_cof_question_line(item, documents_by_id) for item in questions) if questions else "- No quality questions or weightings have been extracted yet."}
 
 ## Requirement Themes
 
 {chr(10).join(_requirement_line(item) for item in requirements[:20]) if requirements else "- No requirement themes have been extracted yet."}
 
+## Denise Review Queue
+
+{_cof_opportunity_lines(denise_queue, stages, customer_map, portal_routes, review_states) if denise_queue else "- No opportunity records are currently awaiting Denise review."}
+
 ## Review Gaps
 
-- {missing_source} opportunity record(s) are missing a source URL.
-- {missing_deadline} live or early-stage opportunity record(s) are missing a deadline.
-- {missing_task} interested opportunity record(s) do not yet have a document retrieval task.
+{chr(10).join(review_gap_lines)}
 
 ## Monday Send Readiness
 
@@ -528,6 +570,34 @@ def _cof_customer_ids(session: Session) -> set[int]:
     }
 
 
+def _cof_clients(session: Session, customer_id: int | None = None) -> list[Customer]:
+    customers = list(session.exec(select(Customer).order_by(col(Customer.customer_name))))
+    clients = [customer for customer in customers if customer.customer_name.startswith(COF_CLIENT_PREFIX)]
+    if customer_id:
+        clients = [customer for customer in clients if customer.id == customer_id]
+    return clients
+
+
+def _cof_portal_routes(session: Session) -> dict[int, str]:
+    platforms = {platform.id: platform.name for platform in session.exec(select(ProcurementPlatform)) if platform.id}
+    routes: dict[int, str] = {}
+    for portal in session.exec(select(BuyerPortalInstance).order_by(col(BuyerPortalInstance.portal_name))):
+        if not portal.customer_id:
+            continue
+        family = platforms.get(portal.platform_id or 0) or _infer_portal_family(portal.portal_name)
+        status = (portal.access_status or "status to confirm").replace("_", " ")
+        routes[portal.customer_id] = f"{family or 'portal route to confirm'} ({status})"
+    return routes
+
+
+def _infer_portal_family(value: str) -> str:
+    lower = (value or "").lower()
+    for family in ("ProContract", "In-Tend", "Jaggaer", "Delta eSourcing"):
+        if family.lower() in lower:
+            return family
+    return ""
+
+
 def _cof_report_opportunities(session: Session, customer_id: int | None, business_unit_id: int | None) -> list[Opportunity]:
     unit = _cof_business_unit(session)
     cof_unit_id = unit.id if unit and unit.id else None
@@ -549,6 +619,51 @@ def _cof_report_opportunities(session: Session, customer_id: int | None, busines
             or bool(cof_unit_id and business_unit_id == cof_unit_id and item.customer_id in cof_customer_ids)
         ]
     return opportunities
+
+
+def _cof_client_coverage_lines(
+    clients: list[Customer],
+    opportunities: list[Opportunity],
+    stages: dict[int, str],
+    review_states: dict[int, str],
+) -> list[str]:
+    lines: list[str] = []
+    for client in clients:
+        client_opportunities = [item for item in opportunities if item.customer_id == client.id]
+        counts = Counter(stages.get(item.id or 0, "pin") for item in client_opportunities)
+        live_count = sum(counts.get(stage, 0) for stage in ("live", "closing_soon", "document_retrieval_required", "questions_extracted"))
+        awaiting_review = sum(1 for item in client_opportunities if review_states.get(item.id) != "Denise approved")
+        lines.append(
+            f"- **{client.customer_name}**: PINs {counts.get('pin', 0)} | Watch {counts.get('watch', 0)} | "
+            f"Live {live_count} | Interested {counts.get('interested', 0)} | Awarded {counts.get('awarded', 0)} | "
+            f"Awaiting Denise review {awaiting_review}"
+        )
+    return lines
+
+
+def _cof_clients_without_visible_items(clients: list[Customer], opportunities: list[Opportunity]) -> int:
+    visible_customer_ids = {item.customer_id for item in opportunities if item.customer_id and item.status != "rejected"}
+    return sum(1 for client in clients if client.id not in visible_customer_ids)
+
+
+def _cof_review_gap_lines(
+    missing_source: int,
+    missing_deadline: int,
+    missing_task: int,
+    pending_document_review: int,
+    pending_question_review: int,
+    awaiting_denise_review: int,
+    clients_without_visible_items: int,
+) -> list[str]:
+    return [
+        f"- Missing source URL: {missing_source} opportunity record(s).",
+        f"- Missing deadline: {missing_deadline} live or early-stage opportunity record(s).",
+        f"- Interested without document retrieval task: {missing_task} item(s).",
+        f"- Pending document review: {pending_document_review} retrieved/permitted document record(s).",
+        f"- Pending quality-question review: {pending_question_review} quality question(s).",
+        f"- Opportunities awaiting Denise review: {awaiting_denise_review} item(s).",
+        f"- Clients with no visible items this week: {clients_without_visible_items} client(s).",
+    ]
 
 
 def _is_cof_report_opportunity(item: Opportunity, cof_unit_id: int | None, cof_customer_ids: set[int]) -> bool:
@@ -611,6 +726,37 @@ def cof_stage_for_opportunity(
     if live_hint or (deadline and deadline >= today):
         return "live"
     return "pin"
+
+
+def _cof_denise_review_status(
+    opportunity: Opportunity,
+    documents: list[OpportunityDocument],
+    questions: list[ExtractedQualityQuestion],
+) -> str:
+    status = (opportunity.status or "").lower()
+    if status == "rejected":
+        return "Rejected / excluded"
+    if status == "needs_review":
+        return "Needs more evidence"
+    if status in {"review_required", "pending_review", "new", "document_retrieval_required", "questions_extracted"}:
+        return "Awaiting Denise review"
+    if any(not _review_is_approved(document.human_review_status) for document in documents):
+        return "Awaiting Denise review"
+    if any(not _review_is_approved(question.human_review_status) for question in questions):
+        return "Awaiting Denise review"
+    return "Denise approved"
+
+
+def _review_is_approved(value: str) -> bool:
+    return (value or "").lower() in COF_APPROVED_REVIEW_STATUSES
+
+
+def _cof_question_review_status(item: ExtractedQualityQuestion, documents_by_id: dict[int, OpportunityDocument]) -> str:
+    document = documents_by_id.get(item.document_id or 0)
+    if document and not _review_is_approved(document.human_review_status):
+        return "pending Denise review"
+    status = (item.human_review_status or "pending").lower()
+    return "approved" if status in COF_APPROVED_REVIEW_STATUSES else status.replace("_", " ")
 
 
 def _is_public_notice_document(item: OpportunityDocument) -> bool:
@@ -1016,30 +1162,53 @@ def _executive_opportunity_line(item: Opportunity, sources_by_id: dict[int, str]
     )
 
 
-def _cof_opportunity_lines(items: list[Opportunity], stages: dict[int, str] | None = None) -> str:
+def _cof_opportunity_lines(
+    items: list[Opportunity],
+    stages: dict[int, str] | None = None,
+    customer_map: dict[int, str] | None = None,
+    portal_routes: dict[int, str] | None = None,
+    review_states: dict[int, str] | None = None,
+) -> str:
     stages = stages or {}
+    customer_map = customer_map or {}
+    portal_routes = portal_routes or {}
+    review_states = review_states or {}
     lines = []
     for item in sorted(items, key=lambda row: (row.deadline_date or date.max, row.title))[:30]:
         deadline = item.deadline_date.isoformat() if item.deadline_date else "deadline not captured"
         value = _money(item.value_high, item.currency)
-        summary = clean_ai_text(item.summary, 220) or "No summary captured."
+        summary = _cof_customer_report_text(item.summary, 220)
         stage = stages.get(item.id or 0, item.status).replace("_", " ")
+        client = customer_map.get(item.customer_id or 0, "matched client to confirm")
+        review = review_states.get(item.id or 0, "Awaiting Denise review")
+        portal = portal_routes.get(item.customer_id or 0, "portal route to confirm")
+        source_status = "source captured" if item.source_url else "source URL missing"
         lines.append(
-            f"- **{item.title}** | {item.buyer_name or 'buyer not detected'} | {stage} | "
-            f"deadline {deadline} | {value}. {summary}"
+            f"- **{item.title}** | matched client {client} | buyer {item.buyer_name or 'buyer not detected'} | "
+            f"stage {stage} | {review} | deadline {deadline} | {value} | portal/source: {portal}; {source_status}. {summary}"
         )
     return "\n".join(lines)
 
 
-def _cof_interest_lines(interests: list[ClientInterestSignal], opportunities: list[Opportunity]) -> str:
+def _cof_interest_lines(
+    interests: list[ClientInterestSignal],
+    opportunities: list[Opportunity],
+    customer_map: dict[int, str],
+    portal_routes: dict[int, str],
+    review_states: dict[int, str],
+) -> str:
     opportunity_map = {item.id: item for item in opportunities if item.id}
     lines = []
     for signal in interests[:20]:
         opportunity = opportunity_map.get(signal.opportunity_id)
         title = opportunity.title if opportunity else f"Opportunity {signal.opportunity_id}"
+        client = customer_map.get(signal.customer_id or 0, "matched client to confirm")
+        portal = portal_routes.get(signal.customer_id or 0, "portal route to confirm")
+        review = review_states.get(signal.opportunity_id or 0, "Awaiting Denise review")
         lines.append(
-            f"- **{title}** | signal {signal.signal} | status {signal.status or 'new'} | "
-            f"{clean_ai_text(signal.notes, 180) or 'Donna action required.'}"
+            f"- **{title}** | matched client {client} | signal {signal.signal} | "
+            f"Donna action status {signal.status or 'new'} | {review} | portal/source: {portal}. "
+            f"{_cof_customer_report_text(signal.notes, 180) or 'Donna action required.'}"
         )
     return "\n".join(lines)
 
@@ -1066,6 +1235,17 @@ def _question_line(item: ExtractedQualityQuestion) -> str:
     )
 
 
+def _cof_question_line(item: ExtractedQualityQuestion, documents_by_id: dict[int, OpportunityDocument]) -> str:
+    weighting = f"; weighting {item.weighting}" if item.weighting else ""
+    theme = item.requirement_theme or "quality question"
+    category = (item.requirement_category or "general").replace("_", " ")
+    review_status = _cof_question_review_status(item, documents_by_id)
+    return (
+        f"- **{theme}:** {_cof_customer_report_text(item.question_text, 260)} "
+        f"({category}; {item.confidence or 'unknown'} confidence{weighting}; {review_status})."
+    )
+
+
 def _category_trend_lines(items: list[ExtractedRequirement | ExtractedQualityQuestion]) -> list[str]:
     counts = category_trend_counts(items)
     return [f"- **{category.replace('_', ' ').title()}**: {count} signal(s)." for category, count in counts.most_common(10)]
@@ -1085,6 +1265,29 @@ def _document_line(item: OpportunityDocument) -> str:
         f"- {item.title}: {item.document_type}; {item.retrieval_status}; "
         f"{item.platform_name or 'platform not recorded'}; {item.human_review_status or 'pending'} review{governance_note}. {summary}"
     )
+
+
+def _cof_document_line(item: OpportunityDocument) -> str:
+    summary = _cof_customer_report_text(item.content_summary or item.notes, 220)
+    status = "approved" if _review_is_approved(item.human_review_status) else "pending Denise review"
+    return (
+        f"- {item.title}: {item.document_type}; {item.retrieval_status}; "
+        f"{item.platform_name or 'platform not recorded'}; {status}. {summary}"
+    )
+
+
+def _cof_customer_report_text(value: str, max_chars: int = 220) -> str:
+    original = value or ""
+    text = clean_ai_text(original, max_chars=max_chars)
+    text = re.sub(r"\s*Seeded live-pilot content for COF report walkthrough; verify source before onward use\.?", "", text, flags=re.I)
+    text = re.sub(r"\s*Seeded from COF live-pilot pack; human review required\.?", "", text, flags=re.I)
+    text = re.sub(r"\s*Seeded permitted extract for COF report walkthrough\.?", "", text, flags=re.I)
+    text = re.sub(r"\s+", " ", text).strip()
+    if text:
+        return text[:max_chars].rsplit(" ", 1)[0].rstrip(".,;: ") if len(text) > max_chars else text
+    if any(term in original.lower() for term in ("seeded", "live-pilot", "walkthrough", "test output")):
+        return "Source evidence captured for Denise review. Human verification required before client action."
+    return "Source evidence captured for Denise review. Human verification required before client action."
 
 
 def _finding_line(item: KRAFinding, sources_by_id: dict[int, str]) -> str:

@@ -49,7 +49,7 @@ param managedCertificateName string = ''
 param imageRepositoryPrefix string = 'dip'
 
 @description('Container image tag.')
-param imageTag string = '1.0.45-clean-output'
+param imageTag string = '1.0.46-cof-report-demo'
 
 @allowed([
   'DELETE'
