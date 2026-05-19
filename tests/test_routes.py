@@ -26,6 +26,7 @@ from app.models import (
     PortalRetrievalRun,
     ProcurementPlatform,
     ProcurementSource,
+    OpportunityFeedback,
 )
 from app.automation import live_kra_source_ids, run_admin_full_cycle
 from app.portal_connectors import run_portal_connector
@@ -518,6 +519,15 @@ def test_user_managed_records_can_be_updated_and_deleted(seeded_session):
         seeded_session.refresh(opportunity)
         assert opportunity.title == "CRUD Opportunity Updated"
         assert opportunity.value_high == 2500
+
+        response = client.post(
+            f"/opportunities/{opportunity.id}/feedback",
+            data={"feedback_type": "wrong_customer", "notes": "Route test feedback"},
+            follow_redirects=False,
+        )
+        feedback = seeded_session.exec(select(OpportunityFeedback).where(OpportunityFeedback.opportunity_id == opportunity.id)).first()
+        assert response.status_code == 303
+        assert feedback is not None
 
         response = client.post(
             "/portals",

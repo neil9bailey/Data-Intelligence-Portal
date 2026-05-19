@@ -195,6 +195,25 @@ SQLite remains the default local and live-test MVP persistence option. PostgreSQ
 - `/healthz` is a public liveness check.
 - `/readyz` checks database, templates and static assets for readiness probes.
 
+## Jobs And Evaluation
+
+The app includes CLI job entrypoints for controlled refresh cycles:
+
+```powershell
+docker compose run --rm app python -m app.jobs refresh-sources
+docker compose run --rm app python -m app.jobs refresh-feeds
+docker compose run --rm app python -m app.jobs run-connectors
+docker compose run --rm app python -m app.jobs admin-cycle
+```
+
+Scheduling remains disabled by default. These commands are suitable for cron/Azure job wiring once deployment governance is agreed.
+
+Offline matching evaluation can be run without live procurement calls:
+
+```powershell
+docker compose run --rm app python scripts/run-evaluation.py
+```
+
 ## KRA Knowledge Research Agent
 
 KRA is operated from the Admin Control Centre and remains directly available at `/kra`.

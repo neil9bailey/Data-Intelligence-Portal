@@ -14,4 +14,4 @@ def test_alembic_initial_revision_is_registered():
     config = Config("alembic.ini")
     script = ScriptDirectory.from_config(config)
 
-    assert "20260519_0001" in script.get_heads()
+    assert "20260519_0002" in script.get_heads()

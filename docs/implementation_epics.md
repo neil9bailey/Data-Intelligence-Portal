@@ -25,6 +25,9 @@ This page records the current MVP delivery state and the next sensible epics.
 | Secret references | Delivered | Email configuration now stores SMTP password references rather than raw values; send-time resolution uses environment/Key Vault-backed variables with legacy compatibility. |
 | PostgreSQL and Alembic support | Delivered MVP | SQLite remains default; PostgreSQL URLs are supported and Alembic has an initial SQLModel metadata migration. |
 | Observability and readiness | Delivered MVP | `/healthz` remains liveness, `/readyz` checks database/templates/static, request IDs are echoed in responses and Admin shows DB mode. |
+| Official source connectors | Delivered MVP | Contracts Finder and Find a Tender now have provider-specific connector classes for query construction, parsing and pagination hooks. |
+| Jobs and evaluation | Delivered MVP | CLI jobs support source/feed/connector/admin cycles; offline evaluation fixtures measure matching precision and recall. |
+| Match explainability and feedback | Delivered MVP | Opportunity matches record rationale evidence and Admin users can submit feedback that moves risky records back to review. |
 
 ## Next Delivery Epics
 

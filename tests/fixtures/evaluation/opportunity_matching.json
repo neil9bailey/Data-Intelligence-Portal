@@ -1,0 +1,32 @@
+[
+  {
+    "title": "Roadside operational technology cyber resilience framework",
+    "buyer_name": "National Highways",
+    "summary": "Support for traffic operations, SCADA, network communications, cyber resilience and roadside technology.",
+    "cpv_codes": ["72000000 IT services"],
+    "expected_customer": "National Highways",
+    "expected_relevant": true,
+    "expected_status": "matched",
+    "notes": "High-signal highways operational technology case."
+  },
+  {
+    "title": "Self-employment training course for prisoners",
+    "buyer_name": "Ministry of Justice",
+    "summary": "Award of a call-off contract for training and education services.",
+    "cpv_codes": ["80000000 Education and training services"],
+    "expected_customer": "",
+    "expected_relevant": false,
+    "expected_status": "rejected",
+    "notes": "Known low-value false positive pattern."
+  },
+  {
+    "title": "HE catering supplies",
+    "buyer_name": "University buyer",
+    "summary": "Food and catering supply arrangement.",
+    "cpv_codes": ["15000000 Food products"],
+    "expected_customer": "",
+    "expected_relevant": false,
+    "expected_status": "rejected",
+    "notes": "Short alias false-positive guard case."
+  }
+]

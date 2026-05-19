@@ -1,0 +1,65 @@
+from __future__ import annotations
+
+import argparse
+from datetime import UTC, datetime
+import json
+
+from sqlmodel import Session
+
+from app.audit import log_event
+from app.automation import refresh_public_sources, run_admin_full_cycle
+from app.database import backup_sqlite_persistent_copy, engine, init_db
+from app.intelligence import refresh_news_feeds
+from app.models import AutomationRun
+from app.portal_connectors import run_enabled_portal_connectors
+
+
+def record_job_run(session: Session, run_type: str, status: str, summary: str, details: dict | list | None = None) -> AutomationRun:
+    run = AutomationRun(
+        run_type=run_type,
+        status=status,
+        summary=summary,
+        steps_json=json.dumps(details or [], default=str),
+        finished_at=datetime.now(UTC),
+    )
+    session.add(run)
+    session.flush()
+    log_event(session, entity_type="AutomationRun", entity_id=run.id, action=status, summary=summary, after=run)
+    session.commit()
+    session.refresh(run)
+    return run
+
+
+def run_job(job_name: str, session: Session) -> AutomationRun:
+    try:
+        if job_name == "refresh-sources":
+            results = refresh_public_sources(session)
+            failed = sum(1 for item in results if not item.get("ok"))
+            return record_job_run(session, "refresh_sources", "completed" if failed == 0 else "completed_with_warnings", f"Refreshed {len(results)} public sources; {failed} warnings.", results)
+        if job_name == "refresh-feeds":
+            count = refresh_news_feeds(session)
+            return record_job_run(session, "refresh_feeds", "completed", f"Refreshed news feeds; {count} items created or updated.", [{"items": count}])
+        if job_name == "run-connectors":
+            runs = run_enabled_portal_connectors(session)
+            failed = sum(1 for item in runs if item.status != "completed")
+            return record_job_run(session, "run_connectors", "completed" if failed == 0 else "completed_with_warnings", f"Ran {len(runs)} read-only connectors; {failed} warnings.", runs)
+        if job_name == "admin-cycle":
+            return run_admin_full_cycle(session)
+    except Exception as exc:
+        return record_job_run(session, job_name.replace("-", "_"), "failed", f"Job {job_name} failed: {str(exc)[:220]}")
+    return record_job_run(session, job_name.replace("-", "_"), "failed", f"Unknown job {job_name}")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Data Intelligence Portal job runner")
+    parser.add_argument("job", choices=["refresh-sources", "refresh-feeds", "run-connectors", "admin-cycle"])
+    args = parser.parse_args()
+    init_db()
+    with Session(engine) as session:
+        run = run_job(args.job, session)
+        print(f"{run.run_type}: {run.status} - {run.summary}")
+    backup_sqlite_persistent_copy()
+
+
+if __name__ == "__main__":
+    main()

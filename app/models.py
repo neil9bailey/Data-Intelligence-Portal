@@ -213,6 +213,28 @@ class Opportunity(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utc_now)
 
 
+class OpportunityMatchEvidence(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    opportunity_id: Optional[int] = Field(default=None, foreign_key="opportunity.id", index=True)
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    business_unit_id: Optional[int] = Field(default=None, foreign_key="businessunit.id")
+    evidence_type: str = "matched"
+    matched_term: str = ""
+    source_field: str = ""
+    score_delta: float = 0
+    rationale: str = ""
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class OpportunityFeedback(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    opportunity_id: Optional[int] = Field(default=None, foreign_key="opportunity.id", index=True)
+    reviewer: str = "local-user"
+    feedback_type: str = "other"
+    notes: str = ""
+    created_at: datetime = Field(default_factory=utc_now)
+
+
 class OpportunityDocument(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     opportunity_id: int = Field(foreign_key="opportunity.id")

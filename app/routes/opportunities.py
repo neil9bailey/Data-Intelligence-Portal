@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse
 from sqlmodel import Session, col, select
 
 from app.audit import compact_snapshot, log_event
-from app.auth import require_admin
+from app.auth import get_current_user, require_admin
 from app.database import get_session
 from app.form_utils import parse_float, parse_optional_date, parse_optional_int, validation_error_response
 from app.intelligence import extract_document_intelligence
@@ -16,6 +16,8 @@ from app.models import (
     KRAResearchRun,
     Opportunity,
     OpportunityDocument,
+    OpportunityFeedback,
+    OpportunityMatchEvidence,
     PortalInformationConnector,
     PortalRetrievalRun,
     utc_now,
@@ -41,13 +43,18 @@ router = APIRouter()
 def opportunities(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     items, pagination = paged(session, select(Opportunity).order_by(col(Opportunity.updated_at).desc()), request)
     documents = list(session.exec(select(OpportunityDocument)))
+    evidence = list(session.exec(select(OpportunityMatchEvidence)))
+    evidence_map: dict[int, list[OpportunityMatchEvidence]] = {}
+    for item in evidence:
+        if item.opportunity_id:
+            evidence_map.setdefault(item.opportunity_id, []).append(item)
     doc_counts: dict[int, int] = {}
     for doc in documents:
         doc_counts[doc.opportunity_id] = doc_counts.get(doc.opportunity_id, 0) + 1
     return templates.TemplateResponse(
         request,
         "opportunities.html",
-        context(request, opportunities=items, opportunities_pagination=pagination, doc_counts=doc_counts, **reference_context(session)),
+        context(request, opportunities=items, opportunities_pagination=pagination, doc_counts=doc_counts, evidence_map=evidence_map, **reference_context(session)),
     )
 
 
@@ -144,7 +151,33 @@ def delete_opportunity(opportunity_id: int, session: Session = Depends(get_sessi
     clear_links(session, ExtractedRequirement, "opportunity_id", opportunity.id)
     clear_links(session, KRAFinding, "opportunity_id", opportunity.id)
     clear_links(session, KRAResearchRun, "opportunity_id", opportunity.id)
+    delete_children(session, OpportunityMatchEvidence, "opportunity_id", opportunity.id)
+    delete_children(session, OpportunityFeedback, "opportunity_id", opportunity.id)
     delete_with_audit(session, opportunity, f"Deleted opportunity {opportunity.title}")
+    return redirect("/opportunities")
+
+
+@router.post("/opportunities/{opportunity_id}/feedback")
+async def create_opportunity_feedback(opportunity_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
+    opportunity = session.get(Opportunity, opportunity_id)
+    if not opportunity:
+        return redirect("/opportunities")
+    form = await request.form()
+    feedback_type = str(form.get("feedback_type") or "other")
+    allowed = {"relevant", "not_relevant", "wrong_customer", "wrong_business_unit", "duplicate", "stale", "other"}
+    if feedback_type not in allowed:
+        return validation_error_response(["Feedback type is not recognised."], "/opportunities")
+    feedback = OpportunityFeedback(
+        opportunity_id=opportunity.id,
+        reviewer=get_current_user(request).username,
+        feedback_type=feedback_type,
+        notes=str(form.get("notes") or ""),
+    )
+    if feedback_type in {"not_relevant", "wrong_customer", "wrong_business_unit", "duplicate", "stale"}:
+        opportunity.status = "needs_review"
+        opportunity.relevance_rationale = f"{opportunity.relevance_rationale}\nReviewer feedback: {feedback_type}".strip()
+        session.add(opportunity)
+    save_with_audit(session, feedback, "create", f"Feedback {feedback_type} for opportunity {opportunity.title}")
     return redirect("/opportunities")
 
 

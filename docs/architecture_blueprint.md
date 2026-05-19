@@ -62,6 +62,9 @@ flowchart LR
 | `app/route_utils.py` | Shared template context, pagination, audit CRUD helpers, dashboard metrics, portal workbench helpers and admin health context. |
 | `app/models.py` | Data model for customers, sources, portals, opportunities, documents, reports and audit. |
 | `app/intelligence.py` | Source checks, KRA runs, deterministic parsing, extraction and optional AI-assisted summaries. |
+| `app/source_connectors/` | Provider-specific official-source connectors for Contracts Finder, Find a Tender and generic approved sources. |
+| `app/jobs.py` | CLI job runner for controlled source, feed, connector and admin-cycle execution. |
+| `app/evaluation.py` | Offline matching evaluation harness and metrics. |
 | `app/llm.py` | Small guarded OpenAI Responses API client used only when KRA live-demo settings are enabled. |
 | `app/automation.py` | Admin-side full-cycle automation for packs, source refresh, KRA, review preparation, approved retrieval, report export, email and audit logging. |
 | `app/portal_connectors.py` | Read-only connector guardrails and retrieval runs. |

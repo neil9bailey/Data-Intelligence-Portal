@@ -10,7 +10,18 @@
         {% for item in opportunities %}
         {% set source = source_map.get(item.source_id) %}
         <tr>
-          <td><strong>{{ item.title }}</strong><p class="hint">{{ item.summary[:220] }}</p>{% if item.source_url %}<a href="{{ item.source_url }}">source</a>{% endif %}</td>
+          <td>
+            <strong>{{ item.title }}</strong>
+            <p class="hint">{{ item.summary[:220] }}</p>
+            {% if evidence_map.get(item.id) %}
+            <details class="compact-drawer"><summary>Why matched</summary>
+              {% for evidence in evidence_map.get(item.id, [])[:3] %}
+              <p class="hint"><strong>{{ evidence.evidence_type }}</strong>: {{ evidence.rationale }}{% if evidence.matched_term %} Terms: {{ evidence.matched_term }}{% endif %}</p>
+              {% endfor %}
+            </details>
+            {% endif %}
+            {% if item.source_url %}<a href="{{ item.source_url }}">source</a>{% endif %}
+          </td>
           <td>{{ item.buyer_name or "Not detected" }}</td>
           <td>{{ item.procurement_stage or item.notice_type or "Not detected" }}</td>
           <td>{{ item.deadline_date or "Not detected" }}</td>
@@ -54,6 +65,18 @@
                 <div class="field"><label>Summary</label><textarea name="summary">{{ item.summary }}</textarea></div>
                 <div class="field"><label>Relevance rationale</label><textarea name="relevance_rationale">{{ item.relevance_rationale }}</textarea></div>
                 <button class="compact" type="submit">Save</button>
+              </form>
+            </details>
+            <details class="edit-drawer compact-drawer">
+              <summary>Feedback</summary>
+              <form method="post" action="/opportunities/{{ item.id }}/feedback">
+                <div class="field"><label>Feedback type</label><select name="feedback_type">
+                  {% for option in ['relevant','not_relevant','wrong_customer','wrong_business_unit','duplicate','stale','other'] %}
+                  <option value="{{ option }}">{{ option | replace('_', ' ') }}</option>
+                  {% endfor %}
+                </select></div>
+                <div class="field"><label>Notes</label><textarea name="notes"></textarea></div>
+                <button class="compact" type="submit">Record feedback</button>
               </form>
             </details>
           </td>

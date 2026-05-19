@@ -26,6 +26,7 @@ from app.models import (
     NewsFeedSource,
     Opportunity,
     OpportunityDocument,
+    OpportunityMatchEvidence,
     ProcurementSource,
     SourceCheckSnapshot,
 )
@@ -972,7 +973,31 @@ def upsert_opportunity(
         before=before,
         after=opportunity,
     )
+    record_match_evidence(session, opportunity, rationale, relevance_score)
     return opportunity, created
+
+
+def record_match_evidence(session: Session, opportunity: Opportunity, rationale: str, relevance_score: float) -> None:
+    if not opportunity.id:
+        return
+    existing = session.exec(
+        select(OpportunityMatchEvidence).where(
+            OpportunityMatchEvidence.opportunity_id == opportunity.id,
+            OpportunityMatchEvidence.evidence_type == "classification_rationale",
+        )
+    ).first()
+    matched_term = ""
+    match = re.search(r"matched(?: capability terms)?:\s*([^.;]+)", rationale or "", re.I)
+    if match:
+        matched_term = match.group(1)[:180]
+    evidence = existing or OpportunityMatchEvidence(opportunity_id=opportunity.id, evidence_type="classification_rationale")
+    evidence.customer_id = opportunity.customer_id
+    evidence.business_unit_id = opportunity.business_unit_id
+    evidence.matched_term = matched_term
+    evidence.source_field = "title/buyer/summary/cpv"
+    evidence.score_delta = relevance_score
+    evidence.rationale = rationale[:1000]
+    session.add(evidence)
 
 
 def repair_mismatched_customer_assignments(session: Session) -> int:
@@ -1202,12 +1227,15 @@ def run_source_check(session: Session, source_id: int, fetcher=fetch_source_url)
     source = session.get(ProcurementSource, source_id)
     if not source:
         raise ValueError(f"Source {source_id} not found")
-    url = source_query_url(source, ["transport", "technology", "framework"])
-    fetch = fetcher(url)
+    from app.source_connectors import connector_for_source
+
+    connector = connector_for_source(source)
+    url = connector.build_query(["transport", "technology", "framework"])
+    fetch = connector.fetch_page(url, fetcher)
     before = compact_snapshot(source)
     source.last_checked_at = datetime.now(UTC)
     source.last_status = f"HTTP {fetch.status_code}" if fetch.ok else (fetch.error or "failed")
-    source.connector_status = "checked" if fetch.ok else "warning"
+    source.connector_status = f"{connector.connector_name}_checked" if fetch.ok else "warning"
     session.add(source)
     snapshot = record_snapshot(session, source, fetch, url)
     log_event(session, entity_type="ProcurementSource", entity_id=source.id, action="update", summary=f"Checked source {source.name}", before=before, after=source)
@@ -1251,12 +1279,15 @@ def run_kra_research(
     findings_created = 0
     candidate_brief_items: list[str] = []
     for source in sources:
-        url = source_query_url(source, terms)
+        from app.source_connectors import connector_for_source
+
+        connector = connector_for_source(source)
+        url = connector.build_query(terms)
         for page_number in range(DEFAULT_NOTICE_MAX_PAGES):
             if not url:
                 break
             run.sources_checked += 1
-            fetch = fetcher(url)
+            fetch = connector.fetch_page(url, fetcher)
             source.last_checked_at = datetime.now(UTC)
             source.last_status = f"HTTP {fetch.status_code}" if fetch.ok else (fetch.error or "failed")
             session.add(source)
@@ -1280,9 +1311,7 @@ def run_kra_research(
             findings_created += 1
             if not fetch.ok:
                 break
-            candidates = parse_ocds_candidates(fetch.text, source)
-            if not candidates:
-                candidates = parse_web_candidates(fetch.text, source, terms)
+            candidates = connector.parse_candidates(fetch, terms)
             for candidate in candidates[:80]:
                 direct_customer_match = bool(customer and candidate_matches_customer(candidate, customer))
                 relevance, rationale = relevance_for_candidate(candidate, terms)
@@ -1314,8 +1343,8 @@ def run_kra_research(
                     f"relevance {relevance:g}"
                 )
                 create_requirements_for_opportunity(session, opportunity, textish(f"{candidate.title}. {candidate.summary}. {candidate.cpv_codes}"))
-            next_url = next_page_url(fetch.text)
-            url = next_url if next_url and source_allowed(next_url) and page_number + 1 < DEFAULT_NOTICE_MAX_PAGES else ""
+            next_url = connector.next_page(fetch)
+            url = next_url if next_url and page_number + 1 < DEFAULT_NOTICE_MAX_PAGES else ""
     if llm_enabled():
         try:
             summary = generate_llm_text(
