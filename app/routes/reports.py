@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, Response
+from sqlalchemy import false, or_
 from sqlmodel import Session, col, select
 
+from app.access_scope import report_in_scope, scope_for_user
 from app.audit import compact_snapshot
 from app.auth import require_admin, require_report_viewer
 from app.database import get_session
@@ -18,8 +20,17 @@ router = APIRouter()
 
 
 @router.get("/reports", response_class=HTMLResponse)
-def reports(request: Request, session: Session = Depends(get_session), _user=Depends(require_report_viewer)):
-    items, pagination = paged(session, select(IntelligenceReport).order_by(col(IntelligenceReport.generated_at).desc()), request)
+def reports(request: Request, session: Session = Depends(get_session), user=Depends(require_report_viewer)):
+    statement = select(IntelligenceReport).order_by(col(IntelligenceReport.generated_at).desc())
+    scope = scope_for_user(user)
+    if scope.restricted:
+        conditions = []
+        if scope.customer_ids:
+            conditions.append(col(IntelligenceReport.customer_id).in_(scope.customer_ids))
+        if scope.business_unit_ids:
+            conditions.append(col(IntelligenceReport.business_unit_id).in_(scope.business_unit_ids))
+        statement = statement.where(or_(*conditions) if conditions else false())
+    items, pagination = paged(session, statement, request)
     return templates.TemplateResponse(request, "reports.html", context(request, reports=items, reports_pagination=pagination, **reference_context(session)))
 
 
@@ -73,10 +84,12 @@ def delete_report(report_id: int, session: Session = Depends(get_session), _user
 
 
 @router.get("/reports/{report_id}", response_class=HTMLResponse)
-def report_detail(report_id: int, request: Request, format: str | None = None, session: Session = Depends(get_session), _user=Depends(require_report_viewer)):
+def report_detail(report_id: int, request: Request, format: str | None = None, session: Session = Depends(get_session), user=Depends(require_report_viewer)):
     report = session.get(IntelligenceReport, report_id)
     if not report:
         return redirect("/reports")
+    if not report_in_scope(report, user):
+        return Response("Report is outside your configured access scope.", status_code=403)
     if format in {"md", "html", "json", "txt", "pdf"}:
         payload, media_type, filename = report_export(report, format)
         return Response(payload, media_type=media_type, headers={"Content-Disposition": f'attachment; filename="{filename}"'})

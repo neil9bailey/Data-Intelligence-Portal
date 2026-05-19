@@ -14,7 +14,7 @@
             <button class="danger compact" type="submit">Delete</button>
           </form>
         </div>
-        <div class="badges"><span class="badge weak">{{ document.document_type }}</span><span class="badge amber">{{ document.retrieval_status }}</span><span class="badge cyan">{{ document.platform_name or "No platform" }}</span></div>
+        <div class="badges"><span class="badge weak">{{ document.document_type }}</span><span class="badge amber">{{ document.retrieval_status }}</span><span class="badge cyan">{{ document.platform_name or "No platform" }}</span>{% if document.classification_label %}<span class="badge green">{{ document.classification_label }}</span>{% endif %}</div>
         <p>{{ document.content_summary or document.notes }}</p>
         <details class="edit-drawer">
           <summary>Edit document</summary>
@@ -29,6 +29,15 @@
               <div class="field"><label>Platform</label><input name="platform_name" value="{{ document.platform_name }}"></div>
             </div>
             <div class="field"><label>URL or file path</label><input name="url_or_path" value="{{ document.url_or_path }}"></div>
+            <div class="form-grid">
+              <div class="field"><label>Storage provider</label><select name="storage_provider">{% for option in ['none','local_path','azure_blob','sharepoint','external_url'] %}<option value="{{ option }}" {% if document.storage_provider == option %}selected{% endif %}>{{ option | replace('_', ' ') }}</option>{% endfor %}</select></div>
+              <div class="field"><label>Storage reference</label><input name="document_storage_ref" value="{{ document.document_storage_ref }}"></div>
+            </div>
+            <div class="form-grid">
+              <div class="field"><label>Classification label</label><input name="classification_label" value="{{ document.classification_label }}"></div>
+              <div class="field"><label>Retention status</label><input name="retention_status" value="{{ document.retention_status }}"></div>
+            </div>
+            <div class="field"><label>Source access notes</label><textarea name="source_access_notes">{{ document.source_access_notes }}</textarea></div>
             <div class="field"><label>Summary</label><textarea name="content_summary">{{ document.content_summary }}</textarea></div>
             <div class="field"><label>Notes</label><textarea name="notes">{{ document.notes }}</textarea></div>
             <button type="submit">Save changes</button>
@@ -86,6 +95,15 @@
       <div class="form-grid"><div class="field"><label>Type</label><input name="document_type" value="itt_extract"></div><div class="field"><label>Status</label><input name="retrieval_status" value="review_required"></div></div>
       <div class="field"><label>URL or file path</label><input name="url_or_path"></div>
       <div class="field"><label>Platform</label><input name="platform_name"></div>
+      <div class="form-grid">
+        <div class="field"><label>Storage provider</label><select name="storage_provider"><option value="none">none</option><option value="local_path">local path</option><option value="azure_blob">Azure Blob</option><option value="sharepoint">SharePoint</option><option value="external_url">external URL</option></select></div>
+        <div class="field"><label>Storage reference</label><input name="document_storage_ref"></div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Classification label</label><input name="classification_label"></div>
+        <div class="field"><label>Retention status</label><input name="retention_status" value="standard"></div>
+      </div>
+      <div class="field"><label>Source access notes</label><textarea name="source_access_notes"></textarea></div>
       <div class="field"><label>Summary</label><textarea name="content_summary"></textarea></div>
       <div class="field"><label>Permitted text for extraction</label><textarea name="document_text" placeholder="Paste permitted quality question or requirement text."></textarea></div>
       <button type="submit">Save and extract</button>

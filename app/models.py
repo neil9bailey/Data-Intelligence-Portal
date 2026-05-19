@@ -246,6 +246,13 @@ class OpportunityDocument(SQLModel, table=True):
     human_review_status: str = "pending"
     platform_name: str = ""
     content_summary: str = ""
+    storage_provider: str = "none"
+    document_storage_ref: str = ""
+    classification_label: str = ""
+    retention_status: str = "standard"
+    reviewed_by: str = ""
+    reviewed_at: Optional[datetime] = None
+    source_access_notes: str = ""
     extracted_at: datetime = Field(default_factory=utc_now)
     notes: str = ""
 
@@ -336,6 +343,15 @@ class KRAFinding(SQLModel, table=True):
     confidence: str = "medium"
     change_status: str = "new"
     human_review_status: str = "pending"
+    provider: str = ""
+    model: str = ""
+    prompt_version: str = ""
+    system_prompt_hash: str = ""
+    user_prompt_hash: str = ""
+    source_context_hash: str = ""
+    output_hash: str = ""
+    reviewed_by: str = ""
+    reviewed_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=utc_now)
 
 
@@ -381,6 +397,20 @@ class EmailDeliveryLog(SQLModel, table=True):
     attachment_format: str = "md"
     outbox_path: str = ""
     error: str = ""
+
+
+class DigestProfile(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True)
+    report_type: str = "executive_summary"
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    business_unit_id: Optional[int] = Field(default=None, foreign_key="businessunit.id")
+    recipients: str = ""
+    frequency_label: str = "manual"
+    enabled: bool = True
+    export_format: str = "pdf"
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class ClientInterestSignal(SQLModel, table=True):

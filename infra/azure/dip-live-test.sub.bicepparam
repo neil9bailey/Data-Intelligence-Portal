@@ -29,6 +29,8 @@ param entraClientId = '00000000-0000-0000-0000-000000000000'
 param entraClientSecretName = 'dip-entra-client-secret'
 param entraAdminGroupId = '00000000-0000-0000-0000-000000000000'
 param entraStandardGroupId = '00000000-0000-0000-0000-000000000000'
+param entraAuditorGroupId = ''
+param accessScopesJson = ''
 
 param seedReferenceData = true
 param seedDemoData = false

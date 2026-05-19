@@ -221,6 +221,11 @@ async def create_document(opportunity_id: int, request: Request, session: Sessio
         retrieval_status=str(form.get("retrieval_status") or "linked"),
         platform_name=str(form.get("platform_name") or ""),
         content_summary=str(form.get("content_summary") or ""),
+        storage_provider=str(form.get("storage_provider") or "none"),
+        document_storage_ref=str(form.get("document_storage_ref") or ""),
+        classification_label=str(form.get("classification_label") or ""),
+        retention_status=str(form.get("retention_status") or "standard"),
+        source_access_notes=str(form.get("source_access_notes") or ""),
         notes=str(form.get("notes") or ""),
     )
     session.add(document)
@@ -248,6 +253,12 @@ async def update_document(opportunity_id: int, document_id: int, request: Reques
     document.human_review_status = str(form.get("human_review_status") or document.human_review_status or "pending")
     document.platform_name = str(form.get("platform_name") or "")
     document.content_summary = str(form.get("content_summary") or "")
+    document.storage_provider = str(form.get("storage_provider") or "none")
+    document.document_storage_ref = str(form.get("document_storage_ref") or "")
+    document.classification_label = str(form.get("classification_label") or "")
+    document.retention_status = str(form.get("retention_status") or "standard")
+    document.reviewed_by = str(form.get("reviewed_by") or "")
+    document.source_access_notes = str(form.get("source_access_notes") or "")
     document.notes = str(form.get("notes") or "")
     update_with_audit(session, document, f"Updated document {document.title}", before)
     return redirect(f"/opportunities/{opportunity_id}/documents")

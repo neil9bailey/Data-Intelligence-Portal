@@ -173,6 +173,12 @@ def test_kra_run_adds_ai_summary_when_llm_enabled(seeded_session, monkeypatch):
     assert run.status == "completed"
     assert finding is not None
     assert "Requires human review" in finding.summary
+    assert finding.provider
+    assert finding.prompt_version == "kra-summary-v1"
+    assert finding.system_prompt_hash
+    assert finding.user_prompt_hash
+    assert finding.output_hash
+    assert finding.human_review_status == "pending"
 
 
 def test_customer_scoped_kra_filters_irrelevant_buyer_and_marks_award(seeded_session):

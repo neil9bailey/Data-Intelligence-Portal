@@ -92,6 +92,12 @@ param entraAdminGroupId string
 @description('Entra standard group object ID.')
 param entraStandardGroupId string
 
+@description('Optional Entra auditor group object ID.')
+param entraAuditorGroupId string = ''
+
+@description('Optional JSON mapping that scopes standard users or groups to customer/business-unit IDs.')
+param accessScopesJson string = ''
+
 @description('Seed reference configuration data on startup.')
 param seedReferenceData bool = true
 
@@ -243,10 +249,13 @@ resource acrPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 
 var secretBaseUrl = '${sharedKeyVault.properties.vaultUri}secrets'
 var entraIssuer = '${environment().authentication.loginEndpoint}${entraTenantId}/v2.0'
-var allowedGroups = [
-  entraAdminGroupId
-  entraStandardGroupId
-]
+var allowedGroups = concat(
+  [
+    entraAdminGroupId
+    entraStandardGroupId
+  ],
+  !empty(entraAuditorGroupId) ? [entraAuditorGroupId] : []
+)
 var appSecrets = concat(
   entraAuthEnabled
     ? [
@@ -327,12 +336,24 @@ var appEnvironment = concat(
       value: entraAuthEnabled ? 'true' : 'false'
     }
     {
+      name: 'LOCAL_ADMIN_MODE'
+      value: 'false'
+    }
+    {
       name: 'ENTRA_ADMIN_GROUP_ID'
       value: entraAdminGroupId
     }
     {
       name: 'ENTRA_STANDARD_GROUP_ID'
       value: entraStandardGroupId
+    }
+    {
+      name: 'ENTRA_AUDITOR_GROUP_ID'
+      value: entraAuditorGroupId
+    }
+    {
+      name: 'DIP_ACCESS_SCOPES_JSON'
+      value: accessScopesJson
     }
     {
       name: 'KRA_LLM_PROVIDER'

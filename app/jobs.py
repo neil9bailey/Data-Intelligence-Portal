@@ -5,12 +5,14 @@ from datetime import UTC, datetime
 import json
 
 from sqlmodel import Session
+from sqlmodel import select
 
 from app.audit import log_event
 from app.automation import refresh_public_sources, run_admin_full_cycle
 from app.database import backup_sqlite_persistent_copy, engine, init_db
+from app.digests import send_digest
 from app.intelligence import refresh_news_feeds
-from app.models import AutomationRun
+from app.models import AutomationRun, DigestProfile
 from app.portal_connectors import run_enabled_portal_connectors
 
 
@@ -43,6 +45,26 @@ def run_job(job_name: str, session: Session) -> AutomationRun:
             runs = run_enabled_portal_connectors(session)
             failed = sum(1 for item in runs if item.status != "completed")
             return record_job_run(session, "run_connectors", "completed" if failed == 0 else "completed_with_warnings", f"Ran {len(runs)} read-only connectors; {failed} warnings.", runs)
+        if job_name == "send-digests":
+            profiles = list(session.exec(select(DigestProfile).where(DigestProfile.enabled == True)))  # noqa: E712
+            results = []
+            failures = 0
+            for profile in profiles:
+                try:
+                    log = send_digest(session, profile)
+                    results.append({"profile": profile.name, "status": log.status, "email_log_id": log.id})
+                    if log.status == "failed":
+                        failures += 1
+                except Exception as exc:
+                    failures += 1
+                    results.append({"profile": profile.name, "status": "failed", "error": str(exc)[:220]})
+            return record_job_run(
+                session,
+                "send_digests",
+                "completed" if failures == 0 else "completed_with_warnings",
+                f"Processed {len(profiles)} digest profile(s); {failures} warning(s).",
+                results,
+            )
         if job_name == "admin-cycle":
             return run_admin_full_cycle(session)
     except Exception as exc:
@@ -52,7 +74,7 @@ def run_job(job_name: str, session: Session) -> AutomationRun:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Data Intelligence Portal job runner")
-    parser.add_argument("job", choices=["refresh-sources", "refresh-feeds", "run-connectors", "admin-cycle"])
+    parser.add_argument("job", choices=["refresh-sources", "refresh-feeds", "run-connectors", "send-digests", "admin-cycle"])
     args = parser.parse_args()
     init_db()
     with Session(engine) as session:

@@ -34,6 +34,7 @@ class Settings:
         self.entra_admin_group_name: str = os.getenv("ENTRA_ADMIN_GROUP_NAME", "Data Intelligence Portal Admin Users")
         self.entra_standard_group_name: str = os.getenv("ENTRA_STANDARD_GROUP_NAME", "Data Intelligence Portal Standard Users")
         self.entra_auditor_group_name: str = os.getenv("ENTRA_AUDITOR_GROUP_NAME", "Data Intelligence Portal Auditor Users")
+        self.access_scopes_json: str = os.getenv("DIP_ACCESS_SCOPES_JSON", "")
         self.outbox_dir: str = os.getenv("DIP_OUTBOX_DIR", str(ROOT_DIR / ".outbox"))
         self.public_domain: str = os.getenv("DIP_PUBLIC_DOMAIN", "dip.vendorlogic.io")
         self.remote_health_url: str = os.getenv("DIP_REMOTE_HEALTH_URL", "https://dip.vendorlogic.io/healthz")

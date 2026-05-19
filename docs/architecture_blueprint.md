@@ -18,6 +18,7 @@ flowchart LR
   J --> I
   I --> K["Review queue"]
   K --> L["Reports + exports + email"]
+  L --> O["Digest profiles + audit exports"]
   M["Admin Control Centre"] --> B
   M --> E
   M --> N["Health, KRA, email, audit"]
@@ -51,7 +52,8 @@ flowchart LR
 | Documents | Document metadata and permitted text extraction. |
 | Requirements | Extracted requirement themes and quality questions pending review. |
 | Reports | Executive intelligence packs, admin automation run logs, PDF/Markdown/HTML/JSON/text exports and controlled email delivery. |
-| Audit | MVP event log for key create/update/delete and automation events. |
+| Digests | Admin-configured report distribution profiles using the same guarded report/email services. |
+| Audit | MVP event log for key create/update/delete and automation events, with JSON/CSV export. |
 
 ## Key Code Modules
 
@@ -65,13 +67,16 @@ flowchart LR
 | `app/source_connectors/` | Provider-specific official-source connectors for Contracts Finder, Find a Tender and generic approved sources. |
 | `app/jobs.py` | CLI job runner for controlled source, feed, connector and admin-cycle execution. |
 | `app/evaluation.py` | Offline matching evaluation harness and metrics. |
+| `app/access_scope.py` | MVP customer/business-unit scope checks for standard-user report and client-feed access. |
 | `app/llm.py` | Small guarded OpenAI Responses API client used only when KRA live-demo settings are enabled. |
 | `app/automation.py` | Admin-side full-cycle automation for packs, source refresh, KRA, review preparation, approved retrieval, report export, email and audit logging. |
 | `app/portal_connectors.py` | Read-only connector guardrails and retrieval runs. |
 | `app/reports.py` | Credibility-gated executive packs and separate admin run logs for PDF, Markdown, HTML, JSON and text export. |
+| `app/export_service.py` | Download/export rendering for Markdown, HTML, JSON, text and MVP PDF outputs. |
 | `app/email_service.py` | Local outbox and SMTP delivery. |
+| `app/digests.py` | Digest profile execution using report generation and email delivery. |
 | `app/auth.py` | Local admin mode, Container Apps EasyAuth/Entra header handling and app-level role dependencies for standard, admin and auditor access. |
-| `app/audit.py` | Audit event creation and compact snapshots. |
+| `app/audit.py` | Audit event creation, compact snapshots and secret-field redaction used by exports. |
 | `app/database.py` | SQLite setup, schema updates and Azure Files snapshot handling. |
 | `alembic/` | Initial SQLModel metadata migration for PostgreSQL/production-shaped persistence. |
 | `app/observability.py` | Request correlation ID and structured logging helpers. |
@@ -91,6 +96,8 @@ flowchart LR
 - `PortalInformationConnector`
 - `PortalRetrievalRun`
 - `Opportunity`
+- `OpportunityMatchEvidence`
+- `OpportunityFeedback`
 - `OpportunityDocument`
 - `DocumentRetrievalTask`
 - `ExtractedRequirement`
@@ -101,6 +108,7 @@ flowchart LR
 - `IntelligenceReport`
 - `EmailConfiguration`
 - `EmailDeliveryLog`
+- `DigestProfile`
 - `AuditEvent`
 
 ## Source Change Tracking
@@ -145,6 +153,8 @@ Azure live-test:
 - Azure Container Apps
 - Microsoft Entra built-in auth
 - Admin and Standard security groups
+- optional Auditor security group
+- optional JSON standard-user access scopes for customer/business-unit filtering
 - existing Key Vault for DIP-specific secrets
 - Azure Files snapshot/outbox persistence
 - Container-local SQLite active DB copied to Azure Files after writes
@@ -164,7 +174,7 @@ Before full production use:
 - run database changes through Alembic migrations
 - formalise backup, restore and retention
 - add immutable audit/event export
-- add stronger RBAC and data governance
+- expand scoped RBAC and data governance across all record types
 - add reviewed connector secrets and rotation policy
 - add monitoring alerts and operational runbooks
 - add private networking/WAF/Front Door decisions where required

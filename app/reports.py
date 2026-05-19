@@ -758,9 +758,17 @@ def _category_trend_lines(items: list[ExtractedRequirement | ExtractedQualityQue
 
 def _document_line(item: OpportunityDocument) -> str:
     summary = clean_ai_text(item.content_summary or item.notes, 220) or "no summary captured"
+    governance = []
+    if item.classification_label:
+        governance.append(f"classification {item.classification_label}")
+    if item.storage_provider and item.storage_provider != "none":
+        governance.append(f"storage {item.storage_provider}")
+    if item.retention_status and item.retention_status != "standard":
+        governance.append(f"retention {item.retention_status}")
+    governance_note = f" ({'; '.join(governance)})" if governance else ""
     return (
         f"- {item.title}: {item.document_type}; {item.retrieval_status}; "
-        f"{item.platform_name or 'platform not recorded'}; {item.human_review_status or 'pending'} review. {summary}"
+        f"{item.platform_name or 'platform not recorded'}; {item.human_review_status or 'pending'} review{governance_note}. {summary}"
     )
 
 

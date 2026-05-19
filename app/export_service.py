@@ -7,6 +7,9 @@ import textwrap
 from app.models import IntelligenceReport
 
 
+REPORT_CAVEAT = "Human-review intelligence only. Do not use as a bid/no-bid, legal, procurement or compliance decision without authorised review."
+
+
 def report_filename(report: IntelligenceReport, export_format: str) -> str:
     safe_name = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "-" for ch in report.report_name.lower()).strip("-")
     extension = {"md": "md", "html": "html", "json": "json", "txt": "txt", "pdf": "pdf"}.get(export_format, "md")
@@ -21,13 +24,16 @@ def _html_report(report: IntelligenceReport) -> str:
   <title>{escape(report.report_name)}</title>
   <style>
     body {{ margin: 0; font-family: Aptos, Segoe UI, Arial, sans-serif; color: #11141c; background: #f4f6fb; }}
-    main {{ max-width: 980px; margin: 32px auto; padding: 34px; border-top: 7px solid #4b155f; background: #fff; box-shadow: 0 18px 46px rgba(24,32,56,.14); }}
-    h1 {{ margin: 0 0 8px; color: #111a3a; }}
-    .meta {{ color: #626b7d; font-size: 13px; }}
+    main {{ max-width: 1040px; margin: 32px auto; padding: 0; border-top: 7px solid #4b155f; background: #fff; box-shadow: 0 18px 46px rgba(24,32,56,.14); }}
+    header {{ padding: 34px 38px 24px; background: linear-gradient(120deg, #4b155f, #00a7bd); color: #fff; }}
+    section {{ padding: 28px 38px; }}
+    h1 {{ margin: 0 0 8px; font-size: 34px; }}
+    .meta {{ color: #dfe8f2; font-size: 13px; }}
+    .caveat {{ margin: 0; padding: 14px 18px; background: #fff2c7; color: #493300; font-weight: 700; }}
     pre {{ white-space: pre-wrap; font: 14px/1.55 ui-monospace, Consolas, monospace; }}
   </style>
 </head>
-<body><main><h1>{escape(report.report_name)}</h1><p class="meta">Data Intelligence Portal export</p><pre>{escape(report.markdown)}</pre></main></body>
+<body><main><header><h1>{escape(report.report_name)}</h1><p class="meta">Data Intelligence Portal export | {escape(report.report_type)}</p></header><p class="caveat">{escape(REPORT_CAVEAT)}</p><section><pre>{escape(report.markdown)}</pre></section></main></body>
 </html>"""
 
 
@@ -65,7 +71,7 @@ def _content_stream(report: IntelligenceReport, page_number: int, page_count: in
     parts.extend(
         [
             b"ET",
-            b"BT /F1 8 Tf 50 34 Td " + _pdf_literal("Decision-support intelligence only. Requires human review before onward use.") + b" Tj ET",
+            b"BT /F1 8 Tf 50 34 Td " + _pdf_literal(REPORT_CAVEAT[:110]) + b" Tj ET",
         ]
     )
     return b"\n".join(parts)
@@ -127,6 +133,7 @@ def report_export(report: IntelligenceReport, export_format: str) -> tuple[bytes
             "generated_at": report.generated_at.isoformat(),
             "customer_id": report.customer_id,
             "business_unit_id": report.business_unit_id,
+            "caveat": REPORT_CAVEAT,
             "markdown": report.markdown,
         }
         return json.dumps(payload, indent=2, default=str).encode("utf-8"), "application/json", report_filename(report, "json")

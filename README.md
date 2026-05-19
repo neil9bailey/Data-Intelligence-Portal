@@ -17,11 +17,14 @@ Data Intelligence Portal is a configurable information-gathering workspace for:
 - source-change monitoring and connector health
 - official GOV.UK policy/news feed monitoring
 - executive summaries and exportable intelligence reports
+- governed document metadata, including storage references, classification labels and retention status
 - COF-style source-to-inbox workflow, review queue, local downloads and controlled email delivery
 - Intelligence Packs that preconfigure public-sector customers, watch profiles, source monitors and portal assumptions from one guided screen
 - Admin-side autonomous workflow that can apply packs, refresh public sources, run KRA, prepare review queues, run approved read-only retrieval, generate/store/email a report and log the cycle
+- manual or scheduled-ready digest profiles for recurring report distribution
 - simplified user-facing opportunity inbox, client feed and report download experience
 - a built-in KRA Knowledge Research Agent for guarded source checks, source-change tracking, customer memory and requirement extraction
+- AI provenance fields for KRA-assisted findings, including provider/model/prompt version hashes and human review status
 - MCP-style local agent/tool profiles ready for future connector orchestration
 
 ## What It Is Not
@@ -145,6 +148,11 @@ Supported placeholders:
 - `DIP_PUBLIC_DOMAIN`
 - `DIP_REMOTE_HEALTH_URL`
 - `DIP_DEPLOYMENT_LABEL`
+- `LOCAL_ADMIN_MODE`
+- `ENTRA_ADMIN_GROUP_ID`
+- `ENTRA_STANDARD_GROUP_ID`
+- `ENTRA_AUDITOR_GROUP_ID`
+- `DIP_ACCESS_SCOPES_JSON`
 
 Current KRA mode is deterministic/local by default. API-key-backed AI enhancement can be added behind the same review controls.
 
@@ -164,6 +172,7 @@ The Admin Control Centre shows:
 - latest source checks and retrieval runs
 - KRA runtime configuration
 - email profile, local outbox/SMTP test sending and delivery logs
+- digest profiles for repeatable report distribution to configured recipients
 - an Admin Configuration Workspace containing the previous setup/configuration screens, including workflow, customer packs, business units, customers, sources, portals/connectors, opportunities, review queue, requirements, KRA, reports/exports and audit
 
 Detailed setup and data-entry screens are Admin-only when Entra authentication is enabled. Standard users see the simplified Opportunity Inbox, Client Feed and report downloads.
@@ -186,6 +195,17 @@ Local Docker remains easy to use because `LOCAL_ADMIN_MODE=true` by default. Pro
 - `ENTRA_STANDARD_GROUP_ID`
 - `ENTRA_AUDITOR_GROUP_ID`
 
+Standard users can also be limited to specific customer or business-unit records with `DIP_ACCESS_SCOPES_JSON`. Example:
+
+```json
+{
+  "user@example.com": {"customer_ids": [1], "business_unit_ids": [2]},
+  "group:<entra-group-object-id>": {"customer_ids": [3]}
+}
+```
+
+If no scope is configured for a standard user, existing MVP behaviour is preserved and they can see all standard-user report/feed records. Admins and auditors are not restricted by this MVP scope map.
+
 ## Database And Health
 
 SQLite remains the default local and live-test MVP persistence option. PostgreSQL is now supported through `DATABASE_URL` for production-shaped environments, with Alembic migrations in `alembic/`.
@@ -203,6 +223,7 @@ The app includes CLI job entrypoints for controlled refresh cycles:
 docker compose run --rm app python -m app.jobs refresh-sources
 docker compose run --rm app python -m app.jobs refresh-feeds
 docker compose run --rm app python -m app.jobs run-connectors
+docker compose run --rm app python -m app.jobs send-digests
 docker compose run --rm app python -m app.jobs admin-cycle
 ```
 
@@ -236,6 +257,8 @@ KRA can:
 - create opportunity and requirement records
 - extract quality questions and weighting signals from permitted document text
 - generate Markdown reports
+
+When AI-assisted summaries are enabled, KRA findings store provider, model, prompt version and hashed prompt/context/output provenance. AI-assisted findings remain pending until an Admin approves or rejects them in `/kra`.
 
 ## Intelligence Packs
 
@@ -348,6 +371,12 @@ Report export options:
 - Text
 
 Report emails default to PDF attachments for the autonomous workflow. They allow a local sender override and recipient input for now. Future production flow should move recipient selection and sender identity to Entra ID / RBAC.
+
+Digest profiles are configured in `/admin`. A profile stores report type, optional customer/business-unit scope, recipients, frequency label, export format and enabled state. **Send now** creates the report, attaches the selected export format and writes/sends through the configured email channel.
+
+Audit records can be exported from `/audit?format=json` or `/audit?format=csv`. Secret-like fields remain redacted in snapshots and exports.
+
+Opportunity document records can capture governance metadata such as storage provider, storage reference, classification label, retention status, reviewer and source access notes. Extraction still uses only permitted text pasted into the app or retrieved through an approved read-only connector; it does not automatically ingest private portal files.
 
 ## Official Intelligence Feed
 

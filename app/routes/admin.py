@@ -6,9 +6,10 @@ from app.audit import compact_snapshot, log_event
 from app.auth import require_admin
 from app.automation import automation_summary, create_queued_automation_run, run_admin_full_cycle_background
 from app.database import get_session
+from app.digests import send_digest
 from app.email_service import get_email_configuration, send_or_store_email, split_recipients
 from app.form_utils import parse_bool, parse_optional_int, validation_error_response
-from app.models import EmailDeliveryLog
+from app.models import DigestProfile, EmailDeliveryLog, utc_now
 from app.route_utils import context, health_dashboard_context, redirect, reference_context, templates
 
 
@@ -20,6 +21,7 @@ def admin(request: Request, session: Session = Depends(get_session), _user=Depen
     email_config = get_email_configuration(session)
     email_logs = list(session.exec(select(EmailDeliveryLog).order_by(col(EmailDeliveryLog.created_at).desc()).limit(50)))
     automation = automation_summary(session)
+    digest_profiles = list(session.exec(select(DigestProfile).order_by(col(DigestProfile.created_at).desc()).limit(20)))
     return templates.TemplateResponse(
         request,
         "admin.html",
@@ -29,6 +31,7 @@ def admin(request: Request, session: Session = Depends(get_session), _user=Depen
             email_logs=email_logs,
             health=health_dashboard_context(session, request),
             automation=automation,
+            digest_profiles=digest_profiles,
             **reference_context(session),
         ),
     )
@@ -97,4 +100,46 @@ async def send_test_email(request: Request, session: Session = Depends(get_sessi
         sender_name=str(form.get("sender_name") or config.sender_name),
         sender_email=str(form.get("sender_email") or config.sender_email),
     )
+    return redirect("/admin")
+
+
+@router.post("/admin/digests")
+async def create_digest_profile(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
+    form = await request.form()
+    errors: list[str] = []
+    name = str(form.get("name") or "").strip()
+    if not name:
+        errors.append("Digest name is required.")
+    customer_id = parse_optional_int(form.get("customer_id"), "Customer", errors)
+    business_unit_id = parse_optional_int(form.get("business_unit_id"), "Business unit", errors)
+    if errors:
+        return validation_error_response(errors, "/admin")
+    profile = DigestProfile(
+        name=name,
+        report_type=str(form.get("report_type") or "executive_summary"),
+        customer_id=customer_id,
+        business_unit_id=business_unit_id,
+        recipients=str(form.get("recipients") or ""),
+        frequency_label=str(form.get("frequency_label") or "manual"),
+        enabled=parse_bool(form.get("enabled")) if form.get("enabled") is not None else True,
+        export_format=str(form.get("export_format") or "pdf"),
+    )
+    session.add(profile)
+    session.flush()
+    log_event(session, entity_type="DigestProfile", entity_id=profile.id, action="create", summary=f"Created digest profile {profile.name}", after=profile)
+    session.commit()
+    return redirect("/admin")
+
+
+@router.post("/admin/digests/{profile_id}/send")
+def send_digest_profile(profile_id: int, session: Session = Depends(get_session), _user=Depends(require_admin)):
+    profile = session.get(DigestProfile, profile_id)
+    if not profile or not profile.enabled:
+        return redirect("/admin")
+    log = send_digest(session, profile)
+    before = compact_snapshot(profile)
+    profile.updated_at = utc_now()
+    session.add(profile)
+    log_event(session, entity_type="DigestProfile", entity_id=profile.id, action="send", summary=f"Sent digest profile {profile.name}; email {log.status}", before=before, after=profile)
+    session.commit()
     return redirect("/admin")

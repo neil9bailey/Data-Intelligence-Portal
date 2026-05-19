@@ -14,6 +14,7 @@ from app.models import (
     ClientInterestSignal,
     Customer,
     DocumentRetrievalTask,
+    DigestProfile,
     EmailDeliveryLog,
     EmailConfiguration,
     ExtractedQualityQuestion,
@@ -31,6 +32,7 @@ from app.models import (
 from app.automation import live_kra_source_ids, run_admin_full_cycle
 from app.portal_connectors import run_portal_connector
 from app.reports import create_report
+from app.export_service import REPORT_CAVEAT
 
 
 def client_for(session):
@@ -196,8 +198,38 @@ def test_report_download_formats_and_local_email(reference_session):
     assert pdf_response.content.startswith(b"%PDF-")
     assert json_response.status_code == 200
     assert json_response.json()["report_name"] == "Export test"
+    assert json_response.json()["caveat"] == REPORT_CAVEAT
+    assert REPORT_CAVEAT in html_response.text
     assert email_response.status_code == 303
     assert reference_session.exec(select(EmailDeliveryLog)).first().status == "stored"
+
+
+def test_audit_export_json_and_csv(reference_session):
+    client = client_for(reference_session)
+    try:
+        client.post(
+            "/admin/email",
+            data={
+                "profile_name": "SMTP profile",
+                "smtp_port": "587",
+                "smtp_password": "do-not-export",
+                "smtp_password_secret_name": "DIP_SMTP_PASSWORD",
+            },
+            follow_redirects=False,
+        )
+        json_response = client.get("/audit?format=json")
+        csv_response = client.get("/audit?format=csv")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert json_response.status_code == 200
+    assert csv_response.status_code == 200
+    assert "application/json" in json_response.headers["content-type"]
+    assert "text/csv" in csv_response.headers["content-type"]
+    exported = json_response.text + csv_response.text
+    assert "do-not-export" not in exported
+    assert "DIP_SMTP_PASSWORD" not in exported
+    assert "***redacted***" in exported
 
 
 def test_admin_email_test_route(reference_session):
@@ -244,6 +276,66 @@ def test_admin_email_config_stores_secret_reference_not_password(reference_sessi
     assert response.status_code == 303
     assert config.smtp_password_secret_name == "DIP_SMTP_PASSWORD"
     assert config.smtp_password == ""
+
+
+def test_digest_profile_sends_report_via_file_outbox(reference_session):
+    client = client_for(reference_session)
+    try:
+        response = client.post(
+            "/admin/digests",
+            data={
+                "name": "Weekly demo digest",
+                "recipients": "digest@example.com",
+                "report_type": "executive_summary",
+                "export_format": "html",
+                "frequency_label": "weekly",
+                "enabled": "true",
+            },
+            follow_redirects=False,
+        )
+        profile = reference_session.exec(select(DigestProfile).where(DigestProfile.name == "Weekly demo digest")).first()
+        assert profile is not None
+        send_response = client.post(f"/admin/digests/{profile.id}/send", follow_redirects=False)
+    finally:
+        app.dependency_overrides.clear()
+
+    log = reference_session.exec(select(EmailDeliveryLog).order_by(EmailDeliveryLog.id.desc())).first()
+    assert response.status_code == 303
+    assert send_response.status_code == 303
+    assert log is not None
+    assert log.status == "stored"
+    assert log.recipients == "digest@example.com"
+    assert log.attachment_format == "html"
+
+
+def test_kra_finding_review_route_records_reviewer(reference_session):
+    finding = KRAFinding(
+        title="AI assisted finding",
+        finding_type="ai_research_summary",
+        summary="Generated summary requiring review.",
+        prompt_version="kra-summary-v1",
+        provider="openai_direct",
+        model="gpt-5.4",
+        output_hash="abc123",
+    )
+    reference_session.add(finding)
+    reference_session.commit()
+    reference_session.refresh(finding)
+    client = client_for(reference_session)
+    try:
+        response = client.post(
+            f"/kra/findings/{finding.id}/review",
+            data={"human_review_status": "approved"},
+            follow_redirects=False,
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    reference_session.refresh(finding)
+    assert response.status_code == 303
+    assert finding.human_review_status == "approved"
+    assert finding.reviewed_by == "local-user"
+    assert finding.reviewed_at is not None
 
 
 def test_admin_full_cycle_automation_preconfigures_and_exports(reference_session, monkeypatch):
@@ -565,21 +657,45 @@ def test_user_managed_records_can_be_updated_and_deleted(seeded_session):
 
         response = client.post(
             f"/opportunities/{opportunity.id}/documents",
-            data={"title": "CRUD Document", "document_type": "itt_extract", "retrieval_status": "linked"},
+            data={
+                "title": "CRUD Document",
+                "document_type": "itt_extract",
+                "retrieval_status": "linked",
+                "storage_provider": "sharepoint",
+                "document_storage_ref": "https://sharepoint.example/docs/itt",
+                "classification_label": "Commercial",
+                "retention_status": "bid_record",
+                "source_access_notes": "Permitted extract only.",
+            },
             follow_redirects=False,
         )
         document = seeded_session.exec(select(OpportunityDocument).where(OpportunityDocument.title == "CRUD Document")).first()
         assert response.status_code == 303
         assert document is not None
+        assert document.storage_provider == "sharepoint"
+        assert document.classification_label == "Commercial"
 
         response = client.post(
             f"/opportunities/{opportunity.id}/documents/{document.id}",
-            data={"title": "CRUD Document Updated", "document_type": "notice", "retrieval_status": "reviewed", "human_review_status": "approved"},
+            data={
+                "title": "CRUD Document Updated",
+                "document_type": "notice",
+                "retrieval_status": "reviewed",
+                "human_review_status": "approved",
+                "storage_provider": "azure_blob",
+                "document_storage_ref": "blob://container/itt.pdf",
+                "classification_label": "Internal",
+                "retention_status": "retained",
+                "source_access_notes": "Reference only; extraction still uses permitted text.",
+                "reviewed_by": "reviewer@example.com",
+            },
             follow_redirects=False,
         )
         assert response.status_code == 303
         seeded_session.refresh(document)
         assert document.title == "CRUD Document Updated"
+        assert document.storage_provider == "azure_blob"
+        assert document.reviewed_by == "reviewer@example.com"
 
         response = client.post(
             f"/opportunities/{opportunity.id}/tasks",

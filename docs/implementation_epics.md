@@ -28,27 +28,33 @@ This page records the current MVP delivery state and the next sensible epics.
 | Official source connectors | Delivered MVP | Contracts Finder and Find a Tender now have provider-specific connector classes for query construction, parsing and pagination hooks. |
 | Jobs and evaluation | Delivered MVP | CLI jobs support source/feed/connector/admin cycles; offline evaluation fixtures measure matching precision and recall. |
 | Match explainability and feedback | Delivered MVP | Opportunity matches record rationale evidence and Admin users can submit feedback that moves risky records back to review. |
+| Branded report exports | Delivered MVP | HTML/PDF exports now carry a clearer branded wrapper and human-review caveat, with JSON including the same caveat metadata. |
+| Document governance metadata | Delivered MVP | Opportunity documents can record storage provider/reference, classification label, retention status, reviewer and source-access notes. |
+| Customer onboarding wizard | Delivered MVP | Intelligence Packs provide a guided preview/apply flow for built-in and generated public-sector account baselines. |
+| AI provenance and finding review | Delivered MVP | AI-assisted KRA findings carry provider/model/prompt version/hash metadata and can be approved or rejected by Admin users. |
+| Digest notifications | Delivered MVP | Admin digest profiles can create and send/store scoped report exports through the existing email channel. |
+| Audit export | Delivered MVP | Audit events can be exported as JSON or CSV with existing snapshot redaction. |
+| Scoped standard-user access | Delivered MVP | `DIP_ACCESS_SCOPES_JSON` can restrict standard users to configured customer or business-unit report/client-feed records. |
 
 ## Next Delivery Epics
 
 ### Epic 1 - Production Data Platform
 
-- replace SQLite with Azure Database for PostgreSQL
-- add Alembic migrations
+- move live environments from SQLite snapshot persistence to Azure Database for PostgreSQL
 - add backup/restore automation
 - add environment-specific retention policies
 
 ### Epic 2 - Enterprise Security
 
 - harden Entra group and role mapping
-- add customer/environment-specific RBAC
+- expand customer/business-unit scoping across every read and write surface
 - add audit export to immutable storage
 - add security logging and alerting
 - document connector approval and secret rotation
 
 ### Epic 3 - Connector Maturity
 
-- build first-class Contracts Finder and Find a Tender connectors
+- deepen first-class Contracts Finder and Find a Tender connectors with production paging/rate-limit telemetry
 - add provider-approved API-key connector templates
 - add scheduling for source and connector checks
 - add connector run dashboards and failure queues
@@ -63,7 +69,6 @@ This page records the current MVP delivery state and the next sensible epics.
 ### Epic 5 - Document Governance
 
 - add document storage integration design
-- add classification labels
 - add attachment export policy
 - add SharePoint or object-storage option
 
@@ -80,4 +85,4 @@ This page records the current MVP delivery state and the next sensible epics.
 - add guarded live web/API lookup workers
 - add source-diff summarisation
 - add human-approved autonomous schedules
-- add prompt/version traceability for generated summaries
+- improve AI review queues and explainability dashboards beyond the MVP provenance hashes

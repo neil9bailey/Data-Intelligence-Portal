@@ -23,6 +23,9 @@ if (Test-Path $GeneratedEntraFile) {
     $parameterArgs += "entraClientId=$($entra.appId)"
     $parameterArgs += "entraAdminGroupId=$($entra.adminGroupId)"
     $parameterArgs += "entraStandardGroupId=$($entra.standardGroupId)"
+    if ($entra.PSObject.Properties.Name -contains "auditorGroupId") {
+        $parameterArgs += "entraAuditorGroupId=$($entra.auditorGroupId)"
+    }
     $parameterArgs += "entraClientSecretName=$($entra.clientSecretName)"
 } elseif ($deployApps) {
     throw "Missing $GeneratedEntraFile. Run scripts/azure/prepare-entra.ps1 before deploying apps."

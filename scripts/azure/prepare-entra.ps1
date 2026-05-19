@@ -5,6 +5,7 @@ param(
     [string]$AppDisplayName = "Data Intelligence Portal Live Test",
     [string]$AdminGroupName = "Data Intelligence Portal Admin Users",
     [string]$StandardGroupName = "Data Intelligence Portal Standard Users",
+    [string]$AuditorGroupName = "Data Intelligence Portal Auditor Users",
     [string]$PublicDomain = "dip.vendorlogic.io",
     [string]$DefaultFqdn = "",
     [string]$KeyVaultName = "kv-diiac-vendorlogic",
@@ -52,6 +53,7 @@ if (-not [string]::IsNullOrWhiteSpace($DefaultFqdn)) {
 
 $adminGroup = Get-OrCreate-Group -DisplayName $AdminGroupName -MailNickname "dip-admin-users"
 $standardGroup = Get-OrCreate-Group -DisplayName $StandardGroupName -MailNickname "dip-standard-users"
+$auditorGroup = Get-OrCreate-Group -DisplayName $AuditorGroupName -MailNickname "dip-auditor-users"
 
 $app = Invoke-AzJson @("ad", "app", "list", "--display-name", $AppDisplayName, "--query", "[0]")
 if ($null -eq $app) {
@@ -114,6 +116,8 @@ $output = [pscustomobject]@{
     adminGroupId = [string]$adminGroup.id
     standardGroupName = $StandardGroupName
     standardGroupId = [string]$standardGroup.id
+    auditorGroupName = $AuditorGroupName
+    auditorGroupId = [string]$auditorGroup.id
     publicDomain = $PublicDomain
     redirectUris = $redirectUris
     clientSecretName = $ClientSecretName
@@ -126,4 +130,5 @@ $output | ConvertTo-Json -Depth 6 | Set-Content -Path $fullOutputPath -Encoding 
 Write-Host "Wrote Entra deployment inputs to $fullOutputPath"
 Write-Host "Admin group id: $($output.adminGroupId)"
 Write-Host "Standard group id: $($output.standardGroupId)"
+Write-Host "Auditor group id: $($output.auditorGroupId)"
 Write-Host "App client id: $($output.appId)"

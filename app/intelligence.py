@@ -58,6 +58,7 @@ DEFAULT_NOTICE_LOOKBACK_DAYS = 180
 DEFAULT_NOTICE_PAGE_LIMIT = 100
 DEFAULT_NOTICE_MAX_PAGES = 8
 MARKET_RELEVANCE_THRESHOLD = 44
+AI_PROMPT_VERSION = "kra-summary-v1"
 CONTRACTS_FINDER_V2_SEARCH_URL = "https://www.contractsfinder.service.gov.uk/api/rest/2/search_notices/json"
 PUBLIC_MARKET_SEARCH_KEYWORDS = [
     "cyber security",
@@ -1347,19 +1348,23 @@ def run_kra_research(
             url = next_url if next_url and page_number + 1 < DEFAULT_NOTICE_MAX_PAGES else ""
     if llm_enabled():
         try:
+            settings = get_settings()
+            source_context = "\n".join(candidate_brief_items[:15])
+            user_prompt = "\n".join(
+                [
+                    f"Customer: {customer.customer_name if customer else 'All customers'}",
+                    f"Research query: {query or 'No query supplied'}",
+                    f"Sources checked: {run.sources_checked}",
+                    "Candidate opportunities:",
+                    source_context,
+                    "",
+                    "Create a concise live-demo briefing with: key signals, data-quality warnings, likely next human actions, and report readiness.",
+                ]
+            )
+            system_prompt = kra_system_prompt()
             summary = generate_llm_text(
-                kra_system_prompt(),
-                "\n".join(
-                    [
-                        f"Customer: {customer.customer_name if customer else 'All customers'}",
-                        f"Research query: {query or 'No query supplied'}",
-                        f"Sources checked: {run.sources_checked}",
-                        "Candidate opportunities:",
-                        *candidate_brief_items[:15],
-                        "",
-                        "Create a concise live-demo briefing with: key signals, data-quality warnings, likely next human actions, and report readiness.",
-                    ]
-                ),
+                system_prompt,
+                user_prompt,
                 max_output_tokens=650,
             )
             finding = KRAFinding(
@@ -1371,6 +1376,13 @@ def run_kra_research(
                 confidence="medium",
                 change_status="ai_assisted",
                 human_review_status="pending",
+                provider=settings.kra_llm_provider,
+                model=settings.kra_model,
+                prompt_version=AI_PROMPT_VERSION,
+                system_prompt_hash=content_hash(system_prompt),
+                user_prompt_hash=content_hash(user_prompt),
+                source_context_hash=content_hash(source_context),
+                output_hash=content_hash(summary),
             )
             session.add(finding)
             findings_created += 1

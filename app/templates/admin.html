@@ -214,6 +214,38 @@
   </div>
 </section>
 <section class="panel" style="margin-top:18px;">
+  <h2>Digest Profiles</h2>
+  <div class="table-wrap"><table><thead><tr><th>Name</th><th>Scope</th><th>Recipients</th><th>Format</th><th>Action</th></tr></thead><tbody>
+    {% for profile in digest_profiles %}
+    <tr>
+      <td>{{ profile.name }}</td>
+      <td>{{ customer_map.get(profile.customer_id).customer_name if customer_map.get(profile.customer_id) else business_unit_map.get(profile.business_unit_id).name if business_unit_map.get(profile.business_unit_id) else "All" }}</td>
+      <td>{{ profile.recipients or email_config.default_recipients or "Not configured" }}</td>
+      <td>{{ profile.export_format }}</td>
+      <td><form method="post" action="/admin/digests/{{ profile.id }}/send"><button class="compact" type="submit">Send now</button></form></td>
+    </tr>
+    {% else %}<tr><td colspan="5">No digest profiles configured.</td></tr>{% endfor %}
+  </tbody></table></div>
+  <details class="edit-drawer">
+    <summary>Add digest profile</summary>
+    <form method="post" action="/admin/digests">
+      <div class="field"><label>Name</label><input name="name" placeholder="Weekly opportunity digest" required></div>
+      <div class="form-grid">
+        <div class="field"><label>Customer</label><select name="customer_id"><option value="">All</option>{% for customer in customers %}<option value="{{ customer.id }}">{{ customer.customer_name }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Business unit</label><select name="business_unit_id"><option value="">All</option>{% for unit in business_units %}<option value="{{ unit.id }}">{{ unit.name }}</option>{% endfor %}</select></div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Report type</label><input name="report_type" value="executive_summary"></div>
+        <div class="field"><label>Export format</label><select name="export_format"><option value="pdf">PDF</option><option value="md">Markdown</option><option value="html">HTML</option></select></div>
+      </div>
+      <div class="field"><label>Recipients</label><input name="recipients" placeholder="name@example.com; another@example.com"></div>
+      <div class="field"><label>Frequency label</label><input name="frequency_label" value="manual"></div>
+      <label class="checkline"><input type="checkbox" name="enabled" value="true" checked> Enabled</label>
+      <button type="submit">Save digest profile</button>
+    </form>
+  </details>
+</section>
+<section class="panel" style="margin-top:18px;">
   <h2>Email Delivery Log</h2>
   <div class="table-wrap"><table><thead><tr><th>When</th><th>Subject</th><th>Recipients</th><th>Status</th><th>Outbox</th></tr></thead><tbody>
     {% for log in email_logs %}

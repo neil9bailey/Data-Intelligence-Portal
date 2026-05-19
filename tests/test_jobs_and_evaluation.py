@@ -1,8 +1,8 @@
 from sqlmodel import select
 
 from app.evaluation import evaluate_cases, load_evaluation_cases
-from app.jobs import record_job_run
-from app.models import AuditEvent, AutomationRun
+from app.jobs import record_job_run, run_job
+from app.models import AuditEvent, AutomationRun, DigestProfile, EmailDeliveryLog
 
 
 def test_record_job_run_creates_audit_event(reference_session):
@@ -10,6 +10,20 @@ def test_record_job_run_creates_audit_event(reference_session):
 
     assert reference_session.get(AutomationRun, run.id) is not None
     assert reference_session.exec(select(AuditEvent).where(AuditEvent.entity_type == "AutomationRun")).first() is not None
+
+
+def test_send_digests_job_processes_enabled_profiles(reference_session):
+    reference_session.add(DigestProfile(name="Job digest", recipients="ops@example.com", export_format="md"))
+    reference_session.commit()
+
+    run = run_job("send-digests", reference_session)
+
+    assert run.run_type == "send_digests"
+    assert run.status == "completed"
+    assert "Processed 1 digest profile" in run.summary
+    log = reference_session.exec(select(EmailDeliveryLog)).first()
+    assert log is not None
+    assert log.status == "stored"
 
 
 def test_matching_evaluation_fixture_passes_baseline():

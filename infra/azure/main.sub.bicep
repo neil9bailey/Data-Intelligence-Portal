@@ -95,6 +95,12 @@ param entraAdminGroupId string
 @description('Entra standard group object ID.')
 param entraStandardGroupId string
 
+@description('Optional Entra auditor group object ID.')
+param entraAuditorGroupId string = ''
+
+@description('Optional JSON mapping that scopes standard users or groups to customer/business-unit IDs.')
+param accessScopesJson string = ''
+
 @description('Seed reference configuration data on startup.')
 param seedReferenceData bool = true
 
@@ -183,6 +189,8 @@ module portalStack './main.rg.bicep' = {
     entraClientSecretName: entraClientSecretName
     entraAdminGroupId: entraAdminGroupId
     entraStandardGroupId: entraStandardGroupId
+    entraAuditorGroupId: entraAuditorGroupId
+    accessScopesJson: accessScopesJson
     seedReferenceData: seedReferenceData
     seedDemoData: seedDemoData
     autoApplyCustomerPacks: autoApplyCustomerPacks

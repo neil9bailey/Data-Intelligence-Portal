@@ -296,6 +296,7 @@ Container environment variables include:
 | `ENTRA_ADMIN_GROUP_ID` | Admin security group object ID |
 | `ENTRA_STANDARD_GROUP_ID` | Standard security group object ID |
 | `ENTRA_AUDITOR_GROUP_ID` | Optional auditor security group object ID |
+| `DIP_ACCESS_SCOPES_JSON` | Optional JSON map for standard-user customer/business-unit scoping |
 | `SEED_REFERENCE_DATA` | Keeps source/platform/KRA reference data seeded |
 | `SEED_DEMO_DATA` | Should remain false for live customer environments |
 | `AUTO_APPLY_CUSTOMER_PACKS` | Applies built-in customer packs at startup for a preconfigured live demo |

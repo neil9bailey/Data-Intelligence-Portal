@@ -182,6 +182,26 @@ def apply_sqlite_schema_updates() -> None:
         "emailconfiguration": {
             "smtp_password_secret_name": "smtp_password_secret_name VARCHAR DEFAULT ''",
         },
+        "opportunitydocument": {
+            "storage_provider": "storage_provider VARCHAR DEFAULT 'none'",
+            "document_storage_ref": "document_storage_ref VARCHAR DEFAULT ''",
+            "classification_label": "classification_label VARCHAR DEFAULT ''",
+            "retention_status": "retention_status VARCHAR DEFAULT 'standard'",
+            "reviewed_by": "reviewed_by VARCHAR DEFAULT ''",
+            "reviewed_at": "reviewed_at DATETIME",
+            "source_access_notes": "source_access_notes VARCHAR DEFAULT ''",
+        },
+        "krafinding": {
+            "provider": "provider VARCHAR DEFAULT ''",
+            "model": "model VARCHAR DEFAULT ''",
+            "prompt_version": "prompt_version VARCHAR DEFAULT ''",
+            "system_prompt_hash": "system_prompt_hash VARCHAR DEFAULT ''",
+            "user_prompt_hash": "user_prompt_hash VARCHAR DEFAULT ''",
+            "source_context_hash": "source_context_hash VARCHAR DEFAULT ''",
+            "output_hash": "output_hash VARCHAR DEFAULT ''",
+            "reviewed_by": "reviewed_by VARCHAR DEFAULT ''",
+            "reviewed_at": "reviewed_at DATETIME",
+        },
     }
     with engine.begin() as connection:
         for table_name, columns in updates.items():
