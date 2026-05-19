@@ -89,6 +89,14 @@ pytest -q
 python -m ruff check .
 ```
 
+Run with local PostgreSQL for migration testing:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d db
+docker compose -f docker-compose.yml -f docker-compose.postgres.yml run --rm app alembic upgrade head
+docker compose -f docker-compose.yml -f docker-compose.postgres.yml up --build
+```
+
 Stop:
 
 ```powershell
@@ -177,6 +185,15 @@ Local Docker remains easy to use because `LOCAL_ADMIN_MODE=true` by default. Pro
 - `ENTRA_ADMIN_GROUP_ID`
 - `ENTRA_STANDARD_GROUP_ID`
 - `ENTRA_AUDITOR_GROUP_ID`
+
+## Database And Health
+
+SQLite remains the default local and live-test MVP persistence option. PostgreSQL is now supported through `DATABASE_URL` for production-shaped environments, with Alembic migrations in `alembic/`.
+
+- `docker compose run --rm app alembic upgrade head` applies migrations.
+- `DATABASE_AUTO_CREATE_ALL=true` is available only for controlled compatibility/testing; production PostgreSQL should use Alembic.
+- `/healthz` is a public liveness check.
+- `/readyz` checks database, templates and static assets for readiness probes.
 
 ## KRA Knowledge Research Agent
 

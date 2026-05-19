@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: dip
+      POSTGRES_USER: dip
+      POSTGRES_PASSWORD: dip-local
+    ports:
+      - "54329:5432"
+    volumes:
+      - dip-postgres-data:/var/lib/postgresql/data
+
+  app:
+    environment:
+      DATABASE_URL: postgresql+psycopg://dip:dip-local@db:5432/dip
+      DATABASE_AUTO_CREATE_ALL: "false"
+    depends_on:
+      - db
+
+volumes:
+  dip-postgres-data:

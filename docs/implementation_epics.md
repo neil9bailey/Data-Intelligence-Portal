@@ -23,6 +23,8 @@ This page records the current MVP delivery state and the next sensible epics.
 | Modular FastAPI routing | Delivered | Route groups are split into `app/routes/` modules with shared web helpers in `app/route_utils.py`; `app/main.py` now focuses on app setup and router registration. |
 | App-level RBAC | Delivered | Health remains public; standard, auditor, admin and local-admin roles are enforced in route dependencies with explicit `LOCAL_ADMIN_MODE` for local-only fallback. |
 | Secret references | Delivered | Email configuration now stores SMTP password references rather than raw values; send-time resolution uses environment/Key Vault-backed variables with legacy compatibility. |
+| PostgreSQL and Alembic support | Delivered MVP | SQLite remains default; PostgreSQL URLs are supported and Alembic has an initial SQLModel metadata migration. |
+| Observability and readiness | Delivered MVP | `/healthz` remains liveness, `/readyz` checks database/templates/static, request IDs are echoed in responses and Admin shows DB mode. |
 
 ## Next Delivery Epics
 

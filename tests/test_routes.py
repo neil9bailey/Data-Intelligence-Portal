@@ -116,10 +116,20 @@ def test_create_customer_route(seeded_session):
 
 
 def test_healthz():
-    response = TestClient(app).get("/healthz")
+    response = TestClient(app).get("/healthz", headers={"x-request-id": "test-request-id"})
 
     assert response.status_code == 200
+    assert response.headers["x-request-id"] == "test-request-id"
     assert response.json()["status"] == "ok"
+
+
+def test_readyz():
+    response = TestClient(app).get("/readyz")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["checks"]["database"] == "ok"
 
 
 def test_opportunities_page_is_paginated(session):

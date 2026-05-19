@@ -16,6 +16,7 @@ from app.database import (
     sqlite_startup_lock,
 )
 from app.intelligence import repair_mismatched_customer_assignments
+from app.observability import configure_logging, new_request_id
 from app.routes import ROUTERS
 from app.seed import seed_demo_data, seed_reference_data
 from app.settings import BASE_DIR, get_settings
@@ -46,13 +47,17 @@ async def lifespan(app: FastAPI):
         backup_sqlite_persistent_copy()
 
 
+configure_logging()
+
 app = FastAPI(title="Data Intelligence Portal", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 
 @app.middleware("http")
 async def persist_sqlite_copy_after_writes(request: Request, call_next):
+    request_id = new_request_id(request.headers.get("x-request-id"))
     response = await call_next(request)
+    response.headers["x-request-id"] = request_id
     if request.method in {"POST", "PUT", "PATCH", "DELETE"} and response.status_code < 500:
         backup_sqlite_persistent_copy()
     return response

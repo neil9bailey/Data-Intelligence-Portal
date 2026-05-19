@@ -29,6 +29,7 @@ flowchart LR
 - FastAPI
 - SQLModel / SQLAlchemy
 - SQLite for local and live-test MVP persistence
+- PostgreSQL-compatible `DATABASE_URL` support with Alembic migration scaffolding for production-shaped deployments
 - Jinja2 server-rendered HTML
 - HTMX-ready templates with minimal vanilla CSS
 - YAML-backed source, platform, extraction, workflow and KRA configuration
@@ -69,6 +70,8 @@ flowchart LR
 | `app/auth.py` | Local admin mode, Container Apps EasyAuth/Entra header handling and app-level role dependencies for standard, admin and auditor access. |
 | `app/audit.py` | Audit event creation and compact snapshots. |
 | `app/database.py` | SQLite setup, schema updates and Azure Files snapshot handling. |
+| `alembic/` | Initial SQLModel metadata migration for PostgreSQL/production-shaped persistence. |
+| `app/observability.py` | Request correlation ID and structured logging helpers. |
 | `app/rules/` | YAML configuration for sources, platforms, KRA, extraction, feeds and workflow. |
 
 ## Data Objects
@@ -155,6 +158,7 @@ Reusable customer deployments are supported by:
 Before full production use:
 
 - move persistence to Azure Database for PostgreSQL
+- run database changes through Alembic migrations
 - formalise backup, restore and retention
 - add immutable audit/event export
 - add stronger RBAC and data governance

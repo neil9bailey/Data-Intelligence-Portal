@@ -10,7 +10,7 @@ from sqlmodel import Session, col, select
 
 from app.audit import compact_snapshot, log_event
 from app.auth import get_current_user
-from app.database import sqlite_db_path, sqlite_persistent_copy_path
+from app.database import database_mode, sqlite_db_path, sqlite_persistent_copy_path
 from app.email_service import get_email_configuration
 from app.intelligence import kra_runtime_status
 from app.models import (
@@ -419,6 +419,7 @@ def health_dashboard_context(session: Session, request: Request) -> dict:
         },
         "database": {
             "status": "ok" if db_count >= 0 else "warning",
+            "mode": database_mode(),
             "url": settings.database_url.split("@")[-1] if "@" in settings.database_url else settings.database_url,
             "sqlite": file_status(sqlite_db_path()),
             "persistent_copy": file_status(sqlite_persistent_copy_path()),

@@ -315,6 +315,11 @@ Container environment variables include:
 
 ## Admin Health Dashboard
 
+After deployment, configure probes as:
+
+- liveness: `/healthz`
+- readiness: `/readyz`
+
 After deployment, open `/admin` as an Admin user to confirm:
 
 - local runtime status
@@ -331,6 +336,7 @@ After deployment, open `/admin` as an Admin user to confirm:
 Before production use:
 
 - replace SQLite snapshot persistence with Azure Database for PostgreSQL
+- run Alembic migrations with `alembic upgrade head`
 - add backup/restore and restore testing
 - add immutable audit/event export
 - add formal RBAC and data-retention model

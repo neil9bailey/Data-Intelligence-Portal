@@ -21,6 +21,18 @@ engine = create_engine(settings.database_url, connect_args=connect_args)
 _backup_lock = threading.Lock()
 
 
+def database_mode_for_url(database_url: str) -> str:
+    if database_url.startswith("sqlite"):
+        return "sqlite"
+    if database_url.startswith(("postgresql", "postgres")):
+        return "postgresql"
+    return "other"
+
+
+def database_mode() -> str:
+    return database_mode_for_url(settings.database_url)
+
+
 def _normalise_sqlite_journal_mode(value: str) -> str:
     mode = (value or "").strip().upper()
     allowed_modes = {"DELETE", "TRUNCATE", "PERSIST", "MEMORY", "WAL", "OFF"}
@@ -137,8 +149,10 @@ def sqlite_startup_lock(timeout_seconds: int = 120, stale_seconds: int = 300):
 
 def init_db() -> None:
     ensure_sqlite_parent()
-    retry_sqlite_locked(lambda: SQLModel.metadata.create_all(engine))
-    retry_sqlite_locked(apply_sqlite_schema_updates)
+    if database_mode() == "sqlite" or settings.database_auto_create_all:
+        retry_sqlite_locked(lambda: SQLModel.metadata.create_all(engine))
+    if database_mode() == "sqlite":
+        retry_sqlite_locked(apply_sqlite_schema_updates)
 
 
 def retry_sqlite_locked(action):

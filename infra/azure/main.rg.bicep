@@ -471,7 +471,7 @@ resource portalApp 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
             {
               type: 'Readiness'
               httpGet: {
-                path: '/healthz'
+                path: '/readyz'
                 port: 8080
               }
               initialDelaySeconds: 30

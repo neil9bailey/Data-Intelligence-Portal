@@ -102,7 +102,7 @@
   <div class="panel">
     <div class="panel-title"><h2>Local Runtime</h2><span class="badge green">ok</span></div>
     <p><strong>{{ health.deployment.label }}</strong></p>
-    <p class="hint">{{ health.database.url }}</p>
+    <p class="hint">{{ health.database.mode }} | {{ health.database.url }}</p>
     <div class="badges">
       <span class="badge {{ 'green' if health.database.sqlite.exists else 'amber' }}">SQLite {{ 'present' if health.database.sqlite.exists else 'pending' }}</span>
       <span class="badge {{ 'green' if health.database.persistent_copy.exists else 'amber' }}">persistent copy {{ 'present' if health.database.persistent_copy.exists else 'not configured' }}</span>

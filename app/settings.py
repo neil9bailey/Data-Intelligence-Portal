@@ -16,6 +16,7 @@ class Settings:
     def __init__(self) -> None:
         self.app_name: str = os.getenv("APP_NAME", "Data Intelligence Portal")
         self.database_url: str = os.getenv("DATABASE_URL", "sqlite:///data/data-intelligence-portal.sqlite")
+        self.database_auto_create_all: bool = env_bool("DATABASE_AUTO_CREATE_ALL", "false")
         self.sqlite_journal_mode: str = os.getenv("SQLITE_JOURNAL_MODE", "DELETE")
         self.sqlite_persistent_copy_path: str = os.getenv("SQLITE_PERSISTENT_COPY_PATH", "")
         self.seed_reference_data: bool = env_bool("SEED_REFERENCE_DATA", "true")
