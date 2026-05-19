@@ -293,7 +293,7 @@ var appEnvironment = concat(
     }
     {
       name: 'DATABASE_URL'
-      value: 'sqlite:////app/data/data-intelligence-portal.sqlite'
+      value: 'sqlite:////tmp/dip/data-intelligence-portal.sqlite'
     }
     {
       name: 'SQLITE_JOURNAL_MODE'
@@ -301,7 +301,7 @@ var appEnvironment = concat(
     }
     {
       name: 'SQLITE_PERSISTENT_COPY_PATH'
-      value: ''
+      value: '/app/data/data-intelligence-portal.sqlite'
     }
     {
       name: 'DIP_OUTBOX_DIR'
