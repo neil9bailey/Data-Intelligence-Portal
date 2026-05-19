@@ -2,6 +2,7 @@ import json
 
 from sqlmodel import select
 
+from app.cof_readiness import cof_source_health
 from app.intelligence import FetchResult, run_kra_research, run_source_check
 from app.models import KRAResearchRun, Opportunity, OpportunityMatchEvidence, ProcurementSource
 from app.source_connectors import connector_for_source
@@ -153,3 +154,20 @@ def test_provider_next_page_keeps_to_approved_domains():
     assert connector.next_page(FetchResult(True, 200, source.query_url, payload, "application/json")).endswith("page=2")
     blocked = json.dumps({"links": {"next": "https://example.com/not-approved"}})
     assert connector.next_page(FetchResult(True, 200, source.query_url, blocked, "application/json")) == ""
+
+
+def test_kra_query_failure_does_not_downgrade_source_catalogue_health(reference_session):
+    source = reference_session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "find_a_tender")).first()
+
+    def source_check_fetcher(url):
+        return FetchResult(True, 200, url, ocds_payload(), "application/json")
+
+    def kra_fetcher(url):
+        return FetchResult(False, 429, url, "", "application/json", error="Rate limited by provider")
+
+    run_source_check(reference_session, source.id, fetcher=source_check_fetcher)
+    run_kra_research(reference_session, source_ids=[source.id], query="highways maintenance", fetcher=kra_fetcher)
+
+    health = {item.key: item for item in cof_source_health(reference_session)}
+
+    assert health["find_a_tender"].status == "active"

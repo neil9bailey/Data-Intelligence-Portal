@@ -294,6 +294,8 @@ def cof_source_health(session: Session, freshness_days: int = SOURCE_FRESHNESS_D
     snapshots = list(session.exec(select(SourceCheckSnapshot).order_by(col(SourceCheckSnapshot.checked_at).desc()).limit(200)))
     latest_by_source: dict[int, SourceCheckSnapshot] = {}
     for snapshot in snapshots:
+        if _is_kra_query_snapshot(snapshot):
+            continue
         if snapshot.source_id and snapshot.source_id not in latest_by_source:
             latest_by_source[snapshot.source_id] = snapshot
     by_key = {source.source_key: source for source in sources if source.source_key}
@@ -621,6 +623,10 @@ def _is_retrieved_document(item: OpportunityDocument) -> bool:
         "completed",
         "automated_retrieval",
     }
+
+
+def _is_kra_query_snapshot(snapshot: SourceCheckSnapshot) -> bool:
+    return (snapshot.notes or "").lower().startswith("kra query:")
 
 
 def _split_recipients(value: str) -> list[str]:

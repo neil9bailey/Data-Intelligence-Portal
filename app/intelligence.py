@@ -1316,11 +1316,11 @@ def run_kra_research(
                 break
             run.sources_checked += 1
             fetch = connector.fetch_page(url, fetcher)
-            source.last_checked_at = datetime.now(UTC)
-            source.last_status = f"HTTP {fetch.status_code}" if fetch.ok else (fetch.error or "failed")
-            source.connector_status = f"{connector.connector_name}_{connector_status_for_fetch(fetch)}"
-            session.add(source)
+            kra_connector_status = f"{connector.connector_name}_{connector_status_for_fetch(fetch)}"
             snapshot = record_snapshot(session, source, fetch, url)
+            snapshot.connector_status = kra_connector_status
+            snapshot.notes = f"KRA query: {snapshot.notes or connector.run_summary(fetch, page_number + 1)}"
+            session.add(snapshot)
             finding = KRAFinding(
                 run_id=run.id,
                 source_id=source.id,
@@ -1329,7 +1329,7 @@ def run_kra_research(
                 title=f"{source.name}: {snapshot.change_type}",
                 summary=(
                     f"Detected schema {snapshot.detected_schema}; status {snapshot.status_code}; "
-                    f"connector {source.connector_status}; source URL {url}."
+                    f"connector {kra_connector_status}; source URL {url}."
                 ),
                 source_url=url,
                 content_hash=snapshot.content_hash,
