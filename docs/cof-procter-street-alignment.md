@@ -94,17 +94,54 @@ COF adds two report types:
 Report sections include:
 
 - Client / portfolio summary
+- Client coverage for all 11 monitored clients
 - PINs
+- Watchlist
 - Live tenders
 - Closing soon
 - Awards / market evidence
 - Interested / Donna actions
 - Documents retrieved
+- Public notice evidence
 - Quality questions and weightings
+- Requirement themes
+- Denise review queue
 - Review gaps
 - Monday send readiness
 
-Reports are available as PDF, HTML, Markdown, JSON and text. File outbox email remains the safe default unless SMTP is configured.
+Reports are available as PDF, HTML, Markdown, JSON and text. The PDF and HTML exports use the configured report brand, prepared-for label and footer caveat. File outbox email remains the safe default unless SMTP is configured.
+
+## Client Display Names
+
+The database can keep temporary client records such as `COF Client 01` while reports present customer-safe names.
+
+Use these environment variables:
+
+- `DIP_COF_CLIENT_NAME_MODE=redacted` uses professional redacted names such as `Client A - Highways`. This is the default for customer-facing reports.
+- `DIP_COF_CLIENT_NAME_MODE=configured` uses `DIP_COF_CLIENT_NAME_MAP_JSON` to map temporary names to approved client names.
+- `DIP_COF_CLIENT_NAME_MODE=placeholder` shows the stored placeholder names and should be used only for internal configuration checks.
+
+Example configured mapping:
+
+```json
+{
+  "COF Client 01": "Approved Highways Client",
+  "COF Client 02": "Approved Estates Client"
+}
+```
+
+The mapping affects report display only. It does not rewrite customer records; permanent customer names should be updated through the Admin UI when they are approved.
+
+## Denise Review Status
+
+COF report rows use one of four review statuses:
+
+- Denise approved for report inclusion
+- Awaiting Denise review
+- Needs more evidence
+- Rejected / excluded
+
+Denise approval means approved for inclusion in the COF report. It does not mean bid, legal, procurement or compliance approval. The report keeps a single global caveat: human review is required and the pack is not a bid/no-bid, legal, procurement or compliance decision.
 
 ## Friday Review And Monday Send
 
@@ -125,6 +162,29 @@ The COF pack also creates the default digest profile:
 - Export format: PDF
 
 Sending remains manual or externally scheduled in this phase; no new Azure scheduler or background infrastructure is required.
+
+The weekly report's Monday Send Readiness section now shows:
+
+- Whether the COF Monday digest profile exists and is enabled
+- Delivery mode, such as `file_outbox` or SMTP
+- Recipient count
+- Export format
+- Latest report timestamp
+- Latest email delivery status
+- Number of clients with and without visible items
+- Blockers including pending Denise review, pending document review, pending quality-question review, interested items without retrieval tasks and missing recipients
+
+If recipients are not configured, the report says that auto-send is not ready while file-outbox/manual review remains available.
+
+## Report Branding
+
+Use environment variables to label customer-facing exports without code changes:
+
+- `DIP_REPORT_BRAND_NAME`, default `Contracted Opportunity Finder`
+- `DIP_REPORT_PREPARED_FOR`, default `Procter Street`
+- `DIP_REPORT_FOOTER`, default `Human review required. Not a bid, legal, procurement or compliance decision.`
+
+Do not place secrets in these values. They are rendered in HTML, PDF and JSON exports.
 
 ## Applying The Pack
 

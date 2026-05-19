@@ -21,7 +21,8 @@ from app.models import (
     ProcurementSource,
     IntelligenceReport,
 )
-from app.reports import cof_stage_for_opportunity, create_report
+from app.reports import cof_monday_send_readiness, cof_stage_for_opportunity, concise_opportunity_title, create_report
+from app.settings import get_settings
 
 
 def client_for(session):
@@ -129,6 +130,7 @@ def test_human_review_gate_and_donna_queue(reference_session):
 
 
 def test_cof_weekly_report_content_and_exports(reference_session):
+    get_settings.cache_clear()
     apply_cof_pack(reference_session)
     cof_unit = reference_session.exec(select(BusinessUnit).where(BusinessUnit.name == "Contracted Opportunity Finder")).first()
     public_notice_opportunity = reference_session.exec(select(Opportunity).where(Opportunity.title == "Highways maintenance framework PIN")).first()
@@ -195,7 +197,11 @@ def test_cof_weekly_report_content_and_exports(reference_session):
     assert "**Scope:** Contracted Opportunity Finder" in markdown
     assert "All customers and business units" not in markdown
     assert "Client Coverage: 11 clients monitored" in markdown
-    assert markdown.count("**COF Client ") >= 11
+    assert "| Client | Sector | PINs | Watch | Live | Interested | Awarded | Denise review |" in markdown
+    assert markdown.count("| Client ") >= 11
+    assert "COF Client 01" not in markdown
+    assert "Client A - Highways" in markdown
+    assert "Client B - Estates" in markdown
     assert "PINs" in markdown
     assert "PINs / Early Market" in markdown
     assert "Watchlist" in markdown
@@ -206,8 +212,9 @@ def test_cof_weekly_report_content_and_exports(reference_session):
     assert "Live Tenders" in markdown
     assert "0 live tender signal" not in markdown
     assert "School estate decarbonisation programme" in markdown
-    assert "matched client COF Client 02" in markdown
+    assert "matched client Client B - Estates" in markdown
     assert "portal/source: In-Tend" in markdown
+    assert "Denise approved for report inclusion" in markdown
     assert "Awards / Market Evidence" in markdown
     assert "Interested / Donna Actions" in markdown
     assert "Donna action status donna_action_required" in markdown
@@ -222,8 +229,10 @@ def test_cof_weekly_report_content_and_exports(reference_session):
     review_gaps_section = markdown.split("## Review Gaps", 1)[1].split("## Monday Send Readiness", 1)[0]
     assert "Human review required" in markdown
     assert "Rejected noise record" not in markdown
-    for forbidden in ["seeded", "live-pilot", "test output", "walkthrough"]:
+    for forbidden in ["mvp", "demo", "concept", "seeded", "live-pilot", "test output", "walkthrough", "prototype"]:
         assert forbidden not in lower_markdown
+    assert markdown.count("Human review required") <= 2
+    assert "Source evidence captured for Denise review. Human verification required before client action." not in markdown
     assert "Pending document review: " in review_gaps_section
     assert "Pending document review: 0" not in review_gaps_section
     assert "COF public notice evidence record" not in documents_section
@@ -244,6 +253,10 @@ def test_cof_weekly_report_content_and_exports(reference_session):
         assert media_type
     pdf_payload, _, _ = report_export(report, "pdf")
     assert REPORT_CAVEAT.encode("cp1252") in pdf_payload
+    html_payload, _, _ = report_export(report, "html")
+    assert b"Contracted Opportunity Finder" in html_payload
+    json_payload, _, _ = report_export(report, "json")
+    assert b'"prepared_for": "Procter Street"' in json_payload
 
 
 def test_cof_stage_classification_uses_lifecycle_not_review_status():
@@ -270,11 +283,45 @@ def test_cof_stage_classification_uses_lifecycle_not_review_status():
     assert cof_stage_for_opportunity(live_approved, [], [], [], [question]) == "questions_extracted"
 
 
+def test_concise_opportunity_title_shortens_without_inventing():
+    opportunity = Opportunity(
+        title=(
+            "CA17827 - Invitation to Tender - The provision of integrated highways maintenance, "
+            "winter resilience, drainage, traffic management and associated civil engineering works"
+        )
+    )
+    basildon = Opportunity(title="GB-Basildon: CCTV supply, design and installation with support and maintenance")
+
+    assert concise_opportunity_title(opportunity, max_chars=70).startswith("integrated highways maintenance")
+    assert concise_opportunity_title(opportunity, max_chars=70).endswith("...")
+    assert concise_opportunity_title(basildon) == "Basildon CCTV supply, design and installation with support and maintenance"
+
+
+def test_cof_client_name_modes(reference_session, monkeypatch):
+    apply_cof_pack(reference_session)
+    report = create_report(reference_session, "COF redacted", "cof_weekly_portfolio_report")
+    assert "Client A - Highways" in report.markdown
+    assert "COF Client 01" not in report.markdown
+
+    monkeypatch.setenv("DIP_COF_CLIENT_NAME_MODE", "placeholder")
+    get_settings.cache_clear()
+    placeholder_report = create_report(reference_session, "COF placeholder", "cof_weekly_portfolio_report")
+    assert "COF Client 01" in placeholder_report.markdown
+
+    monkeypatch.setenv("DIP_COF_CLIENT_NAME_MODE", "configured")
+    monkeypatch.setenv("DIP_COF_CLIENT_NAME_MAP_JSON", '{"COF Client 01": "Acme Highways", "COF Client 02": "Beacon Estates"}')
+    get_settings.cache_clear()
+    configured_report = create_report(reference_session, "COF configured", "cof_weekly_portfolio_report")
+    assert "Acme Highways" in configured_report.markdown
+    assert "Beacon Estates" in configured_report.markdown
+    get_settings.cache_clear()
+
+
 def test_pdf_text_generation_sanitises_non_printable_characters():
-    lines = _pdf_text_lines("# live\u2011pilot\x00 report\nBad\ufffd control")
+    lines = _pdf_text_lines("# operational\u2011report\x00\nBad\ufffd control")
     text = "\n".join(lines)
 
-    assert "live-pilot" in text.lower()
+    assert "operational-report" in text.lower()
     assert "\ufffd" not in text
     assert all(ch in {"\n", "\t"} or ord(ch) >= 32 for ch in text)
 
@@ -287,9 +334,8 @@ def test_customer_visible_pages_do_not_use_mvp_demo_or_concept_language(referenc
             response = client.get(path)
             text = response.text.lower()
             assert response.status_code == 200
-            assert "mvp" not in text
-            assert "demo" not in text
-            assert "concept" not in text
+            for forbidden in ["mvp", "demo", "concept", "test output", "seeded", "live-pilot", "walkthrough", "prototype"]:
+                assert forbidden not in text
     finally:
         app.dependency_overrides.clear()
 
@@ -307,3 +353,21 @@ def test_cof_monday_digest_profile_is_created(reference_session):
     assert report is not None
     assert len([item for item in signals if item.signal == "interested"]) >= 3
     assert len([item for item in signals if item.signal == "watch"]) >= 2
+
+
+def test_cof_monday_send_readiness_ready_and_not_ready(reference_session):
+    apply_cof_pack(reference_session)
+    opportunity_ids = {item.id for item in reference_session.exec(select(Opportunity)) if item.id}
+    not_ready = cof_monday_send_readiness(reference_session, opportunity_ids, blockers={})
+    assert not_ready["ready"] is False
+    assert "no Monday recipients configured" in not_ready["blockers"]
+
+    profile = reference_session.exec(select(DigestProfile).where(DigestProfile.name == "COF Monday report send")).first()
+    profile.recipients = "ops@example.com; board@example.com"
+    reference_session.add(profile)
+    reference_session.commit()
+
+    ready = cof_monday_send_readiness(reference_session, opportunity_ids, blockers={})
+    assert ready["ready"] is True
+    assert ready["recipient_count"] == 2
+    assert ready["delivery_mode"] == "file_outbox"

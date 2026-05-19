@@ -7,7 +7,7 @@ The Data Intelligence Portal live-test stack is designed to sit alongside existi
 ## Target
 
 - Hostname: `dip.vendorlogic.io`
-- Current image: `acrdipvltest01.azurecr.io/dip/app:1.0.46-cof-report-demo`
+- Current image: `acrdipvltest01.azurecr.io/dip/app:1.0.47-cof-report-polish`
 - Azure model: isolated resource group plus Azure Container Apps
 - Auth: Microsoft Entra ID via Azure Container Apps built-in auth
 - Roles: `Data Intelligence Portal Admin Users` and `Data Intelligence Portal Standard Users`
@@ -16,7 +16,8 @@ The Data Intelligence Portal live-test stack is designed to sit alongside existi
 - Live showcase preconfiguration: built-in customer packs are applied on startup with `AUTO_APPLY_CUSTOMER_PACKS=true`
 - Sizing: `1.0` CPU / `2Gi` memory for the Live showcase KRA, PDF export and email-outbox cycle
 - Persistence: Azure Files mounted at `/app/data` for the live-test SQLite snapshot and email outbox
-- SQLite live-test tuning: the active MVP database runs on local container storage, with a compact snapshot copied to Azure Files after write operations
+- SQLite live-test tuning: the active pilot database runs on local container storage, with a compact snapshot copied to Azure Files after write operations
+- COF reporting: client names default to redacted customer-facing labels through `DIP_COF_CLIENT_NAME_MODE=redacted`; approved live names can be supplied through `DIP_COF_CLIENT_NAME_MAP_JSON` without changing Azure resources.
 
 ## Architecture
 
@@ -87,11 +88,11 @@ Expected smoke result:
 - `/healthz` returns `200`.
 - `/` is protected and returns a redirect/401/403 when not signed in.
 - `/admin` shows local/remote health, source health, portal connector health, Entra status, email status, KRA runtime and the autonomous COF workflow runner for Admin users. The full cycle queues a background run, produces a PDF report export, stores/emails it through the configured delivery mode and shows queued/running/completed/failed status after refresh.
-- For live operations, the image includes `/app/scripts/run-admin-cycle.sh`, a no-argument maintenance script that runs the same full-cycle workflow inside the active container and persists the SQLite snapshot. This is useful for validating a demo cycle from Azure CLI when browser auth is not convenient.
+- For live operations, the image includes `/app/scripts/run-admin-cycle.sh`, a no-argument maintenance script that runs the same full-cycle workflow inside the active container and persists the SQLite snapshot. This is useful for validating a customer presentation cycle from Azure CLI when browser auth is not convenient.
 
 ## Production Gaps To Close Later
 
-- Replace SQLite/local snapshot persistence with Azure Database for PostgreSQL. The Azure live-test snapshot approach is a temporary single-replica MVP setting, not a production database design.
+- Replace SQLite/local snapshot persistence with Azure Database for PostgreSQL. The Azure live-test snapshot approach is a temporary single-replica pilot setting, not a final production database design.
 - Add backup/restore and restore testing.
 - Add Entra app roles or stronger role claims if group claim overage becomes an issue.
 - Add immutable audit log export.

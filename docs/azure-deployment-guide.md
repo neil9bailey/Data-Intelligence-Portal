@@ -4,7 +4,7 @@ This guide explains how to deploy Data Intelligence Portal (DIP) to Azure Contai
 
 Checked date: 17 May 2026.
 
-The current Azure path is suitable for live-test and customer pilot environments. It is not yet the final enterprise production architecture because the MVP still uses SQLite snapshot persistence. Production should move to Azure Database for PostgreSQL, stronger backup/restore, immutable audit export and formal deployment controls.
+The current Azure path is suitable for live-test and customer pilot environments. It is not yet the final enterprise production architecture because this cost-controlled phase still uses SQLite snapshot persistence. Production should move to Azure Database for PostgreSQL, stronger backup/restore, immutable audit export and formal deployment controls during the later tenant/resource migration.
 
 ## Current Azure Architecture
 
@@ -82,7 +82,7 @@ Vendorlogic live-test currently uses:
 | Public URL | https://dip.vendorlogic.io |
 | Resource group | RG_DIP_VENDORLOGIC_TEST |
 | Container App | ca-dip-vl-test |
-| Container image | acrdipvltest01.azurecr.io/dip/app:1.0.46-cof-report-demo |
+| Container image | acrdipvltest01.azurecr.io/dip/app:1.0.47-cof-report-polish |
 | Auth | Container Apps built-in Microsoft Entra auth |
 | Admin group | Data Intelligence Portal Admin Users |
 | Standard group | Data Intelligence Portal Standard Users |
@@ -90,6 +90,18 @@ Vendorlogic live-test currently uses:
 | Container sizing | `1.0` CPU / `2Gi` memory for Live showcase KRA, PDF export and email-outbox cycle |
 | KRA Live showcase AI | `openai_direct`, model `gpt-5.4`, Key Vault secret `diiac-openai-api-key` |
 | Live showcase preconfiguration | `AUTO_APPLY_CUSTOMER_PACKS=true` |
+
+Current COF report polish does not require new Azure resources. The existing Container App, Azure Files snapshot/outbox path and Key Vault-backed secret references remain compatible.
+
+Customer-facing COF report labels can be controlled without changing infrastructure:
+
+| Setting | Purpose |
+| --- | --- |
+| `DIP_COF_CLIENT_NAME_MODE` | `redacted`, `configured` or `placeholder`; default redacts placeholder client names in customer-facing reports |
+| `DIP_COF_CLIENT_NAME_MAP_JSON` | JSON map from temporary COF client names to approved display names |
+| `DIP_REPORT_BRAND_NAME` | Export brand label, default `Contracted Opportunity Finder` |
+| `DIP_REPORT_PREPARED_FOR` | Prepared-for label, default `Procter Street` |
+| `DIP_REPORT_FOOTER` | Export footer caveat |
 
 ## Standard Deployment Order
 

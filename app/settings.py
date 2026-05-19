@@ -61,6 +61,14 @@ class Settings:
         self.smtp_password: str = os.getenv("DIP_SMTP_PASSWORD", "")
         self.smtp_use_tls: bool = env_bool("DIP_SMTP_USE_TLS", "true")
         self.smtp_enabled: bool = env_bool("DIP_SMTP_ENABLED", "false")
+        self.cof_client_name_mode: str = os.getenv("DIP_COF_CLIENT_NAME_MODE", "redacted")
+        self.cof_client_name_map_json: str = os.getenv("DIP_COF_CLIENT_NAME_MAP_JSON", "")
+        self.report_brand_name: str = os.getenv("DIP_REPORT_BRAND_NAME", "Contracted Opportunity Finder")
+        self.report_prepared_for: str = os.getenv("DIP_REPORT_PREPARED_FOR", "Procter Street")
+        self.report_footer: str = os.getenv(
+            "DIP_REPORT_FOOTER",
+            "Human review required. Not a bid, legal, procurement or compliance decision.",
+        )
 
 
 @lru_cache

@@ -5,6 +5,7 @@ import json
 import textwrap
 
 from app.models import IntelligenceReport
+from app.settings import get_settings
 
 
 REPORT_CAVEAT = "Human review required. Not a bid, legal, procurement or compliance decision."
@@ -33,24 +34,100 @@ def report_filename(report: IntelligenceReport, export_format: str) -> str:
 
 
 def _html_report(report: IntelligenceReport) -> str:
+    settings = get_settings()
+    brand = settings.report_brand_name or "Contracted Opportunity Finder"
+    prepared_for = settings.report_prepared_for or "Procter Street"
+    footer = settings.report_footer or REPORT_CAVEAT
     return f"""<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <title>{escape(report.report_name)}</title>
   <style>
-    body {{ margin: 0; font-family: Aptos, Segoe UI, Arial, sans-serif; color: #11141c; background: #f4f6fb; }}
-    main {{ max-width: 1040px; margin: 32px auto; padding: 0; border-top: 7px solid #4b155f; background: #fff; box-shadow: 0 18px 46px rgba(24,32,56,.14); }}
-    header {{ padding: 34px 38px 24px; background: linear-gradient(120deg, #4b155f, #00a7bd); color: #fff; }}
-    section {{ padding: 28px 38px; }}
-    h1 {{ margin: 0 0 8px; font-size: 34px; }}
+    :root {{ --ink:#121621; --muted:#5d6678; --purple:#4b155f; --cyan:#00a7bd; --line:#dbe2ee; --soft:#f5f7fb; }}
+    body {{ margin: 0; font-family: Aptos, Segoe UI, sans-serif; color: var(--ink); background: #eef2f7; }}
+    main {{ max-width: 1080px; margin: 28px auto; background: #fff; box-shadow: 0 22px 52px rgba(22,30,46,.16); }}
+    header {{ padding: 38px 42px 30px; background: linear-gradient(135deg, var(--purple), #25314f 58%, var(--cyan)); color: #fff; }}
+    section {{ padding: 28px 42px 38px; }}
+    h1 {{ margin: 0 0 10px; font-size: 36px; letter-spacing: 0; }}
+    h2 {{ margin: 30px 0 10px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--purple); }}
+    h3 {{ margin: 22px 0 8px; color: #24304c; }}
+    p, li {{ line-height: 1.55; }}
+    ul {{ padding-left: 20px; }}
+    table {{ width: 100%; border-collapse: collapse; margin: 12px 0 18px; font-size: 13px; }}
+    th {{ text-align: left; color: var(--purple); background: #f0edf5; }}
+    th, td {{ border: 1px solid var(--line); padding: 8px 9px; vertical-align: top; }}
     .meta {{ color: #dfe8f2; font-size: 13px; }}
-    .caveat {{ margin: 0; padding: 14px 18px; background: #fff2c7; color: #493300; font-weight: 700; }}
-    pre {{ white-space: pre-wrap; font: 14px/1.55 ui-monospace, Consolas, monospace; }}
+    .caveat {{ margin: 0; padding: 14px 42px; background: #fff2c7; color: #493300; font-weight: 700; }}
+    .brand-kicker {{ text-transform: uppercase; letter-spacing: .12em; font-size: 12px; font-weight: 800; }}
+    .footer {{ padding: 18px 42px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }}
   </style>
 </head>
-<body><main><header><h1>{escape(report.report_name)}</h1><p class="meta">Contracted Opportunity Finder export | {escape(report.report_type)}</p></header><p class="caveat">{escape(REPORT_CAVEAT)}</p><section><pre>{escape(report.markdown)}</pre></section></main></body>
+<body><main><header><div class="brand-kicker">{escape(brand)}</div><h1>{escape(report.report_name)}</h1><p class="meta">Prepared for {escape(prepared_for)} | {escape(report.report_type)}</p></header><p class="caveat">{escape(footer)}</p><section>{_markdown_to_html(report.markdown)}</section><div class="footer">{escape(footer)}</div></main></body>
 </html>"""
+
+
+def _markdown_to_html(markdown: str) -> str:
+    blocks: list[str] = []
+    in_table = False
+    table_rows: list[str] = []
+    in_list = False
+
+    def close_list() -> None:
+        nonlocal in_list
+        if in_list:
+            blocks.append("</ul>")
+            in_list = False
+
+    def close_table() -> None:
+        nonlocal in_table, table_rows
+        if in_table:
+            blocks.append("<table>" + "".join(table_rows) + "</table>")
+            table_rows = []
+            in_table = False
+
+    for raw in markdown.splitlines():
+        line = sanitize_pdf_text(raw).strip()
+        if not line:
+            close_list()
+            close_table()
+            continue
+        if line.startswith("|") and line.endswith("|"):
+            close_list()
+            cells = [escape(cell.strip()).replace("**", "") for cell in line.strip("|").split("|")]
+            if all(set(cell.replace(":", "").replace("-", "").strip()) == set() for cell in cells):
+                in_table = True
+                continue
+            tag = "th" if not in_table else "td"
+            table_rows.append("<tr>" + "".join(f"<{tag}>{cell}</{tag}>" for cell in cells) + "</tr>")
+            in_table = True
+            continue
+        close_table()
+        if line.startswith("#"):
+            level = min(3, max(1, len(line) - len(line.lstrip("#"))))
+            blocks.append(f"<h{level}>{escape(line.lstrip('#').strip()).replace('**', '')}</h{level}>")
+        elif line.startswith("- "):
+            if not in_list:
+                blocks.append("<ul>")
+                in_list = True
+            blocks.append(f"<li>{_inline_markdown(line[2:])}</li>")
+        else:
+            close_list()
+            blocks.append(f"<p>{_inline_markdown(line)}</p>")
+    close_list()
+    close_table()
+    return "\n".join(blocks)
+
+
+def _inline_markdown(text: str) -> str:
+    escaped = escape(text)
+    return re_bold(escaped)
+
+
+def re_bold(text: str) -> str:
+    import re
+
+    return re.sub(r"\*\*(.*?)\*\*", r"<strong>\1</strong>", text)
 
 
 def _pdf_literal(text: str) -> bytes:
@@ -75,11 +152,15 @@ def _pdf_text_lines(markdown: str) -> list[str]:
 
 
 def _content_stream(report: IntelligenceReport, page_number: int, page_count: int, lines: list[str]) -> bytes:
+    settings = get_settings()
+    brand = settings.report_brand_name or "Contracted Opportunity Finder"
+    prepared_for = settings.report_prepared_for or "Procter Street"
+    footer = settings.report_footer or REPORT_CAVEAT
     parts: list[bytes] = [
-        b"BT /F1 9 Tf 50 760 Td " + _pdf_literal("CONTRACTED OPPORTUNITY FINDER | OPPORTUNITY INTELLIGENCE PACK") + b" Tj ET",
+        b"BT /F1 9 Tf 50 760 Td " + _pdf_literal(f"{brand.upper()} | WEEKLY OPPORTUNITY PACK") + b" Tj ET",
         b"0.30 0.08 0.38 rg 50 742 512 3 re f",
         b"BT /F1 17 Tf 50 712 Td " + _pdf_literal(sanitize_pdf_text(report.report_name)[:72]) + b" Tj ET",
-        b"BT /F1 9 Tf 50 690 Td " + _pdf_literal(f"Generated report export | page {page_number} of {page_count}") + b" Tj ET",
+        b"BT /F1 9 Tf 50 690 Td " + _pdf_literal(f"Prepared for {prepared_for} | page {page_number} of {page_count}") + b" Tj ET",
         b"BT /F1 9 Tf 50 668 Td 13 TL",
     ]
     for line in lines:
@@ -87,7 +168,7 @@ def _content_stream(report: IntelligenceReport, page_number: int, page_count: in
     parts.extend(
         [
             b"ET",
-            b"BT /F1 8 Tf 50 34 Td " + _pdf_literal(REPORT_CAVEAT) + b" Tj ET",
+            b"BT /F1 8 Tf 50 34 Td " + _pdf_literal(footer[:115]) + b" Tj ET",
         ]
     )
     return b"\n".join(parts)
@@ -142,14 +223,17 @@ def report_export(report: IntelligenceReport, export_format: str) -> tuple[bytes
     if export_format == "pdf":
         return _pdf_report(report), "application/pdf", report_filename(report, "pdf")
     if export_format == "json":
+        settings = get_settings()
         payload = {
             "id": report.id,
             "report_name": report.report_name,
             "report_type": report.report_type,
+            "brand": settings.report_brand_name,
+            "prepared_for": settings.report_prepared_for,
             "generated_at": report.generated_at.isoformat(),
             "customer_id": report.customer_id,
             "business_unit_id": report.business_unit_id,
-            "caveat": REPORT_CAVEAT,
+            "caveat": settings.report_footer or REPORT_CAVEAT,
             "markdown": report.markdown,
         }
         return json.dumps(payload, indent=2, default=str).encode("utf-8"), "application/json", report_filename(report, "json")

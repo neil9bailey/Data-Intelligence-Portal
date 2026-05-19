@@ -173,10 +173,10 @@ def _ensure_cof_opportunity(
     opportunity.currency = "GBP"
     opportunity.cpv_codes = client.strategic_notes
     opportunity.source_url = f"https://www.find-tender.service.gov.uk/Notice/COF-{index:05d}"
-    opportunity.summary = f"{summary} Source evidence captured for Denise review. Human verification required before client action."
+    opportunity.summary = summary
     opportunity.status = status
     opportunity.relevance_score = 86 if status not in {"needs_review", "review_required"} else 58
-    opportunity.relevance_rationale = f"Matched COF client keywords: {theme}. Human review required before client action."
+    opportunity.relevance_rationale = f"Matched COF client keywords: {theme}. Denise review required before client action."
     opportunity.content_hash = notice_id
     session.add(opportunity)
     session.flush()
