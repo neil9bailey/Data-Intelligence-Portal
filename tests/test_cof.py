@@ -117,6 +117,29 @@ def test_procter_street_cof_pack_applies_idempotently(reference_session):
     assert second["created"] == []
 
 
+def test_admin_reset_cof_workspace_reapplies_design_brief_only(reference_session):
+    apply_cof_pack(reference_session)
+    reference_session.add(Customer(customer_name="Unrelated Council", sector="Public sector", region="UK"))
+    stale = reference_session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "find_a_tender")).first()
+    stale.connector_status = "failed"
+    reference_session.add(stale)
+    reference_session.commit()
+    client = client_for(reference_session)
+    try:
+        response = client.post("/admin/cof/reset", data={"confirm_reset": "true"}, follow_redirects=False)
+    finally:
+        app.dependency_overrides.clear()
+
+    source_keys = {item.source_key for item in reference_session.exec(select(ProcurementSource))}
+    platform_names = {item.name for item in reference_session.exec(select(ProcurementPlatform))}
+
+    assert response.status_code == 303
+    assert len(cof_clients(reference_session)) == 11
+    assert reference_session.exec(select(Customer).where(Customer.customer_name == "Unrelated Council")).first() is not None
+    assert {"find_a_tender", "contracts_finder", "public_contracts_scotland", "sell2wales", "ted_eforms", "tenders_direct_backup"}.issubset(source_keys)
+    assert {"ProContract", "In-Tend", "Jaggaer", "Delta eSourcing"}.issubset(platform_names)
+
+
 def test_cof_pack_seeds_client_portal_metrics_and_actions(reference_session):
     apply_cof_pack(reference_session)
     client = client_for(reference_session)
@@ -250,8 +273,7 @@ def test_cof_weekly_report_content_and_exports(reference_session):
     lower_markdown = markdown.lower()
 
     assert report.business_unit_id == cof_unit.id
-    assert report.report_type == "cof_internal_review_pack"
-    assert "Internal Review Pack - not for client circulation." in markdown
+    assert report.report_type == "cof_final_customer_pack"
     assert "**Scope:** Contracted Opportunity Finder" in markdown
     assert "All customers and business units" not in markdown
     assert "Client Coverage: 11 clients monitored" in markdown
@@ -286,6 +308,7 @@ def test_cof_weekly_report_content_and_exports(reference_session):
     public_notice_section = markdown.split("## Public Notice Evidence", 1)[1].split("## Quality Questions and Weightings", 1)[0]
     review_gaps_section = markdown.split("## Review Gaps", 1)[1].split("## Monday Send Readiness", 1)[0]
     assert "Human review required" in markdown
+    assert "Source Health" in markdown
     assert "Rejected noise record" not in markdown
     for forbidden in ["mvp", "demo", "concept", "seeded", "live-pilot", "test output", "walkthrough", "prototype"]:
         assert forbidden not in lower_markdown
@@ -367,7 +390,7 @@ def test_cof_client_name_modes(reference_session, monkeypatch):
     monkeypatch.setenv("DIP_COF_CLIENT_NAME_MODE", "placeholder")
     get_settings.cache_clear()
     placeholder_report = create_report(reference_session, "COF placeholder", "cof_weekly_portfolio_report")
-    assert placeholder_report.report_type == "cof_internal_review_pack"
+    assert placeholder_report.report_type == "cof_final_customer_pack"
     assert "COF Client 01" in placeholder_report.markdown
 
     monkeypatch.setenv("DIP_COF_CLIENT_NAME_MODE", "configured")
@@ -435,19 +458,19 @@ def test_cof_monday_send_readiness_ready_and_not_ready(reference_session):
     assert ready["delivery_mode"] == "file_outbox"
 
 
-def test_internal_review_pack_with_blockers(reference_session):
+def test_final_pack_generates_with_advisory_source_health(reference_session):
     apply_cof_pack(reference_session)
 
     readiness = cof_readiness(reference_session, report_mode="final")
     report = create_report(reference_session, "COF Final Customer Pack", "cof_final_customer_pack")
 
-    assert readiness.ready_for_final_pack is False
-    assert report.report_type == "cof_internal_review_pack"
-    assert report.report_name == "COF Final Customer Pack - blocked"
-    assert "Internal Review Pack - not for client circulation." in report.markdown
-    assert "Final Pack Readiness Blockers" in report.markdown
-    assert "Ready for weekly send" not in report.markdown
-    assert "source reference(s) are pending validation" in report.markdown
+    assert readiness.ready_for_final_pack is True
+    assert readiness.report_status in {"Review recommended", "Needs source attention", "Ready for weekly send"}
+    assert report.report_type == "cof_final_customer_pack"
+    assert report.report_name == "COF Final Customer Pack"
+    assert "COF Final Customer Pack - blocked" not in report.markdown
+    assert "Final Pack Readiness Blockers" not in report.markdown
+    assert "Source Health" in report.markdown
     assert "No weekly report recipients are configured" in report.markdown
 
 
@@ -491,13 +514,33 @@ def test_final_customer_pack_ready_path(reference_session):
 def test_cof_readiness_sources_and_portals(reference_session):
     make_cof_fixture_ready(reference_session)
     source = reference_session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "sell2wales")).first()
+    cof_unit = reference_session.exec(select(BusinessUnit).where(BusinessUnit.name == "Contracted Opportunity Finder")).first()
+    client = cof_clients(reference_session)[0]
+    failed_source_opportunity = Opportunity(
+        source_id=source.id,
+        customer_id=client.id,
+        business_unit_id=cof_unit.id,
+        title="Sell2Wales failed source tender should be ignored",
+        buyer_name="Welsh Authority",
+        notice_type="tender",
+        procurement_stage="tender",
+        status="approved",
+        deadline_date=date.today() + timedelta(days=25),
+        source_url="https://www.sell2wales.gov.wales/search/show/search_view.aspx",
+        relevance_score=90,
+    )
+    reference_session.add(failed_source_opportunity)
+    reference_session.commit()
     source.active = False
     reference_session.add(source)
     reference_session.commit()
 
     missing_source = cof_readiness(reference_session, report_mode="final")
-    assert missing_source.ready_for_final_pack is False
-    assert any("Required source inactive: Sell2Wales" in item for item in missing_source.blockers)
+    assert missing_source.ready_for_final_pack is True
+    assert any("Sell2Wales" in item and "inactive" in item for item in missing_source.warnings)
+    report = create_report(reference_session, "COF source health", "cof_final_customer_pack")
+    assert "Sell2Wales: ignored" in report.markdown
+    assert "Sell2Wales failed source tender should be ignored" not in report.markdown
 
     source.active = True
     cof_customer_ids = {customer.id for customer in cof_clients(reference_session)}
@@ -506,5 +549,5 @@ def test_cof_readiness_sources_and_portals(reference_session):
         reference_session.delete(item)
     reference_session.commit()
     missing_portal = cof_readiness(reference_session, report_mode="final")
-    assert missing_portal.ready_for_final_pack is False
-    assert any("COF customer(s) have no portal route configured" in item for item in missing_portal.blockers)
+    assert missing_portal.ready_for_final_pack is True
+    assert any("COF customer(s) have no portal route configured" in item for item in missing_portal.warnings)

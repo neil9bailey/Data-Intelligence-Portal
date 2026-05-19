@@ -142,7 +142,7 @@ In **Create Report**:
 
 1. Enter a report name.
 2. Choose the report type:
-   - **Executive intelligence pack** for MD, account, bid, buyer-facing or demo discussion.
+   - **Executive intelligence pack** for MD, account, bid, buyer-facing or leadership discussion.
    - **Admin automation run log** for source-check, connector, KRA runtime and data-quality traceability.
 3. Select a customer, or leave as **All customers**.
 4. Select a business unit, or leave as **All business units**.

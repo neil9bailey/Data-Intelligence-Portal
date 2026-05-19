@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from urllib.parse import quote_plus
 
 from sqlmodel import Session, col, select
 
 from app.audit import log_event
 from app.models import (
     BusinessUnit,
+    BuyerPortalInstance,
     ClientInterestSignal,
     Customer,
+    CustomerWatchProfile,
     DigestProfile,
     DocumentRetrievalTask,
     ExtractedQualityQuestion,
@@ -17,6 +20,7 @@ from app.models import (
     Opportunity,
     OpportunityDocument,
     OpportunityMatchEvidence,
+    PortalInformationConnector,
     ProcurementSource,
 )
 
@@ -36,6 +40,108 @@ CLIENT_VISIBLE_STATUSES = {
     "approved",
 }
 COF_REVIEW_PENDING_STATUSES = {"new", "needs_review", "review_required", "pending_review"}
+
+
+def reset_cof_workspace_records(session: Session, actor: str = "local-user") -> dict[str, int]:
+    """Remove COF-owned workspace data before reapplying the design-brief pack.
+
+    The cleanup is deliberately scoped to the COF business unit, COF client
+    records and COF-generated outputs. It leaves unrelated app data alone.
+    """
+    summary = {
+        "opportunities": 0,
+        "documents": 0,
+        "requirements": 0,
+        "questions": 0,
+        "signals": 0,
+        "tasks": 0,
+        "portals": 0,
+        "connectors": 0,
+        "reports": 0,
+        "customers": 0,
+        "watch_profiles": 0,
+        "digests": 0,
+    }
+    unit = session.exec(select(BusinessUnit).where(BusinessUnit.name == COF_BUSINESS_UNIT)).first()
+    portfolio = session.exec(select(Customer).where(Customer.customer_name == "Procter Street COF Portfolio")).first()
+    clients = list(session.exec(select(Customer).where(col(Customer.customer_name).startswith(COF_CLIENT_PREFIX))))
+    customer_ids = {item.id for item in [portfolio, *clients] if item and item.id}
+    unit_id = unit.id if unit and unit.id else None
+    opportunities = [
+        item
+        for item in session.exec(select(Opportunity))
+        if (item.customer_id and item.customer_id in customer_ids)
+        or (unit_id and item.business_unit_id == unit_id)
+        or (item.notice_identifier or "").startswith(("cof-pipeline-", "cof-live-pilot-"))
+    ]
+    opportunity_ids = {item.id for item in opportunities if item.id}
+    if opportunity_ids:
+        for model, key in [
+            (ClientInterestSignal, "signals"),
+            (DocumentRetrievalTask, "tasks"),
+            (ExtractedQualityQuestion, "questions"),
+            (ExtractedRequirement, "requirements"),
+            (OpportunityDocument, "documents"),
+            (OpportunityMatchEvidence, "requirements"),
+        ]:
+            rows = list(session.exec(select(model).where(model.opportunity_id.in_(opportunity_ids))))
+            for row in rows:
+                session.delete(row)
+            summary[key] += len(rows)
+        for opportunity in opportunities:
+            session.delete(opportunity)
+        summary["opportunities"] = len(opportunities)
+    if customer_ids:
+        rows = list(session.exec(select(CustomerWatchProfile).where(CustomerWatchProfile.customer_id.in_(customer_ids))))
+        for row in rows:
+            session.delete(row)
+        summary["watch_profiles"] += len(rows)
+    portals = [
+        item
+        for item in session.exec(select(BuyerPortalInstance))
+        if (item.customer_id and item.customer_id in customer_ids)
+        or (unit_id and item.business_unit_id == unit_id)
+        or item.portal_name.startswith("COF ")
+    ]
+    portal_ids = {item.id for item in portals if item.id}
+    if portal_ids:
+        connectors = list(session.exec(select(PortalInformationConnector).where(PortalInformationConnector.portal_instance_id.in_(portal_ids))))
+        for connector in connectors:
+            session.delete(connector)
+        summary["connectors"] = len(connectors)
+    for portal in portals:
+        session.delete(portal)
+    summary["portals"] = len(portals)
+    reports = [
+        item
+        for item in session.exec(select(IntelligenceReport))
+        if (item.report_type or "").startswith("cof_") or (unit_id and item.business_unit_id == unit_id)
+    ]
+    for report in reports:
+        session.delete(report)
+    summary["reports"] = len(reports)
+    digests = list(session.exec(select(DigestProfile).where(DigestProfile.name == COF_DIGEST_NAME)))
+    for digest in digests:
+        session.delete(digest)
+    summary["digests"] = len(digests)
+    for customer in clients:
+        session.delete(customer)
+    if portfolio:
+        session.delete(portfolio)
+    summary["customers"] = len(clients) + (1 if portfolio else 0)
+    if unit:
+        session.delete(unit)
+    session.flush()
+    log_event(
+        session,
+        entity_type="COFWorkspace",
+        entity_id=unit_id,
+        action="reset",
+        summary="Reset COF workspace to the design-brief baseline.",
+        after=summary,
+        actor=actor,
+    )
+    return summary
 
 
 def seed_cof_live_pilot_content(session: Session, actor: str = "local-user") -> dict[str, int]:
@@ -175,7 +281,7 @@ def _ensure_cof_opportunity(
     opportunity.value_high = value
     opportunity.currency = "GBP"
     opportunity.cpv_codes = client.strategic_notes
-    opportunity.source_url = f"https://www.find-tender.service.gov.uk/Notice/COF-{index:05d}"
+    opportunity.source_url = f"https://www.find-tender.service.gov.uk/Search/Results?Keywords={quote_plus(title)}"
     opportunity.summary = summary
     opportunity.status = status
     opportunity.relevance_score = 86 if status not in {"needs_review", "review_required"} else 58

@@ -5,12 +5,13 @@ from sqlmodel import Session, col, select
 from app.audit import compact_snapshot, log_event
 from app.auth import require_admin
 from app.automation import automation_summary, create_queued_automation_run, run_admin_full_cycle_background
-from app.cof import cof_friday_readiness
-from app.cof_readiness import cof_readiness
+from app.cof import cof_friday_readiness, reset_cof_workspace_records
+from app.cof_readiness import cof_operating_status
 from app.database import get_session
 from app.digests import send_digest
 from app.email_service import get_email_configuration, send_or_store_email, split_recipients
 from app.form_utils import parse_bool, parse_optional_int, validation_error_response
+from app.intelligence_packs import apply_intelligence_pack, get_preconfigured_customer_pack
 from app.maintenance import clean_generated_outputs
 from app.models import DigestProfile, EmailDeliveryLog, utc_now
 from app.route_utils import context, health_dashboard_context, redirect, reference_context, templates
@@ -36,7 +37,7 @@ def admin(request: Request, session: Session = Depends(get_session), _user=Depen
             automation=automation,
             digest_profiles=digest_profiles,
             cof_readiness=cof_friday_readiness(session),
-            cof_production_readiness=cof_readiness(session, report_mode="final"),
+            cof_production_readiness=cof_operating_status(session),
             **reference_context(session),
         ),
     )
@@ -101,6 +102,23 @@ async def clean_output_artifacts(request: Request, session: Session = Depends(ge
         f"&emails={summary.get('EmailDeliveryLog', 0)}"
         f"&runs={summary.get('AutomationRun', 0)}"
         f"&snapshots={summary.get('SourceCheckSnapshot', 0)}"
+    )
+
+
+@router.post("/admin/cof/reset")
+async def reset_cof_workspace(request: Request, session: Session = Depends(get_session), user=Depends(require_admin)):
+    form = await request.form()
+    if not parse_bool(form.get("confirm_reset")):
+        return validation_error_response(["Tick the confirmation box before resetting the COF workspace."], "/admin")
+    reset_summary = reset_cof_workspace_records(session, actor=user.username)
+    pack = get_preconfigured_customer_pack("procter_street_cof")
+    apply_summary = apply_intelligence_pack(session, pack, actor=user.username)
+    return redirect(
+        "/admin?cof_reset=1"
+        f"&customers={reset_summary.get('customers', 0)}"
+        f"&opportunities={reset_summary.get('opportunities', 0)}"
+        f"&created={len(apply_summary.get('created', []))}"
+        f"&updated={len(apply_summary.get('updated', []))}"
     )
 
 

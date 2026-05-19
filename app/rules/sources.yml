@@ -75,13 +75,13 @@ sources:
     base_url: https://api.publiccontractsscotland.gov.uk
     query_url: https://api.publiccontractsscotland.gov.uk/v1/Notices
     official: true
-    active: false
+    active: true
     coverage: Scotland public-sector procurement notices
     auth_model: none
     data_format: REST OCDS JSON
     dedupe_strategy: ocid_or_notice_reference
-    connector_status: disabled_requires_endpoint_validation
-    notes: Official OCDS API endpoint is configured as a reference source. Keep disabled for automated live pilot retrieval until TLS/certificate validation and date-scoped retrieval behaviour are confirmed.
+    connector_status: live_public_source
+    notes: Official Scottish public procurement source in the COF five-source pipeline. Connector health is shown in Source Health and stale/failed records are ignored from output.
   - key: sell2wales
     name: Sell2Wales public procurement source
     source_family: official_notice

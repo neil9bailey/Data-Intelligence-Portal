@@ -61,6 +61,15 @@
     <a class="button secondary" href="/admin">Clear message</a>
   </div>
   {% endif %}
+  {% if request.query_params.get('cof_reset') == '1' %}
+  <div class="run-alert">
+    <div>
+      <strong>COF workspace reset</strong>
+      <p>Reset {{ request.query_params.get('customers') or 0 }} customer record(s) and {{ request.query_params.get('opportunities') or 0 }} opportunity record(s), then reapplied the source-to-inbox design-brief pack.</p>
+    </div>
+    <a class="button secondary" href="/admin">Clear message</a>
+  </div>
+  {% endif %}
   <div class="automation-grid">
     {% set labels = ['Apply or update customer packs', 'Refresh official news feeds', 'Refresh public sources', 'Run KRA checks', 'Run public opportunity keyword sweep', 'Classify opportunities and requirements', 'Run approved portal retrieval', 'Classify retrieved intelligence', 'Confirm portal tasks are complete', 'Generate a report', 'Generate branded report export', 'Email the report', 'Check the audit log'] %}
     {% for label in labels %}
@@ -102,24 +111,26 @@
 <section class="panel" style="margin-top:18px;">
   <div class="panel-title">
     <div>
-      <h2>COF Production Readiness</h2>
-      <p class="hint">Final Customer Pack status across customers, sources, portal families, KRA, review gates, documents and delivery.</p>
+      <h2>COF Source Health</h2>
+      <p class="hint">Advisory source-to-inbox health for the weekly opportunity pack. Reports still generate; stale or failed source records are ignored from opportunity output until healthy.</p>
     </div>
-    <span class="badge {{ 'green' if cof_production_readiness.ready_for_final_pack else 'red' }}">{{ 'Ready' if cof_production_readiness.ready_for_final_pack else 'Blocked' }}</span>
+    <span class="badge {{ 'green' if cof_production_readiness.status == 'Ready for weekly send' else 'red' if cof_production_readiness.status == 'Needs source attention' else 'amber' }}">{{ cof_production_readiness.status }}</span>
   </div>
   <div class="grid metrics">
     <div class="metric"><span class="value">{{ cof_production_readiness.customers_configured_count }}</span><span class="label">COF customers</span></div>
-    <div class="metric"><span class="value">{{ cof_production_readiness.sources_active_count }}</span><span class="label">active sources</span></div>
-    <div class="metric"><span class="value">{{ cof_production_readiness.portals_configured_count }}</span><span class="label">portal routes</span></div>
-    <div class="metric"><span class="value">{{ cof_production_readiness.kra_pending_findings_count }}</span><span class="label">KRA pending</span></div>
-    <div class="metric"><span class="value">{{ cof_production_readiness.pending_human_review_count }}</span><span class="label">human review gate</span></div>
+    <div class="metric"><span class="value">{{ cof_production_readiness.source_health | selectattr('status', 'equalto', 'active') | list | length }}</span><span class="label">active primary sources</span></div>
+    <div class="metric"><span class="value">{{ cof_production_readiness.source_health | selectattr('status', 'equalto', 'stale') | list | length }}</span><span class="label">stale sources</span></div>
+    <div class="metric"><span class="value">{{ cof_production_readiness.source_health | selectattr('status', 'equalto', 'failed') | list | length }}</span><span class="label">failed sources</span></div>
+    <div class="metric"><span class="value">{{ cof_production_readiness.ignored_opportunity_count }}</span><span class="label">ignored sources</span></div>
     <div class="metric"><span class="value">{{ cof_production_readiness.recipients_count }}</span><span class="label">weekly recipients</span></div>
   </div>
   <div class="grid two" style="margin-top:14px;">
     <div>
-      <h3>Blockers</h3>
+      <h3>Source Families</h3>
       <ul class="plain-list">
-        {% for blocker in cof_production_readiness.blockers %}<li>{{ blocker }}</li>{% else %}<li>No final-pack blockers detected.</li>{% endfor %}
+        {% for source in cof_production_readiness.source_health %}
+        <li><strong>{{ source.label }}</strong>: {{ source.status }} - {{ source.message }}</li>
+        {% else %}<li>No source health records are available.</li>{% endfor %}
       </ul>
     </div>
     <div>
@@ -135,8 +146,12 @@
           <input type="hidden" name="report_type" value="cof_final_customer_pack">
           <button type="submit">Generate Final Customer Pack</button>
         </form>
+        <form method="post" action="/admin/cof/reset" onsubmit="return confirm('Reset only the COF workspace and reapply the design-brief pack?');">
+          <input type="hidden" name="confirm_reset" value="true">
+          <button class="secondary" type="submit">Reset COF workspace to design brief</button>
+        </form>
       </div>
-      <p class="hint">If readiness is blocked, the final action creates a blocked Internal Review Pack instead of a customer-facing final pack.</p>
+      <p class="hint">The weekly pack always generates. Email/send is guarded by recipient and delivery configuration; source warnings are shown as Source Health.</p>
     </div>
   </div>
 </section>

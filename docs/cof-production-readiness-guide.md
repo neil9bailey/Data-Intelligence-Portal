@@ -1,24 +1,24 @@
 # COF Production Readiness Guide
 
-This guide explains how the Contracted Opportunity Finder now separates internal operating output from final customer-facing weekly packs.
+This guide explains how the Contracted Opportunity Finder runs the source-to-inbox opportunity workflow with advisory source health, human curation and weekly report output.
 
 ## Report Modes
 
 COF supports two production report modes:
 
-- `cof_internal_review_pack`: internal operational pack. It can always be generated and shows blockers, pending reviews, source warnings, KRA status, portal coverage, retrieval queues and send-readiness diagnostics.
-- `cof_final_customer_pack`: final customer pack. It is generated only when the readiness gate passes. If blockers exist, the app creates a blocked internal report named `COF Final Customer Pack - blocked` instead.
+- `cof_internal_review_pack`: internal operational pack. It can always be generated and shows pending reviews, source warnings, KRA status, portal coverage, retrieval queues and send-readiness diagnostics.
+- `cof_final_customer_pack`: weekly customer pack. It always generates and includes concise Source Health so stale or failed sources are visible without stopping download/export.
 
 Legacy report types remain available for backwards compatibility:
 
 - `cof_weekly_portfolio_report`
 - `cof_weekly_client_report`
 
-The legacy portfolio type follows the same readiness logic: final if ready, otherwise internal.
+The legacy portfolio type maps to the weekly customer pack and keeps the COF workspace scope.
 
-## Final Pack Readiness
+## Source Health And Weekly Send Readiness
 
-The readiness engine checks:
+The operating status engine checks:
 
 - minimum configured COF customers, default 11 through `DIP_COF_MIN_CUSTOMERS`
 - every COF customer has visible pipeline coverage
@@ -27,18 +27,18 @@ The readiness engine checks:
 - required portal families exist: ProContract, In-Tend, Jaggaer and Delta eSourcing
 - each COF customer has a portal route or route-to-confirm warning
 - KRA agent profiles exist and any KRA output remains evidence support only
-- no final included opportunities have missing, invalid or internal source references
-- no final included opportunities, retrieved documents or quality questions are pending review
+- stale, failed or inactive sources are ignored from customer opportunity sections
+- opportunity records remain visible only when they are matched to COF clients and trusted active source families
 - interested items have document retrieval tasks
 - a Monday digest profile exists, is enabled, has recipients and has an export format
 
-File outbox delivery is acceptable for the current live customer-pilot environment, but recipients must still be configured so the weekly send route is explicit.
+Report downloads always remain available. Email/send is guarded only by recipient and delivery configuration. File outbox delivery is acceptable for the current live customer-pilot environment.
 
 ## Source Validation
 
-Internal packs may show source references that still need validation, but they are labelled as pending validation and appear as blockers.
+Internal packs may show source references that still need validation, but they are labelled as pending validation and appear as attention items.
 
-Final customer packs include only verified official/public source references or safe non-clickable source labels. They never show internal COF notice references as captured source evidence.
+Weekly customer packs include verified official/public source references or safe non-clickable source labels. They never show internal COF notice references as captured source evidence.
 
 ## Workflow Labels
 
@@ -70,14 +70,14 @@ The portal workflow tracks portal family, access status and retrieval tasks. It 
 
 Document extraction uses permitted text, notes and summaries only. Storage references and portal references are not treated as raw document content.
 
-## Getting From Blocked To Ready
+## Getting From Attention To Ready
 
-1. Open Admin and review the COF Production Readiness panel.
-2. Generate the Internal Review Pack to see all blockers.
-3. Resolve source URL validation, review-gate, document/question review and portal route blockers.
+1. Open Admin and review the COF Source Health panel.
+2. Generate the Internal Review Pack for operational diagnostics.
+3. Resolve stale or failed source health, review-gate, document/question review and portal route attention items.
 4. Configure the COF Monday report send digest profile with recipients.
-5. Re-run the Final Customer Pack.
-6. Send or store the final pack only when it says `Ready for weekly send`.
+5. Re-run the weekly customer pack.
+6. Send or store the pack when it says `Ready for weekly send`; otherwise download/export remains available with warnings.
 
 ## Current Azure Operating Model
 

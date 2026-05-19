@@ -384,12 +384,12 @@ def test_admin_full_cycle_automation_preconfigures_and_exports(reference_session
     assert reference_session.exec(select(AutomationRun)).first() is not None
     report = reference_session.get(IntelligenceReport, run.report_id)
     assert report is not None
-    assert report.report_type == "cof_internal_review_pack"
-    assert "Internal Review Pack - not for client circulation." in report.markdown
+    assert report.report_type == "cof_final_customer_pack"
+    assert "Source Health" in report.markdown
     assert "KRA Runtime" not in report.markdown
-    assert reference_session.exec(select(EmailDeliveryLog)).first() is None
-    assert "Final Customer Pack is blocked" in run.steps_json
-    assert reference_session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "find_a_tender_national_highways")).first().active is False
+    assert reference_session.exec(select(EmailDeliveryLog)).first() is not None
+    assert "Final Customer Pack is blocked" not in run.steps_json
+    assert "COF Final Customer Pack - blocked" not in report.report_name
 
 
 def test_live_kra_sources_prefer_broad_official_ocds_apis(reference_session):
@@ -399,7 +399,7 @@ def test_live_kra_sources_prefer_broad_official_ocds_apis(reference_session):
         for source_id in source_ids
     }
 
-    assert source_keys == {"find_a_tender", "contracts_finder"}
+    assert source_keys == {"find_a_tender", "contracts_finder", "public_contracts_scotland", "sell2wales", "ted_eforms"}
 
 
 def test_admin_automation_route_queues_background_run(reference_session, monkeypatch):

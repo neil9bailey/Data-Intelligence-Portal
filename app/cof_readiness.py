@@ -23,6 +23,7 @@ from app.models import (
     OpportunityDocument,
     ProcurementPlatform,
     ProcurementSource,
+    SourceCheckSnapshot,
 )
 from app.settings import get_settings
 
@@ -53,6 +54,67 @@ FINAL_FORBIDDEN_WORDS = {
     "fake",
     "placeholder",
 }
+PRIMARY_SOURCE_STATUSES = {"active", "stale", "failed", "ignored"}
+SOURCE_FRESHNESS_DAYS = 7
+
+
+@dataclass
+class SourceHealthItem:
+    key: str
+    label: str
+    status: str
+    role: str = "primary"
+    active: bool = False
+    connector_status: str = ""
+    last_checked_at: datetime | None = None
+    last_status: str = ""
+    message: str = ""
+
+    @property
+    def trusted_for_output(self) -> bool:
+        return self.role == "primary" and self.status == "active"
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "key": self.key,
+            "label": self.label,
+            "status": self.status,
+            "role": self.role,
+            "active": self.active,
+            "connector_status": self.connector_status,
+            "last_checked_at": self.last_checked_at.isoformat(timespec="seconds") if self.last_checked_at else None,
+            "last_status": self.last_status,
+            "message": self.message,
+        }
+
+
+@dataclass
+class COFOperatingStatus:
+    status: str
+    source_health: list[SourceHealthItem] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    delivery_warnings: list[str] = field(default_factory=list)
+    ignored_opportunity_count: int = 0
+    customers_configured_count: int = 0
+    recipients_count: int = 0
+    delivery_mode: str = "file_outbox"
+
+    @property
+    def ready_for_weekly_send(self) -> bool:
+        return self.status == "Ready for weekly send"
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "status": self.status,
+            "ready_for_weekly_send": self.ready_for_weekly_send,
+            "source_health": [item.as_dict() for item in self.source_health],
+            "warnings": self.warnings,
+            "delivery_warnings": self.delivery_warnings,
+            "ignored_opportunity_count": self.ignored_opportunity_count,
+            "customers_configured_count": self.customers_configured_count,
+            "recipients_count": self.recipients_count,
+            "delivery_mode": self.delivery_mode,
+        }
 
 
 @dataclass
@@ -93,6 +155,11 @@ class COFReadinessResult:
     latest_email_delivery_status: str = "not sent"
     blockers: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    report_status: str = "Review recommended"
+    source_health: list[SourceHealthItem] = field(default_factory=list)
+    ignored_source_count: int = 0
+    stale_source_count: int = 0
+    failed_source_count: int = 0
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -125,6 +192,11 @@ class COFReadinessResult:
             "latest_email_delivery_status": self.latest_email_delivery_status,
             "blockers": self.blockers,
             "warnings": self.warnings,
+            "report_status": self.report_status,
+            "source_health": [item.as_dict() for item in self.source_health],
+            "ignored_source_count": self.ignored_source_count,
+            "stale_source_count": self.stale_source_count,
+            "failed_source_count": self.failed_source_count,
         }
 
 
@@ -216,6 +288,130 @@ def source_reference_for_report(opportunity: Opportunity, report_mode: str) -> s
     return status.reference
 
 
+def cof_source_health(session: Session, freshness_days: int = SOURCE_FRESHNESS_DAYS) -> list[SourceHealthItem]:
+    sources = list(session.exec(select(ProcurementSource)))
+    snapshots = list(session.exec(select(SourceCheckSnapshot).order_by(col(SourceCheckSnapshot.checked_at).desc()).limit(200)))
+    latest_by_source: dict[int, SourceCheckSnapshot] = {}
+    for snapshot in snapshots:
+        if snapshot.source_id and snapshot.source_id not in latest_by_source:
+            latest_by_source[snapshot.source_id] = snapshot
+    by_key = {source.source_key: source for source in sources if source.source_key}
+    health: list[SourceHealthItem] = []
+    for key, label in {**REQUIRED_SOURCE_KEYS, **BACKUP_SOURCE_KEYS}.items():
+        source = by_key.get(key)
+        role = "backup" if key in BACKUP_SOURCE_KEYS else "primary"
+        if not source:
+            health.append(SourceHealthItem(key=key, label=label, status="failed", role=role, message="Source catalogue entry is missing."))
+            continue
+        if role == "backup":
+            health.append(
+                SourceHealthItem(
+                    key=key,
+                    label=label,
+                    status="backup",
+                    role=role,
+                    active=source.active,
+                    connector_status=source.connector_status,
+                    last_checked_at=source.last_checked_at,
+                    last_status=source.last_status,
+                    message="Backup source configured for future approved use.",
+                )
+            )
+            continue
+        latest = latest_by_source.get(source.id or 0)
+        last_checked = latest.checked_at if latest else source.last_checked_at
+        status_text = " ".join(
+            [
+                source.connector_status or "",
+                source.last_status or "",
+                latest.connector_status if latest else "",
+                latest.notes if latest else "",
+            ]
+        ).lower()
+        if not source.active:
+            status = "ignored"
+            message = "Source is configured but inactive, so its opportunities are ignored from output."
+        elif any(token in status_text for token in ("failed", "error", "unreachable", "blocked", "rate_limited", "rate limited")):
+            status = "failed"
+            message = "Latest connector/source check needs attention; records from this source are ignored until healthy."
+        elif latest and not latest.ok:
+            status = "failed"
+            message = "Latest source check failed; records from this source are ignored until healthy."
+        elif last_checked and _as_utc(last_checked) < datetime.now(UTC) - timedelta(days=freshness_days):
+            status = "stale"
+            message = f"Source has not refreshed within {freshness_days} days; records are ignored until refreshed."
+        elif not last_checked and not any(token in status_text for token in ("live_public_source", "live_mvp", "active")):
+            status = "stale"
+            message = "Source is configured but has no proven recent check; records are ignored until checked."
+        else:
+            status = "active"
+            message = "Source is available for opportunity output."
+        health.append(
+            SourceHealthItem(
+                key=key,
+                label=label,
+                status=status,
+                role=role,
+                active=source.active,
+                connector_status=source.connector_status,
+                last_checked_at=last_checked,
+                last_status=source.last_status or (str(latest.status_code) if latest else ""),
+                message=message,
+            )
+        )
+    return health
+
+
+def trusted_cof_source_ids(session: Session) -> set[int]:
+    trusted_keys = {item.key for item in cof_source_health(session) if item.trusted_for_output}
+    if not trusted_keys:
+        return set()
+    return {
+        source.id
+        for source in session.exec(select(ProcurementSource))
+        if source.id and source.source_key in trusted_keys
+    }
+
+
+def cof_operating_status(
+    session: Session,
+    customer_id: int | None = None,
+    business_unit_id: int | None = None,
+) -> COFOperatingStatus:
+    readiness = cof_readiness(session, customer_id=customer_id, business_unit_id=business_unit_id, report_mode="final")
+    source_health = readiness.source_health or cof_source_health(session)
+    source_warnings = [
+        f"{item.label}: {item.status} - {item.message}"
+        for item in source_health
+        if item.status in {"stale", "failed", "ignored"}
+    ]
+    delivery_warnings: list[str] = []
+    if not readiness.digest_profile_exists:
+        delivery_warnings.append("Weekly report digest profile is not configured.")
+    elif not readiness.digest_profile_enabled:
+        delivery_warnings.append("Weekly report digest profile is disabled.")
+    if readiness.recipients_count == 0:
+        delivery_warnings.append("No weekly report recipients are configured; download/file-outbox remains available.")
+    if readiness.failed_source_count or readiness.stale_source_count:
+        status = "Needs source attention"
+    elif readiness.pending_human_review_count or readiness.pending_document_review_count or readiness.pending_quality_question_review_count:
+        status = "Review recommended"
+    elif delivery_warnings:
+        status = "Review recommended"
+    else:
+        status = "Ready for weekly send"
+    return COFOperatingStatus(
+        status=status,
+        source_health=source_health,
+        warnings=[*source_warnings, *readiness.warnings],
+        delivery_warnings=delivery_warnings,
+        ignored_opportunity_count=readiness.ignored_source_count,
+        customers_configured_count=readiness.customers_configured_count,
+        recipients_count=readiness.recipients_count,
+        delivery_mode=readiness.delivery_mode,
+    )
+
+
 def cof_readiness(
     session: Session,
     customer_id: int | None = None,
@@ -244,7 +440,8 @@ def cof_readiness(
         .order_by(col(IntelligenceReport.generated_at).desc())
     ).first()
 
-    required_sources = REQUIRED_SOURCE_KEYS | BACKUP_SOURCE_KEYS
+    source_health = cof_source_health(session)
+    health_by_key = {item.key: item for item in source_health}
     source_keys = {source.source_key for source in sources}
     active_source_keys = {source.source_key for source in sources if source.active}
     platform_names = {platform.name for platform in platforms}
@@ -262,7 +459,7 @@ def cof_readiness(
     delivery_mode = settings.email_delivery_mode or "file_outbox"
 
     result = COFReadinessResult(
-        ready_for_final_pack=False,
+        ready_for_final_pack=True,
         customers_configured_count=len(customers),
         customers_with_visible_items_count=len({item.customer_id for item in opportunities if item.customer_id}),
         sources_configured_count=len(sources),
@@ -287,57 +484,70 @@ def cof_readiness(
         export_format=digest.export_format if digest else "pdf",
         latest_report_generated_at=latest_report.generated_at if latest_report else None,
         latest_email_delivery_status=latest_email.status if latest_email else "not sent",
+        source_health=source_health,
+        ignored_source_count=sum(1 for item in source_health if item.status == "ignored"),
+        stale_source_count=sum(1 for item in source_health if item.status == "stale"),
+        failed_source_count=sum(1 for item in source_health if item.status == "failed"),
     )
 
-    result.blockers.extend(_coverage_blockers(result, settings.cof_min_customers))
-    for source_key, label in required_sources.items():
+    result.warnings.extend(_coverage_blockers(result, settings.cof_min_customers))
+    for source_key, label in {**REQUIRED_SOURCE_KEYS, **BACKUP_SOURCE_KEYS}.items():
         if source_key not in source_keys:
-            result.blockers.append(f"Required source missing: {label}.")
+            result.warnings.append(f"Required source missing: {label}.")
     for source_key, label in REQUIRED_SOURCE_KEYS.items():
+        health = health_by_key.get(source_key)
         if source_key in source_keys and source_key not in active_source_keys:
-            result.blockers.append(f"Required source inactive: {label}.")
+            result.warnings.append(f"Required source inactive/ignored: {label}.")
+        elif health and health.status in {"stale", "failed", "ignored"}:
+            result.warnings.append(f"{label} source health is {health.status}: {health.message}")
     for family in sorted(REQUIRED_PORTAL_FAMILIES - platform_names):
-        result.blockers.append(f"Required portal family missing: {family}.")
+        result.warnings.append(f"Required portal family missing: {family}.")
     missing_portal_customers = [customer.customer_name for customer in customers if customer.id not in portal_customer_ids]
     if missing_portal_customers:
-        result.blockers.append(f"{len(missing_portal_customers)} COF customer(s) have no portal route configured.")
+        result.warnings.append(f"{len(missing_portal_customers)} COF customer(s) have no portal route configured.")
     metadata_warnings = _customer_metadata_warnings(customers)
     result.warnings.extend(metadata_warnings)
     if result.placeholder_source_url_count:
-        result.blockers.append(f"{result.placeholder_source_url_count} opportunity source reference(s) are pending validation.")
+        result.warnings.append(f"{result.placeholder_source_url_count} opportunity source reference(s) are pending validation.")
     if result.invalid_source_url_count:
-        result.blockers.append(f"{result.invalid_source_url_count} opportunity source URL(s) need validation.")
+        result.warnings.append(f"{result.invalid_source_url_count} opportunity source URL(s) need validation.")
     if result.missing_source_url_count:
-        result.blockers.append(f"{result.missing_source_url_count} opportunity source URL(s) are missing.")
+        result.warnings.append(f"{result.missing_source_url_count} opportunity source URL(s) are missing.")
     if result.pending_human_review_count:
-        result.blockers.append(f"{result.pending_human_review_count} opportunity record(s) are still inside the Human Review Gate.")
+        result.warnings.append(f"{result.pending_human_review_count} opportunity record(s) are still inside the Human Review Gate.")
     if result.pending_document_review_count:
-        result.blockers.append(f"{result.pending_document_review_count} retrieved document(s) are pending review.")
+        result.warnings.append(f"{result.pending_document_review_count} retrieved document(s) are pending review.")
     if result.pending_quality_question_review_count:
-        result.blockers.append(f"{result.pending_quality_question_review_count} quality question(s) are pending review.")
+        result.warnings.append(f"{result.pending_quality_question_review_count} quality question(s) are pending review.")
     if result.interested_without_retrieval_task_count:
-        result.blockers.append(f"{result.interested_without_retrieval_task_count} client interest signal(s) have no document retrieval task.")
+        result.warnings.append(f"{result.interested_without_retrieval_task_count} client interest signal(s) have no document retrieval task.")
     if not result.digest_profile_exists:
-        result.blockers.append("COF Monday digest profile is missing.")
+        result.warnings.append("COF Monday digest profile is missing.")
     elif not result.digest_profile_enabled:
-        result.blockers.append("COF Monday digest profile is disabled.")
+        result.warnings.append("COF Monday digest profile is disabled.")
     if result.recipients_count == 0:
-        result.blockers.append("No weekly report recipients are configured.")
+        result.warnings.append("No weekly report recipients are configured; report downloads remain available.")
     if not result.export_format:
-        result.blockers.append("Digest export format is not configured.")
+        result.warnings.append("Digest export format is not configured.")
     if report_mode == "final" and settings.cof_client_name_mode == "placeholder":
-        result.blockers.append("Final customer pack cannot use raw COF client placeholder names.")
+        result.warnings.append("Raw COF client placeholder names are visible because placeholder mode is enabled.")
     if not result.kra_enabled:
-        result.blockers.append("KRA agent profiles are not configured.")
+        result.warnings.append("KRA agent profiles are not configured.")
     if not result.kra_recent_run_present:
         if deterministic_kra:
             result.warnings.append("KRA is operating in deterministic/manual mode; no recent completed KRA run is required for this pilot.")
         else:
-            result.blockers.append("No recent completed KRA run is present.")
+            result.warnings.append("No recent completed KRA run is present.")
     if result.kra_pending_findings_count and report_mode == "final":
         result.warnings.append(f"{result.kra_pending_findings_count} KRA finding(s) remain pending review and are excluded from the final pack.")
 
-    result.ready_for_final_pack = not result.blockers
+    if result.failed_source_count or result.stale_source_count:
+        result.report_status = "Needs source attention"
+    elif result.warnings:
+        result.report_status = "Review recommended"
+    else:
+        result.report_status = "Ready for weekly send"
+    result.ready_for_final_pack = True
     return result
 
 

@@ -42,12 +42,12 @@ from app.settings import get_settings
 OPEN_TASK_STATUSES = {"requested", "in_progress", "blocked", "review_required"}
 AUTO_PORTAL_MODES = {"approved_api", "public_api_no_key", "api_key_header", "api_key_query", "oauth_client_credentials"}
 logger = logging.getLogger(__name__)
-LIVE_KRA_SOURCE_KEYS = {"find_a_tender", "contracts_finder"}
+LIVE_KRA_SOURCE_KEYS = {"find_a_tender", "contracts_finder", "public_contracts_scotland", "sell2wales", "ted_eforms"}
 
 
 def apply_all_preconfigured_packs(session: Session, actor: str = "system") -> list[dict]:
     results: list[dict] = []
-    for pack_ref in list_preconfigured_customer_packs():
+    for pack_ref in [item for item in list_preconfigured_customer_packs() if item["key"] == "procter_street_cof"]:
         pack = get_preconfigured_customer_pack(pack_ref["key"])
         results.append(apply_intelligence_pack(session, pack, actor=actor))
     return results
@@ -210,9 +210,7 @@ def run_admin_full_cycle(
         config = get_email_configuration(session)
         recipients = split_recipients(email_recipients or config.default_recipients)
         email_log_id = None
-        if report.report_type != "cof_final_customer_pack":
-            step("Email the report", "blocked", "Final Customer Pack is blocked; internal review pack was stored but not sent.")
-        elif recipients:
+        if recipients:
             email_log = send_or_store_email(
                 session,
                 config,
@@ -225,7 +223,7 @@ def run_admin_full_cycle(
             email_log_id = email_log.id
             step("Email the report", email_log.status, f"Email delivery status: {email_log.status}.", email_log_id=email_log.id)
         else:
-            step("Email the report", "warning", "No agreed recipients configured; report email was not created.")
+            step("Email the report", "warning", "No agreed recipients configured; report export was stored and can be downloaded.")
 
         audit_count = len(list(session.exec(select(AuditEvent).order_by(col(AuditEvent.created_at).desc()).limit(25))))
         step("Check the audit log", "completed", f"Latest {audit_count} audit events are available in Admin > Audit.")
@@ -290,7 +288,11 @@ def run_admin_full_cycle_background(run_id: int, actor: str, email_recipients: s
 
 
 def refresh_public_sources(session: Session, fetcher=None) -> list[dict]:
-    sources = list(session.exec(select(ProcurementSource).where(ProcurementSource.active == True)))  # noqa: E712
+    sources = [
+        source
+        for source in session.exec(select(ProcurementSource).where(ProcurementSource.active == True))  # noqa: E712
+        if source.source_key in LIVE_KRA_SOURCE_KEYS
+    ]
     results: list[dict] = []
     for source in sources:
         try:

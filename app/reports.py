@@ -13,10 +13,12 @@ from app.cof_readiness import (
     COFReadinessResult,
     REQUIRED_PORTAL_FAMILIES,
     REQUIRED_SOURCE_KEYS,
+    cof_operating_status,
     cof_readiness,
     is_placeholder_source_url,
     source_reference_for_report,
     source_status_for_opportunity,
+    trusted_cof_source_ids,
 )
 from app.intelligence import kra_runtime_status, requirement_themes_for_text
 from app.llm import LLMError, generate_llm_text, kra_system_prompt, llm_enabled
@@ -360,10 +362,6 @@ def create_report(
     )
     effective_report_type = _effective_cof_report_type(session, report_type, customer_id, business_unit_id)
     effective_report_name = report_name
-    if report_type == "cof_final_customer_pack" and effective_report_type == "cof_internal_review_pack":
-        effective_report_name = "COF Final Customer Pack - blocked"
-    elif report_type in COF_LEGACY_REPORT_TYPES and effective_report_type == "cof_internal_review_pack":
-        effective_report_name = report_name.replace("Weekly Portfolio Report", "Internal Review Pack")
     report = IntelligenceReport(
         report_name=effective_report_name,
         report_type=effective_report_type,
@@ -392,10 +390,9 @@ def _effective_cof_report_type(session: Session, report_type: str, customer_id: 
         return report_type
     if report_type in COF_INTERNAL_REPORT_TYPES:
         return "cof_internal_review_pack"
-    readiness = cof_readiness(session, customer_id=customer_id, business_unit_id=business_unit_id, report_mode="final")
-    if readiness.ready_for_final_pack:
+    if report_type in COF_FINAL_REPORT_TYPES | COF_LEGACY_REPORT_TYPES:
         return "cof_final_customer_pack"
-    return "cof_internal_review_pack"
+    return report_type
 
 
 def generate_report_markdown(
@@ -454,12 +451,9 @@ def generate_cof_weekly_report_markdown(
     customer = context["customer"]
     unit = context["unit"]
     scope = _scope_label(customer, unit)
-    requested_final = report_type == "cof_final_customer_pack"
-    report_mode = "final" if requested_final else "internal"
+    report_mode = "internal" if report_type == "cof_internal_review_pack" else "final"
     readiness = cof_readiness(session, customer_id=customer_id, business_unit_id=business_unit_id, report_mode=report_mode)
-    if requested_final and not readiness.ready_for_final_pack:
-        report_mode = "internal"
-        report_name = "COF Final Customer Pack - blocked"
+    operating_status = cof_operating_status(session, customer_id=customer_id, business_unit_id=business_unit_id)
     opportunities = _cof_report_opportunities(session, customer_id, business_unit_id)
     opportunity_ids = {item.id for item in opportunities if item.id}
     documents = _documents_for_opportunities(_records_for_opportunities(session, OpportunityDocument, opportunity_ids), opportunities)
@@ -507,11 +501,7 @@ def generate_cof_weekly_report_markdown(
     pending_question_review = sum(1 for item in questions if _cof_question_review_status(item, documents_by_id) != "approved")
     clients_without_visible_items = _cof_clients_without_visible_items(clients, opportunities)
     review_queue = [item for item in opportunities if review_states.get(item.id) != REVIEW_APPROVED_FOR_REPORT]
-    section_opportunities = _cof_final_ready_opportunities(
-        opportunities,
-        documents_by_opportunity,
-        questions_by_opportunity,
-    ) if report_mode == "final" else opportunities
+    section_opportunities = opportunities
     section_ids = {item.id for item in section_opportunities if item.id}
     section_documents = [item for item in documents if item.opportunity_id in section_ids]
     section_questions = [item for item in questions if item.opportunity_id in section_ids]
@@ -540,19 +530,15 @@ def generate_cof_weekly_report_markdown(
             "interested_without_document_task": missing_task,
         },
     )
-    readiness_lines = (
-        _cof_final_send_readiness_lines(readiness, generated_at)
-        if report_mode == "final"
-        else _cof_monday_send_readiness_lines(send_readiness, report_mode=report_mode)
-    )
+    readiness_lines = _cof_monday_send_readiness_lines(send_readiness, report_mode=report_mode)
     source_detail_lines = _cof_source_detail_lines(section_opportunities, customer_map, report_mode)
     requirement_lines = _cof_requirement_lines(section_requirements, section_opportunities, customer_map)
-    source_status_lines = _cof_source_status_lines(context["sources"])
+    source_status_lines = _cof_source_status_lines(context["sources"], readiness.source_health)
     portal_status_lines = _cof_portal_status_lines(session, clients)
     kra_status_lines = _cof_kra_status_lines(session, readiness)
     retrieval_task_lines = _cof_retrieval_task_lines(tasks, section_opportunities if report_mode == "final" else opportunities)
     redaction_note = _cof_redaction_note()
-    status_label = "Ready for weekly send" if report_mode == "final" else "Internal review"
+    status_label = operating_status.status if report_mode == "final" else "Internal review"
     report_label = "Final Customer Pack" if report_mode == "final" else "Internal Review Pack - not for client circulation."
     pins = [item for item in section_opportunities if stages.get(item.id) == "pin"]
     watch = [item for item in section_opportunities if stages.get(item.id) == "watch"]
@@ -586,6 +572,10 @@ Review Lead approval means approved for COF report inclusion, not bid, legal, pr
 ## Client Coverage
 
 {chr(10).join(coverage_lines) if coverage_lines else "- No COF clients are configured for this scope."}
+
+## Source Health
+
+{chr(10).join(source_status_lines)}
 
 {_cof_internal_status_sections(source_status_lines, portal_status_lines, kra_status_lines, retrieval_task_lines) if report_mode == "internal" else ""}
 
@@ -696,12 +686,14 @@ def _cof_report_opportunities(session: Session, customer_id: int | None, busines
     unit = _cof_business_unit(session)
     cof_unit_id = unit.id if unit and unit.id else None
     cof_customer_ids = _cof_customer_ids(session)
+    trusted_source_ids = trusted_cof_source_ids(session)
     candidates = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(300)))
     opportunities = [
         item
         for item in candidates
         if item.status != "rejected"
         and _is_cof_report_opportunity(item, cof_unit_id, cof_customer_ids)
+        and (not trusted_source_ids or item.source_id in trusted_source_ids)
     ]
     if customer_id:
         opportunities = [item for item in opportunities if item.customer_id == customer_id]
@@ -781,11 +773,11 @@ def _cof_review_gap_lines(
 
 
 def _cof_internal_notice(readiness: COFReadinessResult) -> str:
-    blockers = "\n".join(f"- {item}" for item in readiness.blockers) if readiness.blockers else "- No final-pack blockers detected."
+    blockers = "\n".join(f"- {item}" for item in readiness.blockers) if readiness.blockers else "- No hard report-generation blockers are configured."
     warnings = "\n".join(f"- {item}" for item in readiness.warnings) if readiness.warnings else "- No material warnings recorded."
     return (
         "Internal Review Pack - not for client circulation.\n\n"
-        "### Final Pack Readiness Blockers\n\n"
+        "### Operating Attention Items\n\n"
         f"{blockers}\n\n"
         "### Readiness Warnings\n\n"
         f"{warnings}"
@@ -840,7 +832,9 @@ def _cof_final_ready_opportunities(
     return ready
 
 
-def _cof_source_status_lines(sources: list[ProcurementSource]) -> list[str]:
+def _cof_source_status_lines(sources: list[ProcurementSource], source_health: list | None = None) -> list[str]:
+    if source_health:
+        return [f"- {item.label}: {item.status}; {item.message}" for item in source_health]
     source_by_key = {source.source_key: source for source in sources}
     lines = []
     for key, label in {**REQUIRED_SOURCE_KEYS, **BACKUP_SOURCE_KEYS}.items():
@@ -1420,13 +1414,25 @@ def _cof_opportunity_lines(
         if report_mode == "final" and source_status != "Verified source":
             source_status = "source withheld pending validation"
         title = concise_opportunity_title(item)
+        next_action = _cof_next_action_for_opportunity(review, stage)
         lines.append(
             f"- **{title}** | matched client {client} | buyer {item.buyer_name or 'buyer not detected'} | "
-            f"stage {stage} | {review} | deadline {deadline} | {value} | portal/source: {portal}; {source_status}. {summary}"
+            f"stage {stage} | {review} | deadline {deadline} | {value} | confidence {item.relevance_score:g} | "
+            f"portal/source: {portal}; {source_status} | next action: {next_action}. {summary}"
         )
         if title != (item.title or "").strip():
             lines.append(f"  Full notice title: {item.title}")
     return "\n".join(lines)
+
+
+def _cof_next_action_for_opportunity(review_status: str, stage: str) -> str:
+    if review_status == REVIEW_APPROVED_FOR_REPORT:
+        if stage in {"interested", "document retrieval required", "questions extracted"}:
+            return "Document Retrieval Queue"
+        return "Monitor in weekly pack"
+    if review_status == REVIEW_NEEDS_EVIDENCE:
+        return "Add source evidence"
+    return "Human Review Gate"
 
 
 def _cof_interest_lines(
@@ -1720,8 +1726,8 @@ def cof_monday_send_readiness(
 
 def _cof_monday_send_readiness_lines(readiness: dict[str, object], report_mode: str = "internal") -> list[str]:
     blockers = list(readiness.get("blockers") or [])
-    status = "Ready for weekly send" if readiness.get("ready") else "Blocked - internal review only"
-    next_action = "Complete final Review Lead check and send/store the Monday report." if readiness.get("ready") else _cof_readiness_next_action(blockers)
+    status = "Ready for weekly send" if readiness.get("ready") else "Review recommended"
+    next_action = "Complete the Review Lead check and send/store the Monday report." if readiness.get("ready") else _cof_readiness_next_action(blockers)
     lines = [
         f"- Status: **{status}**.",
         f"- Digest profile: {'configured' if readiness.get('digest_profile_exists') else 'missing'}; {'enabled' if readiness.get('digest_enabled') else 'disabled'}.",
@@ -1733,11 +1739,11 @@ def _cof_monday_send_readiness_lines(readiness: dict[str, object], report_mode: 
         f"- Portfolio coverage: {readiness.get('clients_with_visible_items')} client(s) with visible items; {readiness.get('clients_without_visible_items')} without visible items.",
     ]
     if blockers and report_mode == "internal":
-        lines.append(f"- Blockers: {'; '.join(blockers)}.")
+        lines.append(f"- Attention: {'; '.join(blockers)}.")
     elif not blockers:
-        lines.append("- Blockers: none recorded at report generation.")
+        lines.append("- Attention: none recorded at report generation.")
     else:
-        lines.append("- Blockers: withheld from final customer pack; generate the Internal Review Pack for diagnostics.")
+        lines.append("- Attention: review the internal pack for operational detail.")
     lines.append(f"- Next action: {next_action}")
     return lines
 
@@ -1761,7 +1767,7 @@ def _cof_readiness_next_action(blockers: list[str]) -> str:
     if any("no Monday recipients" in item for item in blockers):
         return "Configure weekly recipients. File-outbox/manual review remains available."
     if blockers:
-        return "Resolve the listed review blockers before Monday circulation."
+        return "Review the listed attention items before Monday circulation."
     return "Confirm digest configuration before circulation."
 
 

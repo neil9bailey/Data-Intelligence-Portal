@@ -113,6 +113,8 @@ Report sections include:
 
 Reports are available as PDF, HTML, Markdown, JSON and text. The PDF and HTML exports use the configured report brand, prepared-for label and footer caveat. File outbox email remains the safe default unless SMTP is configured.
 
+The weekly customer pack now follows the source-to-inbox model: it always generates, includes a concise Source Health section, and ignores stale or failed source records from customer opportunity sections until the source is healthy again.
+
 ## Client Display Names
 
 The database can keep temporary client records such as `COF Client 01` while reports present customer-safe names.
@@ -174,9 +176,9 @@ The weekly report's Monday Send Readiness section now shows:
 - Latest report timestamp
 - Latest email delivery status
 - Number of clients with and without visible items
-- Blockers including pending Human Review Gate items, pending document review, pending quality-question review, interested items without retrieval tasks and missing recipients
+- Attention items including pending Human Review Gate items, pending document review, pending quality-question review, interested items without retrieval tasks and missing recipients
 
-If recipients are not configured, the report says that auto-send is not ready while file-outbox/manual review remains available.
+If recipients are not configured, report downloads and file-outbox review remain available, but email/send is not attempted until recipients are configured.
 
 ## Report Branding
 
@@ -192,15 +194,13 @@ Do not place secrets in these values. They are rendered in HTML, PDF and JSON ex
 
 1. Open Admin.
 2. If preparing a clean customer review session, use **Clean Generated Output** to remove old reports, email logs, source snapshots, KRA run history and stored outbox files. This preserves configured clients, sources, portals, opportunities, requirements, interest signals and review records.
-3. Open Customer packs.
-4. Select Procter Street COF.
-5. Preview the 11 active client records, sources and portal families.
-6. Apply the pack.
-7. Replace temporary client names, aliases, regions, keywords, CPV codes and reporting notes with approved live client data when available.
-8. Open Review to verify the human review gate and relationship action queue.
-9. Open Client Feed to inspect PINs, live tenders, interested items and awards.
-10. Generate a COF weekly portfolio report from Reports.
-11. Download or send/store the report from the report detail page or digest profile.
+3. Use **Reset COF workspace to design brief** if you need to reapply only the 11 clients, five source families plus backup, and four portal families from the proposal baseline.
+4. Open Customer packs if you want to preview the Procter Street COF pack before applying it manually.
+5. Replace temporary client names, aliases, regions, keywords, CPV codes and reporting notes with approved live client data when available.
+6. Open Review to verify the human review gate and relationship action queue.
+7. Open Client Feed to inspect PINs, live tenders, interested items and awards.
+8. Generate a COF weekly portfolio report from Reports.
+9. Download or send/store the report from the report detail page or digest profile.
 
 ## Guardrails
 

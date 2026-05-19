@@ -259,7 +259,9 @@ def _report_readiness_metadata(markdown: str) -> dict[str, object]:
         if line.startswith("**Status:**"):
             status = line.split(":", 1)[1].replace("**", "").strip()
         elif line.startswith("### Final Pack Readiness Blockers"):
-            current = "blockers"
+            current = "warnings"
+        elif line.startswith("### Operating Attention Items"):
+            current = "warnings"
         elif line.startswith("### Readiness Warnings"):
             current = "warnings"
         elif line.startswith("## "):
