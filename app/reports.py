@@ -1016,14 +1016,16 @@ def _executive_opportunity_line(item: Opportunity, sources_by_id: dict[int, str]
     )
 
 
-def _cof_opportunity_lines(items: list[Opportunity]) -> str:
+def _cof_opportunity_lines(items: list[Opportunity], stages: dict[int, str] | None = None) -> str:
+    stages = stages or {}
     lines = []
     for item in sorted(items, key=lambda row: (row.deadline_date or date.max, row.title))[:30]:
         deadline = item.deadline_date.isoformat() if item.deadline_date else "deadline not captured"
         value = _money(item.value_high, item.currency)
         summary = clean_ai_text(item.summary, 220) or "No summary captured."
+        stage = stages.get(item.id or 0, item.status).replace("_", " ")
         lines.append(
-            f"- **{item.title}** | {item.buyer_name or 'buyer not detected'} | {item.status.replace('_', ' ')} | "
+            f"- **{item.title}** | {item.buyer_name or 'buyer not detected'} | {stage} | "
             f"deadline {deadline} | {value}. {summary}"
         )
     return "\n".join(lines)

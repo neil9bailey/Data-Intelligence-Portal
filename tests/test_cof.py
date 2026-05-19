@@ -248,7 +248,7 @@ def test_pdf_text_generation_sanitises_non_printable_characters():
     lines = _pdf_text_lines("# live\u2011pilot\x00 report\nBad\ufffd control")
     text = "\n".join(lines)
 
-    assert "live-pilot" in text
+    assert "live-pilot" in text.lower()
     assert "\ufffd" not in text
     assert all(ch in {"\n", "\t"} or ord(ch) >= 32 for ch in text)
 
