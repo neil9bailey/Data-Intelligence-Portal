@@ -129,15 +129,16 @@ Sending remains manual or externally scheduled in this phase; no new Azure sched
 ## Applying The Pack
 
 1. Open Admin.
-2. Open Customer packs.
-3. Select Procter Street COF.
-4. Preview the 11 active client placeholders, sources and portal families.
-5. Apply the pack.
-6. Replace placeholder client names, aliases, regions, keywords, CPV codes and reporting notes with approved live client data when available.
-7. Open Review to verify the human review gate and relationship action queue.
-8. Open Client Feed to inspect PINs, live tenders, interested items and awards.
-9. Generate a COF weekly portfolio report from Reports.
-10. Download or send/store the report from the report detail page or digest profile.
+2. If preparing a clean customer walkthrough, use **Clean Generated Output** to remove old reports, email logs, source snapshots, KRA run history and stored outbox files. This preserves configured clients, sources, portals, opportunities, requirements, interest signals and review records.
+3. Open Customer packs.
+4. Select Procter Street COF.
+5. Preview the 11 active client placeholders, sources and portal families.
+6. Apply the pack.
+7. Replace placeholder client names, aliases, regions, keywords, CPV codes and reporting notes with approved live client data when available.
+8. Open Review to verify the human review gate and relationship action queue.
+9. Open Client Feed to inspect PINs, live tenders, interested items and awards.
+10. Generate a COF weekly portfolio report from Reports.
+11. Download or send/store the report from the report detail page or digest profile.
 
 ## Guardrails
 

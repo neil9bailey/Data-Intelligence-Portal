@@ -52,6 +52,15 @@
     <a class="button secondary" href="/admin">Refresh status</a>
   </div>
   {% endif %}
+  {% if request.query_params.get('cleaned') == '1' %}
+  <div class="run-alert">
+    <div>
+      <strong>Generated output cleaned</strong>
+      <p>Removed {{ request.query_params.get('reports') or 0 }} report(s), {{ request.query_params.get('emails') or 0 }} email log(s), {{ request.query_params.get('runs') or 0 }} automation run(s) and {{ request.query_params.get('snapshots') or 0 }} source snapshot(s). COF configuration, clients, opportunities and review records were preserved.</p>
+    </div>
+    <a class="button secondary" href="/admin">Clear message</a>
+  </div>
+  {% endif %}
   <div class="automation-grid">
     {% set labels = ['Apply or update customer packs', 'Refresh official news feeds', 'Refresh public sources', 'Run KRA checks', 'Run public opportunity keyword sweep', 'Classify opportunities and requirements', 'Run approved portal retrieval', 'Classify retrieved intelligence', 'Confirm portal tasks are complete', 'Generate a report', 'Generate branded report export', 'Email the report', 'Check the audit log'] %}
     {% for label in labels %}
@@ -88,6 +97,20 @@
     <div class="metric"><span class="value">{{ cof_readiness.interested_missing_retrieval_task }}</span><span class="label">interested without retrieval task</span></div>
     <div class="metric"><span class="value">{{ cof_readiness.reports_ready_to_send }}</span><span class="label">Monday report profile</span></div>
   </div>
+</section>
+
+<section class="panel" style="margin-top:18px;">
+  <div class="panel-title">
+    <div>
+      <h2>Clean Generated Output</h2>
+      <p class="hint">Use before a customer walkthrough to remove historical reports, email logs, source/KRA/retrieval run history and stored report files. This keeps COF clients, sources, portals, opportunities, requirements, interest signals and review data.</p>
+    </div>
+  </div>
+  <form method="post" action="/admin/maintenance/clean-output" onsubmit="return confirm('Clean generated output artefacts? Core COF setup data will be preserved.');">
+    <label class="checkline"><input type="checkbox" name="clean_outbox" value="true" checked> Delete stored report and email files from the configured outbox</label>
+    <label class="checkline"><input type="checkbox" name="confirm_clean" value="true" required> I understand this removes generated output history but preserves configured COF data</label>
+    <button class="danger" type="submit">Clean generated output</button>
+  </form>
 </section>
 
 <section class="panel admin-hub" style="margin-top:18px;">

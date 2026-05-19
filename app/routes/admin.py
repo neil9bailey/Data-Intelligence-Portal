@@ -10,6 +10,7 @@ from app.database import get_session
 from app.digests import send_digest
 from app.email_service import get_email_configuration, send_or_store_email, split_recipients
 from app.form_utils import parse_bool, parse_optional_int, validation_error_response
+from app.maintenance import clean_generated_outputs
 from app.models import DigestProfile, EmailDeliveryLog, utc_now
 from app.route_utils import context, health_dashboard_context, redirect, reference_context, templates
 
@@ -84,6 +85,21 @@ async def update_email_configuration(request: Request, session: Session = Depend
     log_event(session, entity_type="EmailConfiguration", entity_id=config.id, action="update", summary="Updated email configuration secret reference", before=before, after=config)
     session.commit()
     return redirect("/admin")
+
+
+@router.post("/admin/maintenance/clean-output")
+async def clean_output_artifacts(request: Request, session: Session = Depends(get_session), user=Depends(require_admin)):
+    form = await request.form()
+    if not parse_bool(form.get("confirm_clean")):
+        return validation_error_response(["Tick the confirmation box before cleaning generated output artefacts."], "/admin")
+    summary = clean_generated_outputs(session, actor=user.username, clean_outbox=parse_bool(form.get("clean_outbox")))
+    return redirect(
+        "/admin?cleaned=1"
+        f"&reports={summary.get('IntelligenceReport', 0)}"
+        f"&emails={summary.get('EmailDeliveryLog', 0)}"
+        f"&runs={summary.get('AutomationRun', 0)}"
+        f"&snapshots={summary.get('SourceCheckSnapshot', 0)}"
+    )
 
 
 @router.post("/admin/email/test")
