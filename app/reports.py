@@ -29,6 +29,7 @@ from app.models import (
     Customer,
     DocumentRetrievalTask,
     DigestProfile,
+    EmailConfiguration,
     EmailDeliveryLog,
     ExtractedQualityQuestion,
     ExtractedRequirement,
@@ -1692,7 +1693,13 @@ def cof_monday_send_readiness(
         .order_by(col(IntelligenceReport.generated_at).desc())
     ).first()
     latest_email = session.exec(select(EmailDeliveryLog).order_by(col(EmailDeliveryLog.created_at).desc())).first()
-    recipients = _split_recipients(profile.recipients if profile else "")
+    email_config = session.exec(select(EmailConfiguration).order_by(EmailConfiguration.id)).first()
+    recipient_source = profile.recipients if profile and profile.recipients else ""
+    if not recipient_source and email_config and email_config.default_recipients:
+        recipient_source = email_config.default_recipients
+    if not recipient_source:
+        recipient_source = get_settings().email_default_recipients
+    recipients = _split_recipients(recipient_source)
     delivery_mode = get_settings().email_delivery_mode or "file_outbox"
     if profile and profile.recipients:
         delivery_mode = delivery_mode or "file_outbox"

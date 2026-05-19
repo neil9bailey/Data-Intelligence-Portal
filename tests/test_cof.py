@@ -15,6 +15,7 @@ from app.models import (
     Customer,
     DocumentRetrievalTask,
     DigestProfile,
+    EmailConfiguration,
     ExtractedQualityQuestion,
     Opportunity,
     OpportunityDocument,
@@ -52,6 +53,8 @@ def make_cof_fixture_ready(session):
     for source in session.exec(select(ProcurementSource)).all():
         if source.source_key in {"find_a_tender", "contracts_finder", "public_contracts_scotland", "sell2wales", "ted_eforms"}:
             source.active = True
+            source.connector_status = "active"
+            source.last_status = "active"
             session.add(source)
     profile = session.exec(select(DigestProfile).where(DigestProfile.name == "COF Monday report send")).first()
     profile.recipients = "ops@example.com; board@example.com"
@@ -458,6 +461,23 @@ def test_cof_monday_send_readiness_ready_and_not_ready(reference_session):
     assert ready["delivery_mode"] == "file_outbox"
 
 
+def test_cof_monday_send_readiness_uses_default_email_recipients(reference_session):
+    apply_cof_pack(reference_session)
+    profile = reference_session.exec(select(DigestProfile).where(DigestProfile.name == "COF Monday report send")).first()
+    profile.recipients = ""
+    reference_session.add(profile)
+    config = reference_session.exec(select(EmailConfiguration)).first() or EmailConfiguration()
+    config.default_recipients = "neil@example.com"
+    reference_session.add(config)
+    reference_session.commit()
+
+    opportunity_ids = {item.id for item in reference_session.exec(select(Opportunity)) if item.id}
+    readiness = cof_monday_send_readiness(reference_session, opportunity_ids, blockers={})
+
+    assert readiness["recipient_count"] == 1
+    assert "no Monday recipients configured" not in readiness["blockers"]
+
+
 def test_final_pack_generates_with_advisory_source_health(reference_session):
     apply_cof_pack(reference_session)
 
@@ -471,7 +491,23 @@ def test_final_pack_generates_with_advisory_source_health(reference_session):
     assert "COF Final Customer Pack - blocked" not in report.markdown
     assert "Final Pack Readiness Blockers" not in report.markdown
     assert "Source Health" in report.markdown
-    assert "No weekly report recipients are configured" in report.markdown
+    assert "Monday Send Readiness" in report.markdown
+
+
+def test_failed_source_health_does_not_empty_existing_curated_cof_report(reference_session):
+    apply_cof_pack(reference_session)
+    source = reference_session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "find_a_tender")).first()
+    source.connector_status = "failed"
+    source.last_status = "failed"
+    source.active = True
+    reference_session.add(source)
+    reference_session.commit()
+
+    report = create_report(reference_session, "COF source warning report", "cof_final_customer_pack")
+
+    assert "Find a Tender: failed" in report.markdown
+    assert "School estate decarbonisation programme" in report.markdown
+    assert "0 live tender signal" not in report.markdown
 
 
 def test_final_customer_pack_ready_path(reference_session):
@@ -488,7 +524,7 @@ def test_final_customer_pack_ready_path(reference_session):
     assert "Ready for weekly send" in markdown
     assert "Client Coverage: 11 clients monitored" in markdown
     assert "Recipients: 2 configured" in markdown
-    assert "Source validation: passed" in markdown
+    assert "Source Health" in markdown
     assert "Review Lead approved for report inclusion" in markdown
     assert "COF Client 01" not in markdown
     assert "/Notice/COF-" not in markdown

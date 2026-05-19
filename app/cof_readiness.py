@@ -13,6 +13,7 @@ from app.models import (
     Customer,
     DigestProfile,
     DocumentRetrievalTask,
+    EmailConfiguration,
     EmailDeliveryLog,
     ExtractedQualityQuestion,
     IntelligenceReport,
@@ -72,7 +73,7 @@ class SourceHealthItem:
 
     @property
     def trusted_for_output(self) -> bool:
-        return self.role == "primary" and self.status == "active"
+        return self.role == "primary" and self.status in {"active", "stale", "failed"}
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -333,16 +334,16 @@ def cof_source_health(session: Session, freshness_days: int = SOURCE_FRESHNESS_D
             message = "Source is configured but inactive, so its opportunities are ignored from output."
         elif any(token in status_text for token in ("failed", "error", "unreachable", "blocked", "rate_limited", "rate limited")):
             status = "failed"
-            message = "Latest connector/source check needs attention; records from this source are ignored until healthy."
+            message = "Latest connector/source check needs attention; existing curated records remain reportable while new ingestion is reviewed."
         elif latest and not latest.ok:
             status = "failed"
-            message = "Latest source check failed; records from this source are ignored until healthy."
+            message = "Latest source check failed; existing curated records remain reportable while new ingestion is reviewed."
         elif last_checked and _as_utc(last_checked) < datetime.now(UTC) - timedelta(days=freshness_days):
             status = "stale"
-            message = f"Source has not refreshed within {freshness_days} days; records are ignored until refreshed."
+            message = f"Source has not refreshed within {freshness_days} days; run a refresh before relying on new ingestion."
         elif not last_checked and not any(token in status_text for token in ("live_public_source", "live_mvp", "active")):
             status = "stale"
-            message = "Source is configured but has no proven recent check; records are ignored until checked."
+            message = "Source is configured but has no proven recent check; run a check before relying on new ingestion."
         else:
             status = "active"
             message = "Source is available for opportunity output."
@@ -455,7 +456,13 @@ def cof_readiness(
     ]
     completed_run = _latest_completed_kra_run(runs)
     deterministic_kra = settings.kra_llm_provider in {"", "disabled", "deterministic-local"} or settings.kra_mcp_mode == "local_registry"
-    recipients = _split_recipients(digest.recipients if digest else "")
+    email_config = session.exec(select(EmailConfiguration).order_by(EmailConfiguration.id)).first()
+    recipient_source = digest.recipients if digest and digest.recipients else ""
+    if not recipient_source and email_config and email_config.default_recipients:
+        recipient_source = email_config.default_recipients
+    if not recipient_source:
+        recipient_source = settings.email_default_recipients
+    recipients = _split_recipients(recipient_source)
     delivery_mode = settings.email_delivery_mode or "file_outbox"
 
     result = COFReadinessResult(
