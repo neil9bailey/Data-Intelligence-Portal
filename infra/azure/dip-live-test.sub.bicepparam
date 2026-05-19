@@ -19,7 +19,7 @@ param customDomainBindingEnabled = true
 param managedCertificateName = 'mc-acae-dip-vl-te-dip-vendorlogic--9882'
 
 param imageRepositoryPrefix = 'dip'
-param imageTag = '1.0.40-cof-live'
+param imageTag = '1.0.41-cof-live'
 param sqliteJournalMode = 'DELETE'
 param minReplicas = 1
 

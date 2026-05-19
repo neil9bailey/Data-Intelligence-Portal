@@ -14,6 +14,7 @@ from app.models import (
     Opportunity,
     ProcurementPlatform,
     ProcurementSource,
+    IntelligenceReport,
 )
 from app.reports import create_report
 
@@ -163,11 +164,13 @@ def test_customer_visible_pages_do_not_use_mvp_demo_or_concept_language(referenc
 def test_cof_monday_digest_profile_is_created(reference_session):
     apply_cof_pack(reference_session)
     profile = reference_session.exec(select(DigestProfile).where(DigestProfile.name == "COF Monday report send")).first()
+    report = reference_session.exec(select(IntelligenceReport).where(IntelligenceReport.report_type == "cof_weekly_portfolio_report")).first()
     signals = list(reference_session.exec(select(ClientInterestSignal)))
 
     assert profile is not None
     assert profile.report_type == "cof_weekly_portfolio_report"
     assert profile.frequency_label == "Monday"
     assert profile.export_format == "pdf"
+    assert report is not None
     assert len([item for item in signals if item.signal == "interested"]) >= 3
     assert len([item for item in signals if item.signal == "watch"]) >= 2

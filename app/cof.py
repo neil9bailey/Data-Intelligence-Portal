@@ -13,6 +13,7 @@ from app.models import (
     DocumentRetrievalTask,
     ExtractedQualityQuestion,
     ExtractedRequirement,
+    IntelligenceReport,
     Opportunity,
     OpportunityDocument,
     OpportunityMatchEvidence,
@@ -47,7 +48,7 @@ def seed_cof_live_pilot_content(session: Session, actor: str = "local-user") -> 
         session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "find_a_tender")).first()
         or session.exec(select(ProcurementSource)).first()
     )
-    created = {"opportunities": 0, "documents": 0, "requirements": 0, "questions": 0, "signals": 0}
+    created = {"opportunities": 0, "documents": 0, "requirements": 0, "questions": 0, "signals": 0, "reports": 0}
     clients_by_name = {client.customer_name: client for client in clients}
     today = date.today()
     rows = [
@@ -92,6 +93,7 @@ def seed_cof_live_pilot_content(session: Session, actor: str = "local-user") -> 
     created["signals"] += _ensure_interest(session, "COF Client 08", "Public realm drainage and grounds maintenance PIN", "watch", "PIN to monitor for tender publication.")
 
     _ensure_cof_digest(session, unit)
+    created["reports"] += _ensure_cof_seed_report(session, unit)
     session.flush()
     log_event(
         session,
@@ -337,3 +339,24 @@ def _ensure_cof_digest(session: Session, unit: BusinessUnit) -> None:
             export_format="pdf",
         )
     )
+
+
+def _ensure_cof_seed_report(session: Session, unit: BusinessUnit) -> int:
+    existing = session.exec(select(IntelligenceReport).where(IntelligenceReport.report_name == "COF weekly portfolio report - live pilot baseline")).first()
+    if existing:
+        return 0
+    from app.reports import generate_cof_weekly_report_markdown
+
+    report = IntelligenceReport(
+        report_name="COF weekly portfolio report - live pilot baseline",
+        report_type="cof_weekly_portfolio_report",
+        business_unit_id=unit.id,
+        markdown=generate_cof_weekly_report_markdown(
+            session,
+            "COF weekly portfolio report - live pilot baseline",
+            "cof_weekly_portfolio_report",
+            business_unit_id=unit.id,
+        ),
+    )
+    session.add(report)
+    return 1
