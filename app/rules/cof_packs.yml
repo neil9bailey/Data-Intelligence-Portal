@@ -21,7 +21,7 @@ packs:
       buying_entities: [Procter Street]
       strategic_notes:
         - Portfolio record used to group the COF service, reporting workflow and operating model.
-        - Customer-facing records are the 11 COF client placeholders and should be replaced with live client names when confirmed.
+        - Customer-facing reports use redacted or configured client display names until approved live names are confirmed.
     watch_profile:
       name: Procter Street COF portfolio watch
       keywords: [public sector tender, framework, construction, highways, bridges, decarbonisation, cyber security, facilities management, asset management, transport maintenance]
@@ -36,7 +36,7 @@ packs:
         cpv_codes: ["45233139 - Highway maintenance work", "45221100 - Construction work for bridges", "45233210 - Surface work for highways"]
         value_band: "GBP 250k-5m"
         portal_family: ProContract
-        report_notes: Replace placeholder with the live client name and preferred geography before external use.
+        report_notes: Configure the approved live client name and preferred geography before external circulation.
       - name: COF Client 02
         sector: School estates and decarbonisation
         region: England
@@ -45,7 +45,7 @@ packs:
         cpv_codes: ["45214200 - Construction work for school buildings", "71314300 - Energy-efficiency consultancy services", "45331000 - Heating works"]
         value_band: "GBP 100k-3m"
         portal_family: In-Tend
-        report_notes: Placeholder client for education-estates opportunity matching.
+        report_notes: Temporary client record for education-estates opportunity matching.
       - name: COF Client 03
         sector: Bridges and structures
         region: UK
@@ -54,7 +54,7 @@ packs:
         cpv_codes: ["45221119 - Bridge renewal construction work", "45221100 - Construction work for bridges", "71631450 - Bridge-inspection services"]
         value_band: "GBP 250k-10m"
         portal_family: Jaggaer
-        report_notes: Placeholder client for structures-led opportunities.
+        report_notes: Temporary client record for structures-led opportunities.
       - name: COF Client 04
         sector: Cyber and security services
         region: UK
@@ -63,7 +63,7 @@ packs:
         cpv_codes: ["72000000 - IT services", "79710000 - Security services", "35120000 - Surveillance and security systems"]
         value_band: "GBP 50k-2m"
         portal_family: Delta eSourcing
-        report_notes: Placeholder client for cyber/security opportunity matching.
+        report_notes: Temporary client record for cyber/security opportunity matching.
       - name: COF Client 05
         sector: Facilities and asset management
         region: UK
@@ -72,7 +72,7 @@ packs:
         cpv_codes: ["79993000 - Building and facilities management services", "50000000 - Repair and maintenance services", "71315300 - Building surveying services"]
         value_band: "GBP 100k-5m"
         portal_family: ProContract
-        report_notes: Placeholder client for FM and asset-management opportunities.
+        report_notes: Temporary client record for FM and asset-management opportunities.
       - name: COF Client 06
         sector: Transport maintenance
         region: UK
@@ -81,7 +81,7 @@ packs:
         cpv_codes: ["50220000 - Repair and maintenance services of rolling stock", "45213310 - Construction work for buildings relating to road transport", "48813000 - Passenger information system"]
         value_band: "GBP 100k-4m"
         portal_family: In-Tend
-        report_notes: Placeholder client for transport-maintenance opportunities.
+        report_notes: Temporary client record for transport-maintenance opportunities.
       - name: COF Client 07
         sector: Public building works
         region: England and Wales
@@ -90,7 +90,7 @@ packs:
         cpv_codes: ["45210000 - Building construction work", "45453100 - Refurbishment work", "45300000 - Building installation work"]
         value_band: "GBP 100k-6m"
         portal_family: Jaggaer
-        report_notes: Placeholder client for public-building works.
+        report_notes: Temporary client record for public-building works.
       - name: COF Client 08
         sector: Environmental and grounds maintenance
         region: UK
@@ -99,7 +99,7 @@ packs:
         cpv_codes: ["77314000 - Grounds maintenance services", "45232452 - Drainage works", "77211500 - Tree-maintenance services"]
         value_band: "GBP 50k-2m"
         portal_family: Delta eSourcing
-        report_notes: Placeholder client for public-realm and environmental works.
+        report_notes: Temporary client record for public-realm and environmental works.
       - name: COF Client 09
         sector: Mechanical and electrical services
         region: UK
@@ -108,7 +108,7 @@ packs:
         cpv_codes: ["50710000 - Repair and maintenance services of electrical and mechanical building installations", "31625200 - Fire-alarm systems", "45310000 - Electrical installation work"]
         value_band: "GBP 50k-2m"
         portal_family: ProContract
-        report_notes: Placeholder client for M&E service opportunities.
+        report_notes: Temporary client record for M&E service opportunities.
       - name: COF Client 10
         sector: Digital and data services
         region: UK
@@ -117,7 +117,7 @@ packs:
         cpv_codes: ["72000000 - IT services", "72222300 - Information technology services", "72250000 - System and support services"]
         value_band: "GBP 50k-2m"
         portal_family: In-Tend
-        report_notes: Placeholder client for digital/data opportunities.
+        report_notes: Temporary client record for digital/data opportunities.
       - name: COF Client 11
         sector: Specialist construction and maintenance
         region: Scotland, Wales and UK
@@ -126,7 +126,7 @@ packs:
         cpv_codes: ["45262330 - Concrete repair work", "45243000 - Coastal-defence works", "45262600 - Miscellaneous special-trade construction work"]
         value_band: "GBP 100k-5m"
         portal_family: Jaggaer
-        report_notes: Placeholder client for specialist construction opportunities.
+        report_notes: Temporary client record for specialist construction opportunities.
     sources:
       - key: find_a_tender
         name: Find a Tender OCDS release package API
@@ -248,6 +248,6 @@ packs:
       - agent: Customer Memory Curator
         query: COF weekly client reporting PIN live tender award market evidence quality questions weightings
     missing_actions:
-      - Replace COF Client placeholders with confirmed live client names, regions, keywords and CPV preferences.
+      - Configure confirmed live client names, regions, keywords and CPV preferences.
       - Confirm review ownership and Monday report recipient list.
-      - Confirm Donna relationship action owner and client follow-up process.
+      - Confirm Account Lead action owner and client follow-up process.

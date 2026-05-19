@@ -144,6 +144,11 @@ def _pdf_text_lines(markdown: str) -> list[str]:
             lines.append("")
             continue
         text = text.replace("**", "").replace("`", "")
+        if text.startswith("|") and text.endswith("|"):
+            cells = [cell.strip() for cell in text.strip("|").split("|")]
+            if all(set(cell.replace(":", "").replace("-", "").strip()) == set() for cell in cells):
+                continue
+            text = "   ".join(cell for cell in cells if cell)
         if text.startswith("#"):
             text = text.lstrip("#").strip().upper()
         wrapped = textwrap.wrap(text, width=92, replace_whitespace=False) or [""]
@@ -224,12 +229,14 @@ def report_export(report: IntelligenceReport, export_format: str) -> tuple[bytes
         return _pdf_report(report), "application/pdf", report_filename(report, "pdf")
     if export_format == "json":
         settings = get_settings()
+        readiness = _report_readiness_metadata(report.markdown)
         payload = {
             "id": report.id,
             "report_name": report.report_name,
             "report_type": report.report_type,
             "brand": settings.report_brand_name,
             "prepared_for": settings.report_prepared_for,
+            "readiness": readiness,
             "generated_at": report.generated_at.isoformat(),
             "customer_id": report.customer_id,
             "business_unit_id": report.business_unit_id,
@@ -240,3 +247,25 @@ def report_export(report: IntelligenceReport, export_format: str) -> tuple[bytes
     if export_format == "txt":
         return report.markdown.encode("utf-8"), "text/plain", report_filename(report, "txt")
     return report.markdown.encode("utf-8"), "text/markdown", report_filename(report, "md")
+
+
+def _report_readiness_metadata(markdown: str) -> dict[str, object]:
+    status = ""
+    blockers: list[str] = []
+    warnings: list[str] = []
+    current = ""
+    for raw in (markdown or "").splitlines():
+        line = raw.strip()
+        if line.startswith("**Status:**"):
+            status = line.split(":", 1)[1].replace("**", "").strip()
+        elif line.startswith("### Final Pack Readiness Blockers"):
+            current = "blockers"
+        elif line.startswith("### Readiness Warnings"):
+            current = "warnings"
+        elif line.startswith("## "):
+            current = ""
+        elif line.startswith("- ") and current == "blockers":
+            blockers.append(line[2:])
+        elif line.startswith("- ") and current == "warnings":
+            warnings.append(line[2:])
+    return {"status": status, "ready_for_weekly_send": status.lower() == "ready for weekly send", "blockers": blockers, "warnings": warnings}

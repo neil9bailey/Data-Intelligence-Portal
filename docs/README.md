@@ -7,6 +7,7 @@ This folder is the single home for Data Intelligence Portal guides, operating no
 | Document | Purpose |
 | --- | --- |
 | [COF Procter Street alignment](cof-procter-street-alignment.md) | How the live COF workspace aligns to the Procter Street proposal, including sources, portal families, review gates and weekly reports. |
+| [COF production readiness guide](cof-production-readiness-guide.md) | Final-pack readiness gates, internal review packs, source validation, KRA and portal/document guardrails. |
 | [Executive buyer overview](executive_buyer_overview.md) | Walkthrough for MD, buyer or stakeholder conversations. |
 | [Solution plan](solution_plan.md) | Product intent, user journeys and operating guardrails. |
 | [Architecture blueprint](architecture_blueprint.md) | Current MVP architecture and production evolution. |

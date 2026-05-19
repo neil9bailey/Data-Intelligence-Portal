@@ -1066,12 +1066,11 @@ def repair_mismatched_customer_assignments(session: Session) -> int:
 
 
 def _is_cof_live_pilot_assignment(opportunity: Opportunity, customer: Customer) -> bool:
-    """Keep curated COF pack records attached to placeholder clients until real clients replace them."""
+    """Keep curated COF pack records attached to temporary clients until real clients replace them."""
     return bool(
         customer.customer_name.startswith("COF Client ")
         or customer.customer_name == "Procter Street COF Portfolio"
-        or (opportunity.notice_identifier or "").startswith("cof-live-pilot-")
-        or "Seeded live-pilot content for COF" in (opportunity.summary or "")
+        or (opportunity.notice_identifier or "").startswith(("cof-pipeline-", "cof-live-pilot-"))
     )
 
 

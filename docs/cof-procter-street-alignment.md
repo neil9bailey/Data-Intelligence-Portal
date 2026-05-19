@@ -56,9 +56,9 @@ The queue shows the opportunity, buyer, value, deadline, matched client, score, 
 
 Nothing should be treated as client-ready until it has passed human review.
 
-## Donna Action Queue
+## Client Action Queue
 
-When a client marks an opportunity as interested, COF creates or updates a client interest signal and creates a Donna relationship/action queue item for on-demand document retrieval.
+When a client marks an opportunity as interested, COF creates or updates a client interest signal and creates an Account Lead action queue item for on-demand document retrieval.
 
 The action queue tracks:
 
@@ -86,8 +86,10 @@ Interest creates a document retrieval task. Watch records the signal but does no
 
 ## Weekly Reports
 
-COF adds two report types:
+COF adds two primary production report modes, while retaining the legacy weekly report names for backwards compatibility:
 
+- `cof_internal_review_pack`
+- `cof_final_customer_pack`
 - `cof_weekly_portfolio_report`
 - `cof_weekly_client_report`
 
@@ -100,12 +102,12 @@ Report sections include:
 - Live tenders
 - Closing soon
 - Awards / market evidence
-- Interested / Donna actions
+- Client Action Queue
 - Documents retrieved
 - Public notice evidence
 - Quality questions and weightings
 - Requirement themes
-- Denise review queue
+- Human Review Gate
 - Review gaps
 - Monday send readiness
 
@@ -119,7 +121,7 @@ Use these environment variables:
 
 - `DIP_COF_CLIENT_NAME_MODE=redacted` uses professional redacted names such as `Client A - Highways`. This is the default for customer-facing reports.
 - `DIP_COF_CLIENT_NAME_MODE=configured` uses `DIP_COF_CLIENT_NAME_MAP_JSON` to map temporary names to approved client names.
-- `DIP_COF_CLIENT_NAME_MODE=placeholder` shows the stored placeholder names and should be used only for internal configuration checks.
+- `DIP_COF_CLIENT_NAME_MODE=placeholder` shows the stored temporary names and should be used only for internal configuration checks.
 
 Example configured mapping:
 
@@ -132,16 +134,16 @@ Example configured mapping:
 
 The mapping affects report display only. It does not rewrite customer records; permanent customer names should be updated through the Admin UI when they are approved.
 
-## Denise Review Status
+## Review Lead Status
 
 COF report rows use one of four review statuses:
 
-- Denise approved for report inclusion
-- Awaiting Denise review
+- Review Lead approved for report inclusion
+- Awaiting Review Lead review
 - Needs more evidence
 - Rejected / excluded
 
-Denise approval means approved for inclusion in the COF report. It does not mean bid, legal, procurement or compliance approval. The report keeps a single global caveat: human review is required and the pack is not a bid/no-bid, legal, procurement or compliance decision.
+Review Lead approval means approved for inclusion in the COF report. It does not mean bid, legal, procurement or compliance approval. The report keeps a single global caveat: human review is required and the pack is not a bid/no-bid, legal, procurement or compliance decision.
 
 ## Friday Review And Monday Send
 
@@ -157,7 +159,7 @@ Admin includes a Friday Review Readiness panel showing:
 The COF pack also creates the default digest profile:
 
 - Name: COF Monday report send
-- Report type: `cof_weekly_portfolio_report`
+- Report type: `cof_final_customer_pack`
 - Frequency label: Monday
 - Export format: PDF
 
@@ -172,7 +174,7 @@ The weekly report's Monday Send Readiness section now shows:
 - Latest report timestamp
 - Latest email delivery status
 - Number of clients with and without visible items
-- Blockers including pending Denise review, pending document review, pending quality-question review, interested items without retrieval tasks and missing recipients
+- Blockers including pending Human Review Gate items, pending document review, pending quality-question review, interested items without retrieval tasks and missing recipients
 
 If recipients are not configured, the report says that auto-send is not ready while file-outbox/manual review remains available.
 
@@ -189,12 +191,12 @@ Do not place secrets in these values. They are rendered in HTML, PDF and JSON ex
 ## Applying The Pack
 
 1. Open Admin.
-2. If preparing a clean customer walkthrough, use **Clean Generated Output** to remove old reports, email logs, source snapshots, KRA run history and stored outbox files. This preserves configured clients, sources, portals, opportunities, requirements, interest signals and review records.
+2. If preparing a clean customer review session, use **Clean Generated Output** to remove old reports, email logs, source snapshots, KRA run history and stored outbox files. This preserves configured clients, sources, portals, opportunities, requirements, interest signals and review records.
 3. Open Customer packs.
 4. Select Procter Street COF.
-5. Preview the 11 active client placeholders, sources and portal families.
+5. Preview the 11 active client records, sources and portal families.
 6. Apply the pack.
-7. Replace placeholder client names, aliases, regions, keywords, CPV codes and reporting notes with approved live client data when available.
+7. Replace temporary client names, aliases, regions, keywords, CPV codes and reporting notes with approved live client data when available.
 8. Open Review to verify the human review gate and relationship action queue.
 9. Open Client Feed to inspect PINs, live tenders, interested items and awards.
 10. Generate a COF weekly portfolio report from Reports.

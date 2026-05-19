@@ -382,11 +382,13 @@ def test_admin_full_cycle_automation_preconfigures_and_exports(reference_session
     assert "Apply or update customer packs" in run.steps_json
     assert "Generate branded report export" in run.steps_json
     assert reference_session.exec(select(AutomationRun)).first() is not None
-    report = reference_session.exec(select(IntelligenceReport)).first()
+    report = reference_session.get(IntelligenceReport, run.report_id)
     assert report is not None
-    assert report.report_type == "cof_weekly_portfolio_report"
+    assert report.report_type == "cof_internal_review_pack"
+    assert "Internal Review Pack - not for client circulation." in report.markdown
     assert "KRA Runtime" not in report.markdown
-    assert reference_session.exec(select(EmailDeliveryLog)).first().status == "stored"
+    assert reference_session.exec(select(EmailDeliveryLog)).first() is None
+    assert "Final Customer Pack is blocked" in run.steps_json
     assert reference_session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "find_a_tender_national_highways")).first().active is False
 
 

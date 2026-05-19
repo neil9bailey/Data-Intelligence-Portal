@@ -154,7 +154,7 @@ def _upsert_interest_signal(
         existing.contact_name = contact_name
         existing.contact_email = contact_email
         existing.notes = notes
-        existing.status = "donna_action_required" if signal_value == "interested" else "watching"
+        existing.status = "account_lead_action_required" if signal_value == "interested" else "watching"
         session.add(existing)
         session.flush()
         log_event(session, entity_type="ClientInterestSignal", entity_id=existing.id, action="update", summary=f"Updated client {signal_value} signal", before=before, after=existing)
@@ -166,7 +166,7 @@ def _upsert_interest_signal(
         contact_email=contact_email,
         signal=signal_value,
         notes=notes,
-        status="donna_action_required" if signal_value == "interested" else "watching",
+        status="account_lead_action_required" if signal_value == "interested" else "watching",
     )
     save_with_audit(session, signal, "create", "Created client interest signal")
     return signal
@@ -190,11 +190,11 @@ def _apply_cof_interest_workflow(session: Session, opportunity: Opportunity | No
         return
     task = DocumentRetrievalTask(
         opportunity_id=opportunity.id,
-        task_name="Donna action: retrieve permitted tender documents",
+        task_name="Account Lead action: retrieve permitted tender documents",
         status="requested",
-        owner="Donna relationship/action queue",
+        owner="Client Action Queue",
         notes="Client interest triggered on-demand document retrieval. No portal login, expression of interest or submission is automated.",
     )
     session.add(task)
     session.flush()
-    log_event(session, entity_type="DocumentRetrievalTask", entity_id=task.id, action="create", summary="Created Donna document retrieval task", after=task)
+    log_event(session, entity_type="DocumentRetrievalTask", entity_id=task.id, action="create", summary="Created client action document retrieval task", after=task)

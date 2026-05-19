@@ -102,8 +102,50 @@
 <section class="panel" style="margin-top:18px;">
   <div class="panel-title">
     <div>
+      <h2>COF Production Readiness</h2>
+      <p class="hint">Final Customer Pack status across customers, sources, portal families, KRA, review gates, documents and delivery.</p>
+    </div>
+    <span class="badge {{ 'green' if cof_production_readiness.ready_for_final_pack else 'red' }}">{{ 'Ready' if cof_production_readiness.ready_for_final_pack else 'Blocked' }}</span>
+  </div>
+  <div class="grid metrics">
+    <div class="metric"><span class="value">{{ cof_production_readiness.customers_configured_count }}</span><span class="label">COF customers</span></div>
+    <div class="metric"><span class="value">{{ cof_production_readiness.sources_active_count }}</span><span class="label">active sources</span></div>
+    <div class="metric"><span class="value">{{ cof_production_readiness.portals_configured_count }}</span><span class="label">portal routes</span></div>
+    <div class="metric"><span class="value">{{ cof_production_readiness.kra_pending_findings_count }}</span><span class="label">KRA pending</span></div>
+    <div class="metric"><span class="value">{{ cof_production_readiness.pending_human_review_count }}</span><span class="label">human review gate</span></div>
+    <div class="metric"><span class="value">{{ cof_production_readiness.recipients_count }}</span><span class="label">weekly recipients</span></div>
+  </div>
+  <div class="grid two" style="margin-top:14px;">
+    <div>
+      <h3>Blockers</h3>
+      <ul class="plain-list">
+        {% for blocker in cof_production_readiness.blockers %}<li>{{ blocker }}</li>{% else %}<li>No final-pack blockers detected.</li>{% endfor %}
+      </ul>
+    </div>
+    <div>
+      <h3>Actions</h3>
+      <div class="record-actions">
+        <form method="post" action="/reports">
+          <input type="hidden" name="report_name" value="COF Internal Review Pack">
+          <input type="hidden" name="report_type" value="cof_internal_review_pack">
+          <button class="secondary" type="submit">Generate Internal Review Pack</button>
+        </form>
+        <form method="post" action="/reports">
+          <input type="hidden" name="report_name" value="COF Final Customer Pack">
+          <input type="hidden" name="report_type" value="cof_final_customer_pack">
+          <button type="submit">Generate Final Customer Pack</button>
+        </form>
+      </div>
+      <p class="hint">If readiness is blocked, the final action creates a blocked Internal Review Pack instead of a customer-facing final pack.</p>
+    </div>
+  </div>
+</section>
+
+<section class="panel" style="margin-top:18px;">
+  <div class="panel-title">
+    <div>
       <h2>Clean Generated Output</h2>
-      <p class="hint">Use before a customer walkthrough to remove historical reports, email logs, source/KRA/retrieval run history and stored report files. This keeps COF clients, sources, portals, opportunities, requirements, interest signals and review data.</p>
+      <p class="hint">Use before a customer review session to remove historical reports, email logs, source/KRA/retrieval run history and stored report files. This keeps COF clients, sources, portals, opportunities, requirements, interest signals and review data.</p>
     </div>
   </div>
   <form method="post" action="/admin/maintenance/clean-output" onsubmit="return confirm('Clean generated output artefacts? Core COF setup data will be preserved.');">
@@ -276,7 +318,7 @@
         <div class="field"><label>Business unit</label><select name="business_unit_id"><option value="">All</option>{% for unit in business_units %}<option value="{{ unit.id }}">{{ unit.name }}</option>{% endfor %}</select></div>
       </div>
       <div class="form-grid">
-        <div class="field"><label>Report type</label><input name="report_type" value="cof_weekly_portfolio_report"></div>
+        <div class="field"><label>Report type</label><input name="report_type" value="cof_final_customer_pack"></div>
         <div class="field"><label>Export format</label><select name="export_format"><option value="pdf">PDF</option><option value="md">Markdown</option><option value="html">HTML</option></select></div>
       </div>
       <div class="field"><label>Recipients</label><input name="recipients" placeholder="name@example.com; another@example.com"></div>

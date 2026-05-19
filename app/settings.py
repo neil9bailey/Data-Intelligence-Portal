@@ -69,6 +69,7 @@ class Settings:
             "DIP_REPORT_FOOTER",
             "Human review required. Not a bid, legal, procurement or compliance decision.",
         )
+        self.cof_min_customers: int = env_int("DIP_COF_MIN_CUSTOMERS", "11")
 
 
 @lru_cache

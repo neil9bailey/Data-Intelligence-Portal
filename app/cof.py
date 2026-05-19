@@ -86,9 +86,9 @@ def seed_cof_live_pilot_content(session: Session, actor: str = "local-user") -> 
             category,
         )
 
-    created["signals"] += _ensure_interest(session, "COF Client 04", "Public estate cyber and CCTV services", "interested", "Donna action required: retrieve tender documents and confirm client follow-up.")
-    created["signals"] += _ensure_interest(session, "COF Client 09", "Fire alarm and building controls maintenance", "interested", "Donna action required: confirm portal document access.")
-    created["signals"] += _ensure_interest(session, "COF Client 10", "Digital reporting dashboard and integration support", "interested", "Donna action required: share extracted quality questions after human review.")
+    created["signals"] += _ensure_interest(session, "COF Client 04", "Public estate cyber and CCTV services", "interested", "Account Lead action required: retrieve tender documents and confirm client follow-up.")
+    created["signals"] += _ensure_interest(session, "COF Client 09", "Fire alarm and building controls maintenance", "interested", "Account Lead action required: confirm portal document access.")
+    created["signals"] += _ensure_interest(session, "COF Client 10", "Digital reporting dashboard and integration support", "interested", "Account Lead action required: share extracted quality questions after human review.")
     created["signals"] += _ensure_interest(session, "COF Client 05", "Facilities and asset management services", "watch", "Client asked to keep this under weekly watch.")
     created["signals"] += _ensure_interest(session, "COF Client 08", "Public realm drainage and grounds maintenance PIN", "watch", "PIN to monitor for tender publication.")
 
@@ -100,7 +100,7 @@ def seed_cof_live_pilot_content(session: Session, actor: str = "local-user") -> 
         entity_type="COFSeed",
         entity_id=unit.id,
         action="apply",
-        summary="Applied Procter Street COF live-pilot content seed.",
+        summary="Applied Procter Street COF operating content pack.",
         after=created,
         actor=actor,
     )
@@ -157,8 +157,11 @@ def _ensure_cof_opportunity(
     theme: str,
     category: str,
 ) -> int:
-    notice_id = f"cof-live-pilot-{index:02d}"
+    notice_id = f"cof-pipeline-{index:02d}"
+    legacy_notice_id = f"cof-live-pilot-{index:02d}"
     opportunity = session.exec(select(Opportunity).where(Opportunity.notice_identifier == notice_id)).first()
+    if not opportunity:
+        opportunity = session.exec(select(Opportunity).where(Opportunity.notice_identifier == legacy_notice_id)).first()
     created = 0
     if not opportunity:
         opportunity = Opportunity(source_id=source.id if source else None, notice_identifier=notice_id, title=title)
@@ -176,7 +179,7 @@ def _ensure_cof_opportunity(
     opportunity.summary = summary
     opportunity.status = status
     opportunity.relevance_score = 86 if status not in {"needs_review", "review_required"} else 58
-    opportunity.relevance_rationale = f"Matched COF client keywords: {theme}. Denise review required before client action."
+    opportunity.relevance_rationale = f"Matched COF client keywords: {theme}. Review Lead approval required before client action."
     opportunity.content_hash = notice_id
     session.add(opportunity)
     session.flush()
@@ -296,7 +299,7 @@ def _ensure_interest(session: Session, client_name: str, opportunity_title: str,
     ).first()
     if existing:
         existing.notes = existing.notes or notes
-        existing.status = "donna_action_required" if signal == "interested" else "watching"
+        existing.status = "account_lead_action_required" if signal == "interested" else "watching"
         session.add(existing)
         _reconcile_interest_workflow(session, client, opportunity, signal)
         return 0
@@ -308,7 +311,7 @@ def _ensure_interest(session: Session, client_name: str, opportunity_title: str,
             contact_email="relationship-owner@example.com",
             signal=signal,
             notes=notes,
-            status="donna_action_required" if signal == "interested" else "watching",
+            status="account_lead_action_required" if signal == "interested" else "watching",
         )
     )
     _reconcile_interest_workflow(session, client, opportunity, signal)
@@ -324,9 +327,9 @@ def _reconcile_interest_workflow(session: Session, client: Customer, opportunity
             session.add(
                 DocumentRetrievalTask(
                     opportunity_id=opportunity.id,
-                    task_name=f"Donna action: retrieve documents for {client.customer_name}",
+                    task_name=f"Account Lead action: retrieve documents for {client.customer_name}",
                     status="requested",
-                    owner="Donna relationship/action queue",
+                    owner="Client Action Queue",
                     notes="Client interest triggered on-demand portal/document retrieval. No portal login is automated by COF.",
                 )
             )
@@ -342,7 +345,7 @@ def _ensure_cof_digest(session: Session, unit: BusinessUnit) -> None:
     session.add(
         DigestProfile(
             name=COF_DIGEST_NAME,
-            report_type="cof_weekly_portfolio_report",
+            report_type="cof_final_customer_pack",
             business_unit_id=unit.id,
             recipients="",
             frequency_label="Monday",
@@ -353,7 +356,7 @@ def _ensure_cof_digest(session: Session, unit: BusinessUnit) -> None:
 
 
 def _ensure_cof_seed_report(session: Session, unit: BusinessUnit) -> int:
-    report_name = "COF weekly portfolio report - portfolio baseline"
+    report_name = "COF internal review pack - portfolio baseline"
     existing = None
     for candidate_name in [report_name, "COF weekly portfolio report - live pilot baseline"]:
         existing = session.exec(select(IntelligenceReport).where(IntelligenceReport.report_name == candidate_name)).first()
@@ -363,13 +366,13 @@ def _ensure_cof_seed_report(session: Session, unit: BusinessUnit) -> int:
 
     if existing:
         existing.report_name = report_name
-        existing.report_type = "cof_weekly_portfolio_report"
+        existing.report_type = "cof_internal_review_pack"
         existing.customer_id = None
         existing.business_unit_id = unit.id
         existing.markdown = generate_cof_weekly_report_markdown(
             session,
             report_name,
-            "cof_weekly_portfolio_report",
+            "cof_internal_review_pack",
             business_unit_id=unit.id,
         )
         session.add(existing)
@@ -377,12 +380,12 @@ def _ensure_cof_seed_report(session: Session, unit: BusinessUnit) -> int:
 
     report = IntelligenceReport(
         report_name=report_name,
-        report_type="cof_weekly_portfolio_report",
+        report_type="cof_internal_review_pack",
         business_unit_id=unit.id,
         markdown=generate_cof_weekly_report_markdown(
             session,
             report_name,
-            "cof_weekly_portfolio_report",
+            "cof_internal_review_pack",
             business_unit_id=unit.id,
         ),
     )

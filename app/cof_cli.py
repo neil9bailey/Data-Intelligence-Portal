@@ -16,9 +16,9 @@ def main() -> int:
         apply_intelligence_pack(session, pack, actor="cof-cli")
         counts = {
             "cof_clients": len([item for item in session.exec(select(Customer)) if item.customer_name.startswith("COF Client ")]),
-            "cof_opportunities": len([item for item in session.exec(select(Opportunity)) if str(item.notice_identifier).startswith("cof-live-pilot")]),
+            "cof_opportunities": len([item for item in session.exec(select(Opportunity)) if str(item.notice_identifier).startswith(("cof-pipeline", "cof-live-pilot"))]),
             "cof_digest_profiles": len(list(session.exec(select(DigestProfile).where(DigestProfile.name == "COF Monday report send")))),
-            "cof_reports": len(list(session.exec(select(IntelligenceReport).where(IntelligenceReport.report_type == "cof_weekly_portfolio_report")))),
+            "cof_reports": len(list(session.exec(select(IntelligenceReport).where(IntelligenceReport.report_type.in_(["cof_internal_review_pack", "cof_final_customer_pack", "cof_weekly_portfolio_report"]))))),
         }
     backup_sqlite_persistent_copy()
     print(json.dumps(counts, indent=2))

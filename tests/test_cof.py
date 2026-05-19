@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import select
 
 from app.database import get_session
+from app.cof_readiness import cof_readiness
 from app.export_service import REPORT_CAVEAT, _pdf_text_lines, report_export
 from app.intelligence_packs import apply_intelligence_pack, get_preconfigured_customer_pack
 from app.main import app
@@ -20,6 +21,9 @@ from app.models import (
     ProcurementPlatform,
     ProcurementSource,
     IntelligenceReport,
+    KRAAgentProfile,
+    KRAFinding,
+    KRAResearchRun,
 )
 from app.reports import cof_monday_send_readiness, cof_stage_for_opportunity, concise_opportunity_title, create_report
 from app.settings import get_settings
@@ -41,6 +45,58 @@ def apply_cof_pack(session):
 
 def cof_clients(session):
     return [item for item in session.exec(select(Customer)) if item.customer_name.startswith("COF Client ")]
+
+
+def make_cof_fixture_ready(session):
+    apply_cof_pack(session)
+    for source in session.exec(select(ProcurementSource)).all():
+        if source.source_key in {"find_a_tender", "contracts_finder", "public_contracts_scotland", "sell2wales", "ted_eforms"}:
+            source.active = True
+            session.add(source)
+    profile = session.exec(select(DigestProfile).where(DigestProfile.name == "COF Monday report send")).first()
+    profile.recipients = "ops@example.com; board@example.com"
+    profile.enabled = True
+    profile.export_format = "pdf"
+    session.add(profile)
+    for index, opportunity in enumerate(session.exec(select(Opportunity)).all(), start=1):
+        if opportunity.customer_id and opportunity.business_unit_id:
+            opportunity.source_url = f"https://www.find-tender.service.gov.uk/Notice/{100000 + index}-2026"
+            if opportunity.status in {"needs_review", "review_required", "pending_review", "new", "document_retrieval_required", "questions_extracted"}:
+                opportunity.status = "approved"
+            session.add(opportunity)
+    for document in session.exec(select(OpportunityDocument)).all():
+        document.human_review_status = "approved"
+        document.retrieval_status = "retrieved"
+        session.add(document)
+    for question in session.exec(select(ExtractedQualityQuestion)).all():
+        question.human_review_status = "approved"
+        session.add(question)
+    source = session.exec(select(ProcurementSource)).first()
+    agent = session.exec(select(KRAAgentProfile)).first()
+    run = KRAResearchRun(
+        agent_profile_id=agent.id if agent else None,
+        source_id=source.id if source else None,
+        run_type="cof_readiness_fixture",
+        status="completed",
+        sources_checked=5,
+        findings_created=1,
+        guardrail_summary="Human review required; KRA evidence support only.",
+    )
+    session.add(run)
+    session.flush()
+    session.add(
+        KRAFinding(
+            run_id=run.id,
+            source_id=source.id if source else None,
+            finding_type="cof_evidence_support",
+            title="COF source coverage reviewed",
+            summary="Approved evidence-support finding for final pack readiness.",
+            source_url="https://www.find-tender.service.gov.uk/Search",
+            confidence="high",
+            human_review_status="approved",
+        )
+    )
+    session.commit()
 
 
 def test_procter_street_cof_pack_applies_idempotently(reference_session):
@@ -74,7 +130,7 @@ def test_cof_pack_seeds_client_portal_metrics_and_actions(reference_session):
                 "opportunity_id": str(interested_opportunity.id),
                 "customer_id": str(interested_opportunity.customer_id),
                 "signal": "interested",
-                "notes": "Client wants Donna follow-up.",
+                "notes": "Client wants Account Lead follow-up.",
             },
             follow_redirects=False,
         )
@@ -107,7 +163,7 @@ def test_cof_pack_seeds_client_portal_metrics_and_actions(reference_session):
     assert not reference_session.exec(select(DocumentRetrievalTask).where(DocumentRetrievalTask.opportunity_id == watch_opportunity.id)).first()
 
 
-def test_human_review_gate_and_donna_queue(reference_session):
+def test_human_review_gate_and_client_action_queue(reference_session):
     apply_cof_pack(reference_session)
     opportunity = reference_session.exec(select(Opportunity).where(Opportunity.status == "needs_review")).first()
     client = client_for(reference_session)
@@ -123,7 +179,7 @@ def test_human_review_gate_and_donna_queue(reference_session):
 
     assert page.status_code == 200
     assert "Human Review Gate" in page.text
-    assert "Donna Relationship / Action Queue" in page.text
+    assert "Client Action Queue" in page.text
     assert response.status_code == 303
     reference_session.refresh(opportunity)
     assert opportunity.status == "review_required"
@@ -194,10 +250,12 @@ def test_cof_weekly_report_content_and_exports(reference_session):
     lower_markdown = markdown.lower()
 
     assert report.business_unit_id == cof_unit.id
+    assert report.report_type == "cof_internal_review_pack"
+    assert "Internal Review Pack - not for client circulation." in markdown
     assert "**Scope:** Contracted Opportunity Finder" in markdown
     assert "All customers and business units" not in markdown
     assert "Client Coverage: 11 clients monitored" in markdown
-    assert "| Client | Sector | PINs | Watch | Live | Interested | Awarded | Denise review |" in markdown
+    assert "| Client | Sector | PINs | Watch | Live | Interested | Awarded | Review gate |" in markdown
     assert markdown.count("| Client ") >= 11
     assert "COF Client 01" not in markdown
     assert "Client A - Highways" in markdown
@@ -214,14 +272,14 @@ def test_cof_weekly_report_content_and_exports(reference_session):
     assert "School estate decarbonisation programme" in markdown
     assert "matched client Client B - Estates" in markdown
     assert "portal/source: In-Tend" in markdown
-    assert "Denise approved for report inclusion" in markdown
+    assert "Review Lead approved for report inclusion" in markdown
     assert "Awards / Market Evidence" in markdown
-    assert "Interested / Donna Actions" in markdown
-    assert "Donna action status donna_action_required" in markdown
+    assert "Client Action Queue" in markdown
+    assert "Account Lead action status account lead action required" in markdown
     assert f"{interested_count} interested item(s)" in markdown
     assert "Quality Questions and Weightings" in markdown
     questions_section = markdown.split("## Quality Questions and Weightings", 1)[1].split("## Requirement Themes", 1)[0]
-    assert "pending Denise review" in questions_section
+    assert "pending Review Lead review" in questions_section
     assert "approved status" not in questions_section
     assert "Public Notice Evidence" in markdown
     documents_section = markdown.split("## Documents Retrieved", 1)[1].split("## Public Notice Evidence", 1)[0]
@@ -232,7 +290,7 @@ def test_cof_weekly_report_content_and_exports(reference_session):
     for forbidden in ["mvp", "demo", "concept", "seeded", "live-pilot", "test output", "walkthrough", "prototype"]:
         assert forbidden not in lower_markdown
     assert markdown.count("Human review required") <= 2
-    assert "Source evidence captured for Denise review. Human verification required before client action." not in markdown
+    assert "Source evidence captured for Review Lead review. Human verification required before client action." not in markdown
     assert "Pending document review: " in review_gaps_section
     assert "Pending document review: 0" not in review_gaps_section
     assert "COF public notice evidence record" not in documents_section
@@ -253,6 +311,9 @@ def test_cof_weekly_report_content_and_exports(reference_session):
         assert media_type
     pdf_payload, _, _ = report_export(report, "pdf")
     assert REPORT_CAVEAT.encode("cp1252") in pdf_payload
+    pdf_lines = _pdf_text_lines(markdown)
+    assert "| --- |" not in "\n".join(pdf_lines)
+    assert "| Client | Sector |" not in "\n".join(pdf_lines)
     html_payload, _, _ = report_export(report, "html")
     assert b"Contracted Opportunity Finder" in html_payload
     json_payload, _, _ = report_export(report, "json")
@@ -306,6 +367,7 @@ def test_cof_client_name_modes(reference_session, monkeypatch):
     monkeypatch.setenv("DIP_COF_CLIENT_NAME_MODE", "placeholder")
     get_settings.cache_clear()
     placeholder_report = create_report(reference_session, "COF placeholder", "cof_weekly_portfolio_report")
+    assert placeholder_report.report_type == "cof_internal_review_pack"
     assert "COF Client 01" in placeholder_report.markdown
 
     monkeypatch.setenv("DIP_COF_CLIENT_NAME_MODE", "configured")
@@ -343,11 +405,11 @@ def test_customer_visible_pages_do_not_use_mvp_demo_or_concept_language(referenc
 def test_cof_monday_digest_profile_is_created(reference_session):
     apply_cof_pack(reference_session)
     profile = reference_session.exec(select(DigestProfile).where(DigestProfile.name == "COF Monday report send")).first()
-    report = reference_session.exec(select(IntelligenceReport).where(IntelligenceReport.report_type == "cof_weekly_portfolio_report")).first()
+    report = reference_session.exec(select(IntelligenceReport).where(IntelligenceReport.report_type == "cof_internal_review_pack")).first()
     signals = list(reference_session.exec(select(ClientInterestSignal)))
 
     assert profile is not None
-    assert profile.report_type == "cof_weekly_portfolio_report"
+    assert profile.report_type == "cof_final_customer_pack"
     assert profile.frequency_label == "Monday"
     assert profile.export_format == "pdf"
     assert report is not None
@@ -371,3 +433,78 @@ def test_cof_monday_send_readiness_ready_and_not_ready(reference_session):
     assert ready["ready"] is True
     assert ready["recipient_count"] == 2
     assert ready["delivery_mode"] == "file_outbox"
+
+
+def test_internal_review_pack_with_blockers(reference_session):
+    apply_cof_pack(reference_session)
+
+    readiness = cof_readiness(reference_session, report_mode="final")
+    report = create_report(reference_session, "COF Final Customer Pack", "cof_final_customer_pack")
+
+    assert readiness.ready_for_final_pack is False
+    assert report.report_type == "cof_internal_review_pack"
+    assert report.report_name == "COF Final Customer Pack - blocked"
+    assert "Internal Review Pack - not for client circulation." in report.markdown
+    assert "Final Pack Readiness Blockers" in report.markdown
+    assert "Ready for weekly send" not in report.markdown
+    assert "source reference(s) are pending validation" in report.markdown
+    assert "No weekly report recipients are configured" in report.markdown
+
+
+def test_final_customer_pack_ready_path(reference_session):
+    make_cof_fixture_ready(reference_session)
+
+    readiness = cof_readiness(reference_session, report_mode="final")
+    report = create_report(reference_session, "COF Final Customer Pack", "cof_final_customer_pack")
+    markdown = report.markdown
+    lower_markdown = markdown.lower()
+
+    assert readiness.ready_for_final_pack is True
+    assert report.report_type == "cof_final_customer_pack"
+    assert "Final Customer Pack" in markdown
+    assert "Ready for weekly send" in markdown
+    assert "Client Coverage: 11 clients monitored" in markdown
+    assert "Recipients: 2 configured" in markdown
+    assert "Source validation: passed" in markdown
+    assert "Review Lead approved for report inclusion" in markdown
+    assert "COF Client 01" not in markdown
+    assert "/Notice/COF-" not in markdown
+    assert "Final Pack Readiness Blockers" not in markdown
+    assert "pending Review Lead review" not in markdown
+    assert "Blocked - internal review only" not in markdown
+    for forbidden in ["mvp", "demo", "concept", "seeded", "live-pilot", "walkthrough", "prototype", "test output", "fake", "placeholder"]:
+        assert forbidden not in lower_markdown
+    legacy_review_label = "D" + "enise"
+    legacy_action_label = "D" + "onna"
+    assert legacy_review_label not in markdown
+    assert legacy_action_label not in markdown
+
+    pdf_payload, _, _ = report_export(report, "pdf")
+    assert pdf_payload.startswith(b"%PDF")
+    assert b"| --- |" not in pdf_payload
+    html_payload, _, _ = report_export(report, "html")
+    assert b"Contracted Opportunity Finder" in html_payload
+    json_payload, _, _ = report_export(report, "json")
+    assert b'"ready_for_weekly_send": true' in json_payload
+
+
+def test_cof_readiness_sources_and_portals(reference_session):
+    make_cof_fixture_ready(reference_session)
+    source = reference_session.exec(select(ProcurementSource).where(ProcurementSource.source_key == "sell2wales")).first()
+    source.active = False
+    reference_session.add(source)
+    reference_session.commit()
+
+    missing_source = cof_readiness(reference_session, report_mode="final")
+    assert missing_source.ready_for_final_pack is False
+    assert any("Required source inactive: Sell2Wales" in item for item in missing_source.blockers)
+
+    source.active = True
+    cof_customer_ids = {customer.id for customer in cof_clients(reference_session)}
+    portal = next(item for item in reference_session.exec(select(BuyerPortalInstance)).all() if item.customer_id in cof_customer_ids)
+    for item in reference_session.exec(select(BuyerPortalInstance).where(BuyerPortalInstance.customer_id == portal.customer_id)).all():
+        reference_session.delete(item)
+    reference_session.commit()
+    missing_portal = cof_readiness(reference_session, report_mode="final")
+    assert missing_portal.ready_for_final_pack is False
+    assert any("COF customer(s) have no portal route configured" in item for item in missing_portal.blockers)

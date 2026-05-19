@@ -300,7 +300,7 @@ def _ensure_client(session: Session, data: dict, unit: BusinessUnit | None, resu
         "aliases": data.get("aliases") or [data.get("name", "")],
         "buying_entities": data.get("aliases") or [data.get("name", "")],
         "strategic_notes": [
-            f"COF active client placeholder. Value band: {data.get('value_band', 'to confirm')}.",
+            f"COF active client record. Value band: {data.get('value_band', 'to confirm')}.",
             f"Portal family: {data.get('portal_family', 'to confirm')}.",
             data.get("report_notes", ""),
         ],

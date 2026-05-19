@@ -21,7 +21,7 @@ def review_queue(request: Request, session: Session = Depends(get_session), _use
     if opportunity_ids:
         for evidence in session.exec(select(OpportunityMatchEvidence).where(col(OpportunityMatchEvidence.opportunity_id).in_(opportunity_ids))):
             match_evidence_by_opportunity.setdefault(evidence.opportunity_id or 0, []).append(evidence)
-    donna_signals = list(
+    client_action_signals = list(
         session.exec(select(ClientInterestSignal).where(ClientInterestSignal.signal == "interested").order_by(col(ClientInterestSignal.created_at).desc()).limit(50))
     )
     retrieval_tasks = list(session.exec(select(DocumentRetrievalTask).order_by(col(DocumentRetrievalTask.created_at).desc()).limit(100)))
@@ -35,7 +35,7 @@ def review_queue(request: Request, session: Session = Depends(get_session), _use
             all_opportunities=opportunities,
             opportunities_pagination=pagination,
             match_evidence_by_opportunity=match_evidence_by_opportunity,
-            donna_signals=donna_signals,
+            client_action_signals=client_action_signals,
             tasks_by_opportunity=tasks_by_opportunity,
             **reference_context(session),
         ),

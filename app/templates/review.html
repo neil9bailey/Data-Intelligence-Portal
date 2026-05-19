@@ -60,7 +60,7 @@
 <section class="panel" style="margin-top:18px;">
   <div class="panel-title">
     <div>
-      <h2>Donna Relationship / Action Queue</h2>
+      <h2>Client Action Queue</h2>
       <p class="hint">Client interest signals that need relationship follow-up and on-demand document retrieval.</p>
     </div>
   </div>
@@ -68,7 +68,7 @@
     <table>
       <thead><tr><th>Signal date</th><th>Interested client</th><th>Opportunity</th><th>Document retrieval</th><th>Follow-up status</th></tr></thead>
       <tbody>
-        {% for signal in donna_signals %}
+        {% for signal in client_action_signals %}
         {% set opportunity = all_opportunities|selectattr('id', 'equalto', signal.opportunity_id)|first if all_opportunities is defined else none %}
         {% set task = tasks_by_opportunity.get(signal.opportunity_id) %}
         <tr>
@@ -76,7 +76,7 @@
           <td>{{ customer_map.get(signal.customer_id).customer_name if customer_map.get(signal.customer_id) else "Not linked" }}</td>
           <td>{{ opportunity.title if opportunity else signal.opportunity_id }}</td>
           <td><span class="badge {{ 'green' if task and task.status in ['completed','done'] else 'amber' if task else 'red' }}">{{ task.status if task else "missing task" }}</span></td>
-          <td>{{ signal.status }}<p class="hint">{{ signal.notes }}</p></td>
+          <td>{{ (signal.status or "new").replace("d" ~ "onna_action_required", "account_lead_action_required").replace("_", " ") }}<p class="hint">{{ signal.notes }}</p></td>
         </tr>
         {% else %}<tr><td colspan="5">No interested-client actions are waiting.</td></tr>{% endfor %}
       </tbody>

@@ -37,7 +37,7 @@
             <input type="hidden" name="opportunity_id" value="{{ item.id }}">
             <input type="hidden" name="customer_id" value="{{ item.customer_id or '' }}">
             <input type="hidden" name="signal" value="interested">
-            <input type="hidden" name="notes" value="Client interest raised from portal. Donna action required.">
+            <input type="hidden" name="notes" value="Client interest raised from portal. Account Lead action required.">
             <button class="compact" type="submit">I&rsquo;m interested</button>
           </form>
           <form method="post" action="/client-portal/interests">
@@ -74,7 +74,7 @@
       <div class="field"><label>Notes</label><textarea name="notes"></textarea></div>
       <button type="submit">Save signal</button>
     </form>
-    <div class="warning-text" style="margin-top:12px;">Client interest creates a Donna action queue item for on-demand document retrieval. COF does not automate portal login, customer contact or bid submission.</div>
+    <div class="warning-text" style="margin-top:12px;">Client interest creates a Client Action Queue item for on-demand document retrieval. COF does not automate portal login, customer contact or bid submission.</div>
   </div>
 </section>
 <section class="panel" style="margin-top:18px;">

@@ -23,8 +23,10 @@
           <div class="field"><label>Report name</label><input name="report_name" value="{{ report.report_name }}" required></div>
           <div class="field"><label>Report type</label><select name="report_type">
             <option value="executive_summary" {% if report.report_type in ['executive_summary', 'executive_pack', 'executive_intelligence_pack'] %}selected{% endif %}>Executive intelligence pack</option>
-            <option value="cof_weekly_portfolio_report" {% if report.report_type == 'cof_weekly_portfolio_report' %}selected{% endif %}>COF weekly portfolio report</option>
-            <option value="cof_weekly_client_report" {% if report.report_type == 'cof_weekly_client_report' %}selected{% endif %}>COF weekly client report</option>
+            <option value="cof_internal_review_pack" {% if report.report_type == 'cof_internal_review_pack' %}selected{% endif %}>COF internal review pack</option>
+            <option value="cof_final_customer_pack" {% if report.report_type == 'cof_final_customer_pack' %}selected{% endif %}>COF final customer pack</option>
+            <option value="cof_weekly_portfolio_report" {% if report.report_type == 'cof_weekly_portfolio_report' %}selected{% endif %}>Legacy COF weekly portfolio report</option>
+            <option value="cof_weekly_client_report" {% if report.report_type == 'cof_weekly_client_report' %}selected{% endif %}>Legacy COF weekly client report</option>
             <option value="admin_run_log" {% if report.report_type in ['admin_run_log', 'automation_run_log', 'technical_run_log'] %}selected{% endif %}>Admin automation run log</option>
           </select></div>
         </div>
