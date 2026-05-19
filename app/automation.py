@@ -53,6 +53,33 @@ def apply_all_preconfigured_packs(session: Session, actor: str = "system") -> li
     return results
 
 
+def mark_interrupted_automation_runs(session: Session) -> int:
+    interrupted = list(
+        session.exec(
+            select(AutomationRun).where(
+                col(AutomationRun.status).in_(["queued", "running"]),
+                AutomationRun.finished_at == None,  # noqa: E711
+            )
+        )
+    )
+    for run in interrupted:
+        run.status = "failed"
+        run.finished_at = datetime.now(UTC)
+        run.summary = "Automation was interrupted by an application restart before completion."
+        session.add(run)
+        log_event(
+            session,
+            entity_type="AutomationRun",
+            entity_id=run.id,
+            action="failed",
+            summary=run.summary,
+            after=run,
+        )
+    if interrupted:
+        session.commit()
+    return len(interrupted)
+
+
 def run_admin_full_cycle(
     session: Session,
     actor: str = "local-user",

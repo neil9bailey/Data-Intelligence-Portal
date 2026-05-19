@@ -368,6 +368,18 @@ var appEnvironment = concat(
       value: kraMcpMode
     }
     {
+      name: 'DIP_NOTICE_PAGE_LIMIT'
+      value: '50'
+    }
+    {
+      name: 'DIP_NOTICE_MAX_PAGES'
+      value: '2'
+    }
+    {
+      name: 'DIP_NOTICE_LOOKBACK_DAYS'
+      value: '180'
+    }
+    {
       name: 'DIP_EMAIL_DELIVERY_MODE'
       value: emailDeliveryMode
     }

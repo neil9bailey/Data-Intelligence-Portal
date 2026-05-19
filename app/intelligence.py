@@ -54,9 +54,10 @@ GENERIC_MATCH_TERMS = {
     "service",
     "transport",
 }
-DEFAULT_NOTICE_LOOKBACK_DAYS = 180
-DEFAULT_NOTICE_PAGE_LIMIT = 100
-DEFAULT_NOTICE_MAX_PAGES = 8
+_settings = get_settings()
+DEFAULT_NOTICE_LOOKBACK_DAYS = _settings.notice_lookback_days
+DEFAULT_NOTICE_PAGE_LIMIT = _settings.notice_page_limit
+DEFAULT_NOTICE_MAX_PAGES = _settings.notice_max_pages
 MARKET_RELEVANCE_THRESHOLD = 44
 AI_PROMPT_VERSION = "kra-summary-v1"
 CONTRACTS_FINDER_V2_SEARCH_URL = "https://www.contractsfinder.service.gov.uk/api/rest/2/search_notices/json"

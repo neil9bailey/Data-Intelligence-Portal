@@ -12,6 +12,13 @@ def env_bool(name: str, default: str = "false") -> bool:
     return os.getenv(name, default).lower() in {"1", "true", "yes", "on"}
 
 
+def env_int(name: str, default: str) -> int:
+    try:
+        return int(os.getenv(name, default))
+    except (TypeError, ValueError):
+        return int(default)
+
+
 class Settings:
     def __init__(self) -> None:
         self.app_name: str = os.getenv("APP_NAME", "Data Intelligence Portal")
@@ -26,6 +33,9 @@ class Settings:
         self.kra_api_key: str = os.getenv("KRA_API_KEY", "")
         self.kra_model: str = os.getenv("KRA_MODEL", "")
         self.kra_mcp_mode: str = os.getenv("KRA_MCP_MODE", "local_registry")
+        self.notice_lookback_days: int = env_int("DIP_NOTICE_LOOKBACK_DAYS", "180")
+        self.notice_page_limit: int = env_int("DIP_NOTICE_PAGE_LIMIT", "100")
+        self.notice_max_pages: int = env_int("DIP_NOTICE_MAX_PAGES", "8")
         self.entra_auth_enabled: bool = env_bool("ENTRA_AUTH_ENABLED", "false")
         self.local_admin_mode: bool = env_bool("LOCAL_ADMIN_MODE", "true")
         self.entra_admin_group_id: str = os.getenv("ENTRA_ADMIN_GROUP_ID", "")

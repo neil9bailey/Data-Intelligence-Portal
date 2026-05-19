@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session
 
-from app.automation import apply_all_preconfigured_packs
+from app.automation import apply_all_preconfigured_packs, mark_interrupted_automation_runs
 from app.database import (
     backup_sqlite_persistent_copy,
     engine,
@@ -39,6 +39,7 @@ async def lifespan(app: FastAPI):
             retry_sqlite_locked(lambda: run_seed(seed_demo_data))
         if settings.auto_apply_customer_packs:
             retry_sqlite_locked(lambda: run_seed(lambda session: apply_all_preconfigured_packs(session, actor="startup-preconfigure")))
+        retry_sqlite_locked(lambda: run_seed(mark_interrupted_automation_runs))
         retry_sqlite_locked(lambda: run_seed(repair_mismatched_customer_assignments))
         backup_sqlite_persistent_copy()
     try:
