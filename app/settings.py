@@ -44,6 +44,7 @@ class Settings:
         self.smtp_host: str = os.getenv("DIP_SMTP_HOST", "")
         self.smtp_port: str = os.getenv("DIP_SMTP_PORT", "")
         self.smtp_username: str = os.getenv("DIP_SMTP_USERNAME", "")
+        self.smtp_password_secret_name: str = os.getenv("DIP_SMTP_PASSWORD_SECRET_NAME", "")
         self.smtp_password: str = os.getenv("DIP_SMTP_PASSWORD", "")
         self.smtp_use_tls: bool = env_bool("DIP_SMTP_USE_TLS", "true")
         self.smtp_enabled: bool = env_bool("DIP_SMTP_ENABLED", "false")

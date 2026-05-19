@@ -67,9 +67,8 @@ async def update_email_configuration(request: Request, session: Session = Depend
     config.smtp_host = str(form.get("smtp_host") or "")
     config.smtp_port = smtp_port
     config.smtp_username = str(form.get("smtp_username") or "")
-    password = str(form.get("smtp_password") or "")
-    if password:
-        config.smtp_password = password
+    config.smtp_password_secret_name = str(form.get("smtp_password_secret_name") or "")
+    config.smtp_password = ""
     config.use_tls = parse_bool(form.get("use_tls"))
     config.enabled = parse_bool(form.get("enabled"))
     config.sender_name = str(form.get("sender_name") or "Data Intelligence Portal")
@@ -77,7 +76,7 @@ async def update_email_configuration(request: Request, session: Session = Depend
     config.default_recipients = str(form.get("default_recipients") or "")
     config.notes = str(form.get("notes") or "")
     session.add(config)
-    log_event(session, entity_type="EmailConfiguration", entity_id=config.id, action="update", summary="Updated email configuration", before=before, after=config)
+    log_event(session, entity_type="EmailConfiguration", entity_id=config.id, action="update", summary="Updated email configuration secret reference", before=before, after=config)
     session.commit()
     return redirect("/admin")
 

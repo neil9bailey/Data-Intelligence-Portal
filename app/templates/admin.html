@@ -190,7 +190,7 @@
       </div>
       <div class="form-grid">
         <div class="field"><label>SMTP username</label><input name="smtp_username" value="{{ email_config.smtp_username }}"></div>
-        <div class="field"><label>SMTP password</label><input name="smtp_password" type="password" placeholder="Leave blank to keep existing"></div>
+        <div class="field"><label>SMTP password secret reference</label><input name="smtp_password_secret_name" value="{{ email_config.smtp_password_secret_name }}" placeholder="DIP_SMTP_PASSWORD"></div>
       </div>
       <label class="checkline"><input type="checkbox" name="use_tls" value="true" {% if email_config.use_tls %}checked{% endif %}> Use TLS</label>
       <label class="checkline"><input type="checkbox" name="enabled" value="true" {% if email_config.enabled %}checked{% endif %}> Enable SMTP sending</label>

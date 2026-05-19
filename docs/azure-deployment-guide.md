@@ -309,6 +309,7 @@ Container environment variables include:
 | `DIP_EMAIL_DEFAULT_RECIPIENTS` | Default autonomous workflow report recipients |
 | `DIP_SMTP_HOST` / `DIP_SMTP_PORT` | SMTP endpoint for approved live sending |
 | `DIP_SMTP_USERNAME` | SMTP username for approved live sending |
+| `DIP_SMTP_PASSWORD_SECRET_NAME` | Optional app-level reference name used by the Admin email profile, usually `DIP_SMTP_PASSWORD` |
 | `DIP_SMTP_PASSWORD` | Secret reference only; never store the raw value in code or parameter files |
 | `DIP_SMTP_ENABLED` | Enables real SMTP sending when credentials are configured |
 

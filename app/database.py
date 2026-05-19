@@ -165,6 +165,9 @@ def apply_sqlite_schema_updates() -> None:
             "requirement_category": "requirement_category VARCHAR DEFAULT 'general'",
             "confidence_reason": "confidence_reason VARCHAR DEFAULT ''",
         },
+        "emailconfiguration": {
+            "smtp_password_secret_name": "smtp_password_secret_name VARCHAR DEFAULT ''",
+        },
     }
     with engine.begin() as connection:
         for table_name, columns in updates.items():

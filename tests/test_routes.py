@@ -15,6 +15,7 @@ from app.models import (
     Customer,
     DocumentRetrievalTask,
     EmailDeliveryLog,
+    EmailConfiguration,
     ExtractedQualityQuestion,
     ExtractedRequirement,
     IntelligenceReport,
@@ -191,6 +192,7 @@ def test_report_download_formats_and_local_email(reference_session):
 def test_admin_email_test_route(reference_session):
     client = client_for(reference_session)
     try:
+        page = client.get("/admin")
         response = client.post(
             "/admin/email/test",
             data={"recipients": "ops@example.com", "subject": "Test", "message": "Hello"},
@@ -199,8 +201,38 @@ def test_admin_email_test_route(reference_session):
     finally:
         app.dependency_overrides.clear()
 
+    assert page.status_code == 200
+    assert 'name="smtp_password_secret_name"' in page.text
+    assert 'name="smtp_password"' not in page.text
     assert response.status_code == 303
     assert reference_session.exec(select(EmailDeliveryLog)).first() is not None
+
+
+def test_admin_email_config_stores_secret_reference_not_password(reference_session):
+    client = client_for(reference_session)
+    try:
+        response = client.post(
+            "/admin/email",
+            data={
+                "profile_name": "SMTP profile",
+                "delivery_mode": "smtp",
+                "smtp_host": "smtp.example.com",
+                "smtp_port": "587",
+                "smtp_username": "smtp-user",
+                "smtp_password": "should-not-store",
+                "smtp_password_secret_name": "DIP_SMTP_PASSWORD",
+                "sender_name": "DIP",
+                "sender_email": "no-reply@example.com",
+            },
+            follow_redirects=False,
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    config = reference_session.exec(select(EmailConfiguration)).first()
+    assert response.status_code == 303
+    assert config.smtp_password_secret_name == "DIP_SMTP_PASSWORD"
+    assert config.smtp_password == ""
 
 
 def test_admin_full_cycle_automation_preconfigures_and_exports(reference_session, monkeypatch):

@@ -3,6 +3,7 @@ import json
 from sqlmodel import select
 
 from app.audit import compact_snapshot
+from app.email_service import resolve_smtp_password, send_or_store_email
 from app.intelligence import (
     FetchResult,
     CandidateOpportunity,
@@ -497,7 +498,53 @@ def test_atom_feed_parser_extracts_items():
 
 
 def test_audit_snapshot_redacts_email_password():
-    snapshot = compact_snapshot(EmailConfiguration(smtp_password="super-secret"))
+    snapshot = compact_snapshot(EmailConfiguration(smtp_password="super-secret", smtp_password_secret_name="DIP_SMTP_PASSWORD"))
 
     assert "super-secret" not in snapshot
+    assert "DIP_SMTP_PASSWORD" not in snapshot
     assert "***redacted***" in snapshot
+
+
+def test_smtp_password_resolves_from_secret_reference(monkeypatch, session):
+    captures = {}
+
+    class FakeSMTP:
+        def __init__(self, host, port, timeout):
+            captures["host"] = host
+            captures["port"] = port
+            captures["timeout"] = timeout
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def starttls(self):
+            captures["tls"] = True
+
+        def login(self, username, password):
+            captures["username"] = username
+            captures["password"] = password
+
+        def send_message(self, msg):
+            captures["subject"] = msg["Subject"]
+
+    monkeypatch.setenv("DIP_SMTP_TEST_PASSWORD", "smtp-secret")
+    monkeypatch.setattr("app.email_service.smtplib.SMTP", FakeSMTP)
+    config = EmailConfiguration(
+        delivery_mode="smtp",
+        enabled=True,
+        smtp_host="smtp.test.local",
+        smtp_port=2525,
+        smtp_username="smtp-user",
+        smtp_password_secret_name="DIP_SMTP_TEST_PASSWORD",
+        sender_email="no-reply@example.com",
+    )
+
+    assert resolve_smtp_password(config) == "smtp-secret"
+    log = send_or_store_email(session, config, ["ops@example.com"], "Secret ref test", "Body")
+
+    assert log.status == "sent"
+    assert captures["password"] == "smtp-secret"
+    assert captures["subject"] == "Secret ref test"

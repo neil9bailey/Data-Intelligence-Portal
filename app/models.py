@@ -335,6 +335,7 @@ class EmailConfiguration(SQLModel, table=True):
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_username: str = ""
+    smtp_password_secret_name: str = ""
     smtp_password: str = ""
     use_tls: bool = True
     sender_name: str = "Data Intelligence Portal"

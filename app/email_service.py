@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from email.message import EmailMessage
+import os
 from pathlib import Path
 import smtplib
 
@@ -46,7 +47,10 @@ def apply_email_environment_defaults(config: EmailConfiguration) -> bool:
     set_if_blank("default_recipients", settings.email_default_recipients)
     set_if_blank("smtp_host", settings.smtp_host)
     set_if_blank("smtp_username", settings.smtp_username)
-    set_if_blank("smtp_password", settings.smtp_password)
+    set_if_blank("smtp_password_secret_name", settings.smtp_password_secret_name)
+    if settings.smtp_password and not config.smtp_password_secret_name:
+        config.smtp_password_secret_name = "DIP_SMTP_PASSWORD"
+        changed = True
     if settings.smtp_port and config.smtp_port == 587:
         try:
             config.smtp_port = int(settings.smtp_port)
@@ -61,6 +65,16 @@ def apply_email_environment_defaults(config: EmailConfiguration) -> bool:
         config.use_tls = settings.smtp_use_tls
         changed = True
     return changed
+
+
+def resolve_smtp_password(config: EmailConfiguration) -> str:
+    settings = get_settings()
+    secret_ref = (config.smtp_password_secret_name or "").strip()
+    if secret_ref:
+        return os.getenv(secret_ref, "")
+    if settings.smtp_password:
+        return settings.smtp_password
+    return config.smtp_password or ""
 
 
 def split_recipients(value: str) -> list[str]:
@@ -122,7 +136,7 @@ def send_or_store_email(
                 if config.use_tls:
                     smtp.starttls()
                 if config.smtp_username:
-                    smtp.login(config.smtp_username, config.smtp_password)
+                    smtp.login(config.smtp_username, resolve_smtp_password(config))
                 smtp.send_message(msg)
             log.status = "sent"
         else:

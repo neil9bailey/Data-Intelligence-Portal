@@ -140,6 +140,8 @@ Supported placeholders:
 
 Current KRA mode is deterministic/local by default. API-key-backed AI enhancement can be added behind the same review controls.
 
+Email SMTP credentials follow the same pattern. The Admin page stores only the secret reference name, for example `DIP_SMTP_PASSWORD`; the actual password/API key must be provided through local environment variables or Azure Key Vault-backed Container Apps secrets.
+
 ## Admin Control Centre
 
 Admin and configuration tasks are consolidated under `/admin` and are reached from the dedicated **Admin** button in the header. The main navigation stays deliberately simple for end users: Opportunity Inbox, Client Feed and Reports.
