@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, Response
 from sqlmodel import Session, col, select
 
 from app.audit import compact_snapshot
-from app.auth import require_admin
+from app.auth import require_admin, require_report_viewer
 from app.database import get_session
 from app.email_service import get_email_configuration, send_or_store_email, split_recipients
 from app.export_service import report_export
@@ -18,7 +18,7 @@ router = APIRouter()
 
 
 @router.get("/reports", response_class=HTMLResponse)
-def reports(request: Request, session: Session = Depends(get_session)):
+def reports(request: Request, session: Session = Depends(get_session), _user=Depends(require_report_viewer)):
     items, pagination = paged(session, select(IntelligenceReport).order_by(col(IntelligenceReport.generated_at).desc()), request)
     return templates.TemplateResponse(request, "reports.html", context(request, reports=items, reports_pagination=pagination, **reference_context(session)))
 
@@ -73,7 +73,7 @@ def delete_report(report_id: int, session: Session = Depends(get_session), _user
 
 
 @router.get("/reports/{report_id}", response_class=HTMLResponse)
-def report_detail(report_id: int, request: Request, format: str | None = None, session: Session = Depends(get_session)):
+def report_detail(report_id: int, request: Request, format: str | None = None, session: Session = Depends(get_session), _user=Depends(require_report_viewer)):
     report = session.get(IntelligenceReport, report_id)
     if not report:
         return redirect("/reports")

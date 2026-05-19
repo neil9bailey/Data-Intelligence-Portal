@@ -35,6 +35,7 @@ def test_admin_route_requires_admin_group_when_entra_enabled(monkeypatch, refere
     monkeypatch.setenv("ENTRA_AUTH_ENABLED", "true")
     monkeypatch.setenv("ENTRA_ADMIN_GROUP_ID", "admin-group")
     monkeypatch.setenv("ENTRA_STANDARD_GROUP_ID", "standard-group")
+    monkeypatch.setenv("ENTRA_AUDITOR_GROUP_ID", "auditor-group")
     get_settings.cache_clear()
     client = client_for(reference_session)
     try:
@@ -59,6 +60,7 @@ def test_standard_user_sees_simple_pages_not_admin_setup(monkeypatch, reference_
         home_response = client.get("/", headers=headers)
         reports_response = client.get("/reports", headers=headers)
         customers_response = client.get("/customers", headers=headers)
+        admin_post_response = client.post("/admin/email", headers=headers, data={"smtp_port": "587"})
     finally:
         app.dependency_overrides.clear()
         get_settings.cache_clear()
@@ -66,6 +68,7 @@ def test_standard_user_sees_simple_pages_not_admin_setup(monkeypatch, reference_
     assert home_response.status_code == 200
     assert reports_response.status_code == 200
     assert customers_response.status_code == 403
+    assert admin_post_response.status_code == 403
     assert 'href="/admin"' not in home_response.text
     assert "Opportunity intelligence, classified and ready." in home_response.text
 
@@ -95,6 +98,7 @@ def test_admin_user_gets_dedicated_admin_workspace(monkeypatch, reference_sessio
 
 def test_local_auth_disabled_allows_admin(monkeypatch, reference_session):
     monkeypatch.setenv("ENTRA_AUTH_ENABLED", "false")
+    monkeypatch.setenv("LOCAL_ADMIN_MODE", "true")
     get_settings.cache_clear()
     client = client_for(reference_session)
     try:
@@ -104,3 +108,59 @@ def test_local_auth_disabled_allows_admin(monkeypatch, reference_session):
         get_settings.cache_clear()
 
     assert response.status_code == 200
+
+
+def test_local_admin_mode_can_be_disabled_for_production_style_auth(monkeypatch, reference_session):
+    monkeypatch.setenv("ENTRA_AUTH_ENABLED", "false")
+    monkeypatch.setenv("LOCAL_ADMIN_MODE", "false")
+    get_settings.cache_clear()
+    client = client_for(reference_session)
+    try:
+        admin_response = client.get("/admin")
+        health_response = client.get("/healthz")
+    finally:
+        app.dependency_overrides.clear()
+        get_settings.cache_clear()
+
+    assert admin_response.status_code == 401
+    assert health_response.status_code == 200
+
+
+def test_anonymous_entra_request_cannot_access_standard_pages(monkeypatch, reference_session):
+    monkeypatch.setenv("ENTRA_AUTH_ENABLED", "true")
+    monkeypatch.setenv("ENTRA_ADMIN_GROUP_ID", "admin-group")
+    monkeypatch.setenv("ENTRA_STANDARD_GROUP_ID", "standard-group")
+    get_settings.cache_clear()
+    client = client_for(reference_session)
+    try:
+        home_response = client.get("/")
+        reports_response = client.get("/reports")
+        health_response = client.get("/healthz")
+    finally:
+        app.dependency_overrides.clear()
+        get_settings.cache_clear()
+
+    assert home_response.status_code == 401
+    assert reports_response.status_code == 401
+    assert health_response.status_code == 200
+
+
+def test_auditor_can_view_reports_and_audit_but_not_admin(monkeypatch, reference_session):
+    monkeypatch.setenv("ENTRA_AUTH_ENABLED", "true")
+    monkeypatch.setenv("ENTRA_ADMIN_GROUP_ID", "admin-group")
+    monkeypatch.setenv("ENTRA_STANDARD_GROUP_ID", "standard-group")
+    monkeypatch.setenv("ENTRA_AUDITOR_GROUP_ID", "auditor-group")
+    get_settings.cache_clear()
+    client = client_for(reference_session)
+    headers = {"x-ms-client-principal": principal_header(["auditor-group"])}
+    try:
+        reports_response = client.get("/reports", headers=headers)
+        audit_response = client.get("/audit", headers=headers)
+        admin_response = client.get("/admin", headers=headers)
+    finally:
+        app.dependency_overrides.clear()
+        get_settings.cache_clear()
+
+    assert reports_response.status_code == 200
+    assert audit_response.status_code == 200
+    assert admin_response.status_code == 403

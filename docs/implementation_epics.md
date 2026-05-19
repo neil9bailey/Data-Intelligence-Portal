@@ -21,6 +21,7 @@ This page records the current MVP delivery state and the next sensible epics.
 | Azure live-test IaC | Delivered MVP | Container Apps, Entra auth, Key Vault reference, Azure Files and custom domain path. |
 | CI quality gates | Delivered | GitHub Actions runs Python 3.12 pytest and conservative ruff linting on push and pull request. |
 | Modular FastAPI routing | Delivered | Route groups are split into `app/routes/` modules with shared web helpers in `app/route_utils.py`; `app/main.py` now focuses on app setup and router registration. |
+| App-level RBAC | Delivered | Health remains public; standard, auditor, admin and local-admin roles are enforced in route dependencies with explicit `LOCAL_ADMIN_MODE` for local-only fallback. |
 
 ## Next Delivery Epics
 

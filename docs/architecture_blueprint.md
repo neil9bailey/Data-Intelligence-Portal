@@ -66,7 +66,7 @@ flowchart LR
 | `app/portal_connectors.py` | Read-only connector guardrails and retrieval runs. |
 | `app/reports.py` | Credibility-gated executive packs and separate admin run logs for PDF, Markdown, HTML, JSON and text export. |
 | `app/email_service.py` | Local outbox and SMTP delivery. |
-| `app/auth.py` | Local user mode and Container Apps EasyAuth/Entra header handling. |
+| `app/auth.py` | Local admin mode, Container Apps EasyAuth/Entra header handling and app-level role dependencies for standard, admin and auditor access. |
 | `app/audit.py` | Audit event creation and compact snapshots. |
 | `app/database.py` | SQLite setup, schema updates and Azure Files snapshot handling. |
 | `app/rules/` | YAML configuration for sources, platforms, KRA, extraction, feeds and workflow. |

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from sqlmodel import Session, col, select
 
-from app.auth import require_admin
+from app.auth import require_admin, require_standard_or_admin
 from app.database import get_session
 from app.intelligence import refresh_news_feeds
 from app.models import DocumentRetrievalTask, IntelligenceReport, KRAFinding, NewsFeedItem, Opportunity, PortalRetrievalRun, SourceCheckSnapshot
@@ -15,7 +15,7 @@ router = APIRouter()
 
 
 @router.get("/", response_class=HTMLResponse)
-def dashboard(request: Request, session: Session = Depends(get_session)):
+def dashboard(request: Request, session: Session = Depends(get_session), _user=Depends(require_standard_or_admin)):
     opportunities = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(8)))
     findings = list(session.exec(select(KRAFinding).order_by(col(KRAFinding.created_at).desc()).limit(6)))
     snapshots = list(session.exec(select(SourceCheckSnapshot).order_by(col(SourceCheckSnapshot.checked_at).desc()).limit(5)))

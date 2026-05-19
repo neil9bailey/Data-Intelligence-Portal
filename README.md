@@ -160,6 +160,22 @@ Detailed setup and data-entry screens are Admin-only when Entra authentication i
 
 Local Docker uses `DIP_DEPLOYMENT_LABEL=local-docker` by default. Azure live-test should set `DIP_DEPLOYMENT_LABEL=azure-live-test`, `DIP_PUBLIC_DOMAIN=dip.vendorlogic.io` and `DIP_REMOTE_HEALTH_URL=https://dip.vendorlogic.io/healthz`.
 
+## Authentication And Roles
+
+The app has application-level role checks as well as Azure Container Apps / Entra edge authentication.
+
+- `/healthz` is public for liveness probes.
+- `standard` users can view the Opportunity Inbox, Client Feed and Reports.
+- `auditor` users can view Reports and Audit.
+- `admin` users can access configuration, source checks, portal setup, KRA, report creation, email sending and automation.
+- `local-admin` is for local Docker development only.
+
+Local Docker remains easy to use because `LOCAL_ADMIN_MODE=true` by default. Production-style environments should set `LOCAL_ADMIN_MODE=false` unless they are deliberately running a local-only admin demo. When `ENTRA_AUTH_ENABLED=true`, role mapping uses:
+
+- `ENTRA_ADMIN_GROUP_ID`
+- `ENTRA_STANDARD_GROUP_ID`
+- `ENTRA_AUDITOR_GROUP_ID`
+
 ## KRA Knowledge Research Agent
 
 KRA is operated from the Admin Control Centre and remains directly available at `/kra`.

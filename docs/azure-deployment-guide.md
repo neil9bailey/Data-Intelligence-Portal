@@ -292,8 +292,10 @@ Container environment variables include:
 | `DIP_REMOTE_HEALTH_URL` | Remote health URL shown in Admin |
 | `DIP_DEPLOYMENT_LABEL` | Environment label shown in Admin |
 | `ENTRA_AUTH_ENABLED` | Enables app-side EasyAuth header interpretation |
+| `LOCAL_ADMIN_MODE` | Development fallback only; set `false` for Entra-protected live-test/customer environments |
 | `ENTRA_ADMIN_GROUP_ID` | Admin security group object ID |
 | `ENTRA_STANDARD_GROUP_ID` | Standard security group object ID |
+| `ENTRA_AUDITOR_GROUP_ID` | Optional auditor security group object ID |
 | `SEED_REFERENCE_DATA` | Keeps source/platform/KRA reference data seeded |
 | `SEED_DEMO_DATA` | Should remain false for live customer environments |
 | `AUTO_APPLY_CUSTOMER_PACKS` | Applies built-in customer packs at startup for a preconfigured live demo |

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from sqlmodel import Session, col, select
 
+from app.auth import require_standard_or_admin
 from app.audit import compact_snapshot
 from app.database import get_session
 from app.form_utils import parse_optional_int, validation_error_response
@@ -13,7 +14,7 @@ router = APIRouter()
 
 
 @router.get("/client-portal", response_class=HTMLResponse)
-def client_portal(request: Request, session: Session = Depends(get_session)):
+def client_portal(request: Request, session: Session = Depends(get_session), _user=Depends(require_standard_or_admin)):
     opportunities = list(session.exec(select(Opportunity).where(Opportunity.status == "approved").order_by(col(Opportunity.updated_at).desc()).limit(100)))
     all_opportunities = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(300)))
     interests = list(session.exec(select(ClientInterestSignal).order_by(col(ClientInterestSignal.created_at).desc()).limit(100)))
@@ -25,7 +26,7 @@ def client_portal(request: Request, session: Session = Depends(get_session)):
 
 
 @router.post("/client-portal/interests")
-async def create_interest_signal(request: Request, session: Session = Depends(get_session)):
+async def create_interest_signal(request: Request, session: Session = Depends(get_session), _user=Depends(require_standard_or_admin)):
     form = await request.form()
     errors: list[str] = []
     opportunity_id = parse_optional_int(form.get("opportunity_id"), "Opportunity", errors)
@@ -45,7 +46,7 @@ async def create_interest_signal(request: Request, session: Session = Depends(ge
 
 
 @router.post("/client-portal/interests/{signal_id}")
-async def update_interest_signal(signal_id: int, request: Request, session: Session = Depends(get_session)):
+async def update_interest_signal(signal_id: int, request: Request, session: Session = Depends(get_session), _user=Depends(require_standard_or_admin)):
     signal = session.get(ClientInterestSignal, signal_id)
     if not signal:
         return redirect("/client-portal")
@@ -68,7 +69,7 @@ async def update_interest_signal(signal_id: int, request: Request, session: Sess
 
 
 @router.post("/client-portal/interests/{signal_id}/delete")
-def delete_interest_signal(signal_id: int, session: Session = Depends(get_session)):
+def delete_interest_signal(signal_id: int, session: Session = Depends(get_session), _user=Depends(require_standard_or_admin)):
     signal = session.get(ClientInterestSignal, signal_id)
     if not signal:
         return redirect("/client-portal")

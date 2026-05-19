@@ -4,7 +4,7 @@ import base64
 import json
 from dataclasses import dataclass
 
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Request, status
 
 from app.settings import get_settings
 
@@ -15,11 +15,31 @@ class CurrentUser:
     username: str = "local-user"
     groups: tuple[str, ...] = ()
     role: str = "local-admin"
-    authenticated: bool = False
+    authenticated: bool = True
 
     @property
     def is_admin(self) -> bool:
+        return self.can_admin
+
+    @property
+    def can_admin(self) -> bool:
         return self.role in {"admin", "local-admin"}
+
+    @property
+    def can_view_reports(self) -> bool:
+        return self.role in {"standard", "auditor", "admin", "local-admin"}
+
+    @property
+    def can_view_client_feed(self) -> bool:
+        return self.role in {"standard", "admin", "local-admin"}
+
+    @property
+    def can_view_audit(self) -> bool:
+        return self.role in {"auditor", "admin", "local-admin"}
+
+    @property
+    def can_view_opportunities(self) -> bool:
+        return self.role in {"standard", "admin", "local-admin"}
 
 
 def _decode_client_principal(value: str) -> dict:
@@ -46,11 +66,13 @@ def _claim_values(principal: dict, claim_names: set[str]) -> list[str]:
 def get_current_user(request: Request) -> CurrentUser:
     settings = get_settings()
     if not settings.entra_auth_enabled:
-        return CurrentUser()
+        if settings.local_admin_mode:
+            return CurrentUser()
+        return CurrentUser(name="Anonymous", username="anonymous", role="anonymous", authenticated=False)
 
     principal = _decode_client_principal(request.headers.get("x-ms-client-principal", ""))
     if not principal:
-        return CurrentUser(name="Unauthenticated", username="unknown", role="unauthenticated")
+        return CurrentUser(name="Anonymous", username="anonymous", role="anonymous", authenticated=False)
 
     groups = tuple(
         _claim_values(principal, {"groups", "http://schemas.microsoft.com/ws/2008/06/identity/claims/groups"})
@@ -69,6 +91,8 @@ def get_current_user(request: Request) -> CurrentUser:
     role = "authenticated"
     if settings.entra_admin_group_id and settings.entra_admin_group_id in groups:
         role = "admin"
+    elif settings.entra_auditor_group_id and settings.entra_auditor_group_id in groups:
+        role = "auditor"
     elif settings.entra_standard_group_id and settings.entra_standard_group_id in groups:
         role = "standard"
 
@@ -83,6 +107,36 @@ def get_current_user(request: Request) -> CurrentUser:
 
 def require_admin(request: Request) -> CurrentUser:
     user = get_current_user(request)
-    if not user.is_admin:
+    if not user.authenticated:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication is required.")
+    if not user.can_admin:
         raise HTTPException(status_code=403, detail="Admin access is required.")
+    return user
+
+
+def require_authenticated(request: Request) -> CurrentUser:
+    user = get_current_user(request)
+    if not user.authenticated:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication is required.")
+    return user
+
+
+def require_standard_or_admin(request: Request) -> CurrentUser:
+    user = require_authenticated(request)
+    if user.role not in {"standard", "admin", "local-admin"}:
+        raise HTTPException(status_code=403, detail="Standard user access is required.")
+    return user
+
+
+def require_auditor_or_admin(request: Request) -> CurrentUser:
+    user = require_authenticated(request)
+    if not user.can_view_audit:
+        raise HTTPException(status_code=403, detail="Auditor access is required.")
+    return user
+
+
+def require_report_viewer(request: Request) -> CurrentUser:
+    user = require_authenticated(request)
+    if not user.can_view_reports:
+        raise HTTPException(status_code=403, detail="Report access is required.")
     return user
