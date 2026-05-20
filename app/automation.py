@@ -347,9 +347,10 @@ def run_customer_kra_checks(
     max_pages: int = 1,
     max_candidates_per_page: int = 15,
 ) -> list[int]:
+    if customer_limit <= 0:
+        return []
     customers = list(session.exec(select(Customer).where(Customer.active == True).order_by(col(Customer.customer_name))))  # noqa: E712
-    if customer_limit > 0:
-        customers = customers[:customer_limit]
+    customers = customers[:customer_limit]
     source_ids = live_kra_source_ids(session)
     run_ids: list[int] = []
     for customer in customers:
