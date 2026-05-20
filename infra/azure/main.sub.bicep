@@ -52,7 +52,7 @@ param managedCertificateName string = ''
 param imageRepositoryPrefix string = 'dip'
 
 @description('Container image tag.')
-param imageTag string = '1.0.47-cof-report-polish'
+param imageTag string = '1.0.62-cof-autopilot-kra-skip'
 
 @allowed([
   'DELETE'
@@ -66,10 +66,10 @@ param imageTag string = '1.0.47-cof-report-polish'
 param sqliteJournalMode string = 'DELETE'
 
 @description('Container CPU allocation.')
-param appCpu string = '1.0'
+param appCpu string = '2.0'
 
 @description('Container memory allocation.')
-param appMemory string = '2Gi'
+param appMemory string = '4Gi'
 
 @description('Container app minimum replicas.')
 param minReplicas int = 1
@@ -121,6 +121,27 @@ param kraMcpMode string = 'local_registry'
 
 @description('Key Vault secret name containing the KRA/OpenAI API key. Leave blank to run KRA without AI-assisted summaries.')
 param kraApiKeySecretName string = ''
+
+@description('Maximum number of COF customers to run live KRA source research for during Autopilot. Use 0 for the current cost-controlled deterministic profile.')
+param autopilotKraCustomerLimit string = '0'
+
+@description('Maximum source pages per live KRA research run.')
+param autopilotKraMaxPages string = '1'
+
+@description('Maximum candidates per source page during live KRA research.')
+param autopilotKraCandidatesPerPage string = '15'
+
+@description('Enable broad public-market keyword sweep during Autopilot. Keep false for the current cost-controlled live profile.')
+param autopilotMarketSweepEnabled bool = false
+
+@description('Maximum keyword sweep candidates to process when the market sweep is enabled.')
+param autopilotMarketSweepLimit string = '10'
+
+@description('Comma-separated keyword sweep terms used only when the market sweep is enabled.')
+param autopilotMarketSweepKeywords string = 'cyber security,IT services,traffic management,CCTV'
+
+@description('Enable extra Autopilot classification pass. Keep false unless validating a larger live cycle.')
+param autopilotClassificationEnabled bool = false
 
 @description('Default email delivery mode for the live showcase. Use file_outbox until an approved SMTP sender is configured.')
 param emailDeliveryMode string = 'file_outbox'
@@ -198,6 +219,13 @@ module portalStack './main.rg.bicep' = {
     kraModel: kraModel
     kraMcpMode: kraMcpMode
     kraApiKeySecretName: kraApiKeySecretName
+    autopilotKraCustomerLimit: autopilotKraCustomerLimit
+    autopilotKraMaxPages: autopilotKraMaxPages
+    autopilotKraCandidatesPerPage: autopilotKraCandidatesPerPage
+    autopilotMarketSweepEnabled: autopilotMarketSweepEnabled
+    autopilotMarketSweepLimit: autopilotMarketSweepLimit
+    autopilotMarketSweepKeywords: autopilotMarketSweepKeywords
+    autopilotClassificationEnabled: autopilotClassificationEnabled
     emailDeliveryMode: emailDeliveryMode
     emailSenderName: emailSenderName
     emailSender: emailSender

@@ -82,16 +82,18 @@ Vendorlogic live-test currently uses:
 | Public URL | https://dip.vendorlogic.io |
 | Resource group | RG_DIP_VENDORLOGIC_TEST |
 | Container App | ca-dip-vl-test |
-| Container image | acrdipvltest01.azurecr.io/dip/app:1.0.47-cof-report-polish |
+| Container image | acrdipvltest01.azurecr.io/dip/app:1.0.62-cof-autopilot-kra-skip |
 | Auth | Container Apps built-in Microsoft Entra auth |
 | Admin group | Data Intelligence Portal Admin Users |
 | Standard group | Data Intelligence Portal Standard Users |
 | Persistence | SQLite active DB on `/tmp/dip`, snapshot and outbox on Azure Files `/app/data` |
-| Container sizing | `1.0` CPU / `2Gi` memory for Live showcase KRA, PDF export and email-outbox cycle |
+| Container sizing | `2.0` CPU / `4Gi` memory for the COF Autopilot, PDF export and email-outbox cycle |
 | KRA Live showcase AI | `openai_direct`, model `gpt-5.4`, Key Vault secret `diiac-openai-api-key` |
 | Live showcase preconfiguration | `AUTO_APPLY_CUSTOMER_PACKS=true` |
 
 Current COF report polish does not require new Azure resources. The existing Container App, Azure Files snapshot/outbox path and Key Vault-backed secret references remain compatible.
+
+The current cost-controlled Autopilot profile refreshes official sources, runs deterministic classification, executes approved read-only retrieval, generates the weekly COF report, stores/emails it through the configured delivery mode and writes audit records. Live customer-source KRA research and the broad public-market sweep are opt-in workload expansions controlled by `DIP_AUTOPILOT_KRA_CUSTOMER_LIMIT` and `DIP_AUTOPILOT_MARKET_SWEEP_ENABLED`; they default to `0` and `false` to keep the existing Container App stable.
 
 Customer-facing COF report labels can be controlled without changing infrastructure:
 
@@ -316,6 +318,11 @@ Container environment variables include:
 | `KRA_MODEL` | AI model used for KRA summaries when enabled |
 | `KRA_MCP_MODE` | Runtime mode label shown in Admin/KRA |
 | `KRA_API_KEY` | Secret reference only; never store the raw key in code or parameter files |
+| `DIP_AUTOPILOT_KRA_CUSTOMER_LIMIT` | Number of COF customers to run live KRA source research for during Autopilot; `0` keeps the cost-controlled deterministic profile |
+| `DIP_AUTOPILOT_KRA_MAX_PAGES` | Source pages per live KRA research run when enabled |
+| `DIP_AUTOPILOT_KRA_CANDIDATES_PER_PAGE` | Candidate limit per source page when live KRA research is enabled |
+| `DIP_AUTOPILOT_MARKET_SWEEP_ENABLED` | Enables the broader public-market keyword sweep; defaults to `false` for the current same-resource deployment |
+| `DIP_AUTOPILOT_MARKET_SWEEP_LIMIT` | Candidate limit for the market sweep when enabled |
 | `DIP_EMAIL_DELIVERY_MODE` | `file_outbox` for safe demo storage or `smtp` for approved live sending |
 | `DIP_EMAIL_SENDER_NAME` | Default report sender display name |
 | `DIP_EMAIL_SENDER` | Default report sender email address |

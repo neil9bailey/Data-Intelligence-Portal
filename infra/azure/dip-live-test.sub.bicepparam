@@ -19,8 +19,10 @@ param customDomainBindingEnabled = true
 param managedCertificateName = 'mc-acae-dip-vl-te-dip-vendorlogic--9882'
 
 param imageRepositoryPrefix = 'dip'
-param imageTag = '1.0.47-cof-report-polish'
+param imageTag = '1.0.62-cof-autopilot-kra-skip'
 param sqliteJournalMode = 'DELETE'
+param appCpu = '2.0'
+param appMemory = '4Gi'
 param minReplicas = 1
 
 param entraAuthEnabled = true
@@ -40,6 +42,13 @@ param kraLlmProvider = 'openai_direct'
 param kraModel = 'gpt-5.4'
 param kraMcpMode = 'local_registry'
 param kraApiKeySecretName = 'diiac-openai-api-key'
+param autopilotKraCustomerLimit = '0'
+param autopilotKraMaxPages = '1'
+param autopilotKraCandidatesPerPage = '15'
+param autopilotMarketSweepEnabled = false
+param autopilotMarketSweepLimit = '10'
+param autopilotMarketSweepKeywords = 'cyber security,IT services,traffic management,CCTV'
+param autopilotClassificationEnabled = false
 
 param emailDeliveryMode = 'file_outbox'
 param emailSenderName = 'Contracted Opportunity Finder'

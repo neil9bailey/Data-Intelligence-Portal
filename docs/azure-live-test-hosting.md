@@ -7,17 +7,18 @@ The Data Intelligence Portal live-test stack is designed to sit alongside existi
 ## Target
 
 - Hostname: `dip.vendorlogic.io`
-- Current image: `acrdipvltest01.azurecr.io/dip/app:1.0.47-cof-report-polish`
+- Current image: `acrdipvltest01.azurecr.io/dip/app:1.0.62-cof-autopilot-kra-skip`
 - Azure model: isolated resource group plus Azure Container Apps
 - Auth: Microsoft Entra ID via Azure Container Apps built-in auth
 - Roles: `Data Intelligence Portal Admin Users` and `Data Intelligence Portal Standard Users`
 - Secrets: existing Key Vault `kv-diiac-vendorlogic`, including `dip-entra-client-secret` and the shared DIIaC OpenAI secret reference `diiac-openai-api-key`
 - KRA Live showcase AI: `openai_direct` using model `gpt-5.4`; summaries remain human-review-required
 - Live showcase preconfiguration: built-in customer packs are applied on startup with `AUTO_APPLY_CUSTOMER_PACKS=true`
-- Sizing: `1.0` CPU / `2Gi` memory for the Live showcase KRA, PDF export and email-outbox cycle
+- Sizing: `2.0` CPU / `4Gi` memory for the COF Autopilot, PDF export and email-outbox cycle
 - Persistence: Azure Files mounted at `/app/data` for the live-test SQLite snapshot and email outbox
 - SQLite live-test tuning: the active pilot database runs on local container storage, with a compact snapshot copied to Azure Files after write operations
 - COF reporting: client names default to redacted customer-facing labels through `DIP_COF_CLIENT_NAME_MODE=redacted`; approved live names can be supplied through `DIP_COF_CLIENT_NAME_MAP_JSON` without changing Azure resources.
+- COF Autopilot profile: official source refresh, deterministic classification, approved read-only retrieval, report export, file-outbox email and audit logging are enabled. Live customer-source KRA research and broad market sweep are opt-in through `DIP_AUTOPILOT_KRA_CUSTOMER_LIMIT` and `DIP_AUTOPILOT_MARKET_SWEEP_ENABLED` so the current cost-controlled Container App does not overload.
 
 ## Architecture
 

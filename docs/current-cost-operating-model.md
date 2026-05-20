@@ -1,6 +1,6 @@
 # Current-Cost Operating Model
 
-Last updated: 19 May 2026.
+Last updated: 20 May 2026.
 
 The Data Intelligence Portal is currently operated on the existing Azure live-pilot resources to control cost while the product workflow, data quality, reports and review model are hardened.
 
@@ -8,6 +8,7 @@ The Data Intelligence Portal is currently operated on the existing Azure live-pi
 
 - The app remains compatible with Azure Container Apps.
 - The deployed environment continues to use SQLite with Azure Files snapshot persistence.
+- The current live Container App is sized at `2.0` CPU / `4Gi` memory so the COF Autopilot, PDF export and email-outbox cycle complete reliably without adding new Azure services.
 - Existing environment variables remain backwards-compatible.
 - KRA can use the existing Key Vault-backed API key already wired into the current Container App.
 - Jobs are CLI/manual/external-scheduler friendly and do not require Celery, Redis, Azure Functions or another paid scheduler.
@@ -51,6 +52,17 @@ python -m app.jobs admin-cycle
 ```
 
 These jobs write `AutomationRun` records and audit events. They are intentionally not tied to new cloud scheduling infrastructure in the current-cost phase.
+
+The current COF Autopilot profile keeps the expensive parts bounded:
+
+| Setting | Current default | Effect |
+| --- | --- | --- |
+| `DIP_AUTOPILOT_KRA_CUSTOMER_LIMIT` | `0` | Skips live customer-source KRA research during the one-click cycle; deterministic classification remains active |
+| `DIP_AUTOPILOT_MARKET_SWEEP_ENABLED` | `false` | Skips broad market keyword sweep unless explicitly enabled |
+| `DIP_AUTOPILOT_KRA_MAX_PAGES` | `1` | Caps live KRA source pages when KRA is enabled |
+| `DIP_AUTOPILOT_KRA_CANDIDATES_PER_PAGE` | `15` | Caps candidates per source page when KRA is enabled |
+
+This keeps the same-resource Azure deployment viable while still producing refreshed source health, connector results, report exports, file-outbox email and audit evidence.
 
 ## Deferred Production Infrastructure Phase
 
