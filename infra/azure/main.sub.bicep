@@ -52,7 +52,7 @@ param managedCertificateName string = ''
 param imageRepositoryPrefix string = 'dip'
 
 @description('Container image tag.')
-param imageTag string = '1.0.62-cof-autopilot-kra-skip'
+param imageTag string = '1.0.63-cof-kra-rotation'
 
 @allowed([
   'DELETE'
@@ -122,14 +122,23 @@ param kraMcpMode string = 'local_registry'
 @description('Key Vault secret name containing the KRA/OpenAI API key. Leave blank to run KRA without AI-assisted summaries.')
 param kraApiKeySecretName string = ''
 
+@description('Public notice results per source page for live source checks and KRA. Keep low for current-opportunity demo cycles on Consumption Container Apps.')
+param noticePageLimit string = '10'
+
+@description('Maximum public notice pages to request during normal live source checks.')
+param noticeMaxPages string = '1'
+
+@description('Public notice lookback window in days for the current-opportunity live profile.')
+param noticeLookbackDays string = '45'
+
 @description('Maximum number of COF customers to run live KRA source research for during Autopilot. Use 0 for the current cost-controlled deterministic profile.')
-param autopilotKraCustomerLimit string = '0'
+param autopilotKraCustomerLimit string = '3'
 
 @description('Maximum source pages per live KRA research run.')
 param autopilotKraMaxPages string = '1'
 
 @description('Maximum candidates per source page during live KRA research.')
-param autopilotKraCandidatesPerPage string = '15'
+param autopilotKraCandidatesPerPage string = '10'
 
 @description('Enable broad public-market keyword sweep during Autopilot. Keep false for the current cost-controlled live profile.')
 param autopilotMarketSweepEnabled bool = false
@@ -219,6 +228,9 @@ module portalStack './main.rg.bicep' = {
     kraModel: kraModel
     kraMcpMode: kraMcpMode
     kraApiKeySecretName: kraApiKeySecretName
+    noticePageLimit: noticePageLimit
+    noticeMaxPages: noticeMaxPages
+    noticeLookbackDays: noticeLookbackDays
     autopilotKraCustomerLimit: autopilotKraCustomerLimit
     autopilotKraMaxPages: autopilotKraMaxPages
     autopilotKraCandidatesPerPage: autopilotKraCandidatesPerPage

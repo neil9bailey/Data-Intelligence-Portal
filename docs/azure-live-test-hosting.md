@@ -7,7 +7,7 @@ The Data Intelligence Portal live-test stack is designed to sit alongside existi
 ## Target
 
 - Hostname: `dip.vendorlogic.io`
-- Current image: `acrdipvltest01.azurecr.io/dip/app:1.0.62-cof-autopilot-kra-skip`
+- Current image: `acrdipvltest01.azurecr.io/dip/app:1.0.63-cof-kra-rotation`
 - Azure model: isolated resource group plus Azure Container Apps
 - Auth: Microsoft Entra ID via Azure Container Apps built-in auth
 - Roles: `Data Intelligence Portal Admin Users` and `Data Intelligence Portal Standard Users`
@@ -18,7 +18,7 @@ The Data Intelligence Portal live-test stack is designed to sit alongside existi
 - Persistence: Azure Files mounted at `/app/data` for the live-test SQLite snapshot and email outbox
 - SQLite live-test tuning: the active pilot database runs on local container storage, with a compact snapshot copied to Azure Files after write operations
 - COF reporting: client names default to redacted customer-facing labels through `DIP_COF_CLIENT_NAME_MODE=redacted`; approved live names can be supplied through `DIP_COF_CLIENT_NAME_MAP_JSON` without changing Azure resources.
-- COF Autopilot profile: official source refresh, deterministic classification, approved read-only retrieval, report export, file-outbox email and audit logging are enabled. Live customer-source KRA research and broad market sweep are opt-in through `DIP_AUTOPILOT_KRA_CUSTOMER_LIMIT` and `DIP_AUTOPILOT_MARKET_SWEEP_ENABLED` so the current cost-controlled Container App does not overload.
+- COF Autopilot profile: official source refresh, deterministic classification, approved read-only retrieval, report export, file-outbox email and audit logging are enabled. Live customer-source KRA research runs in a rotating batch of `3` customers per cycle on the current Consumption limit, with `DIP_NOTICE_PAGE_LIMIT=10`, `DIP_NOTICE_MAX_PAGES=1` and `DIP_NOTICE_LOOKBACK_DAYS=45`. Broad market sweep remains off through `DIP_AUTOPILOT_MARKET_SWEEP_ENABLED=false` so the current Container App does not overload.
 
 ## Architecture
 

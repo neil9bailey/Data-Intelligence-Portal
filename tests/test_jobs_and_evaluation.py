@@ -1,10 +1,24 @@
+from datetime import UTC, datetime, timedelta
+
 from sqlmodel import select
 
-from app.automation import mark_interrupted_automation_runs
+from app.automation import (
+    mark_interrupted_automation_runs,
+    next_customers_for_kra,
+    run_customer_kra_checks,
+)
 from app.evaluation import evaluate_cases, load_evaluation_cases
 from app.intelligence_packs import apply_intelligence_pack, get_preconfigured_customer_pack
 from app.jobs import record_job_run, run_job
-from app.models import AuditEvent, AutomationRun, DigestProfile, EmailDeliveryLog, IntelligenceReport
+from app.models import (
+    AuditEvent,
+    AutomationRun,
+    Customer,
+    DigestProfile,
+    EmailDeliveryLog,
+    IntelligenceReport,
+    KRAResearchRun,
+)
 
 
 def test_record_job_run_creates_audit_event(reference_session):
@@ -38,6 +52,71 @@ def test_mark_interrupted_automation_runs_closes_running_runs(reference_session)
     assert count == 1
     assert run.status == "failed"
     assert "interrupted" in run.summary
+
+
+def test_kra_customer_rotation_prioritises_never_or_oldest_run_customers(reference_session):
+    customers = [
+        Customer(customer_name="Client A", domain="estates"),
+        Customer(customer_name="Client B", domain="highways"),
+        Customer(customer_name="Client C", domain="housing"),
+        Customer(customer_name="Client D", domain="transport"),
+        Customer(customer_name="Client E", domain="security"),
+    ]
+    reference_session.add_all(customers)
+    reference_session.commit()
+    for customer in customers:
+        reference_session.refresh(customer)
+
+    now = datetime.now(UTC)
+    reference_session.add(
+        KRAResearchRun(
+            customer_id=customers[0].id,
+            status="completed",
+            started_at=now - timedelta(hours=1),
+            finished_at=now - timedelta(hours=1),
+        )
+    )
+    reference_session.add(
+        KRAResearchRun(
+            customer_id=customers[1].id,
+            status="completed",
+            started_at=now - timedelta(hours=2),
+            finished_at=now - timedelta(hours=2),
+        )
+    )
+    reference_session.commit()
+
+    selected = next_customers_for_kra(reference_session, 3)
+
+    assert [customer.customer_name for customer in selected] == ["Client C", "Client D", "Client E"]
+
+
+def test_run_customer_kra_checks_respects_rotation_limit(reference_session, monkeypatch):
+    customers = [
+        Customer(customer_name=f"Client {letter}", domain="transport")
+        for letter in ["A", "B", "C", "D"]
+    ]
+    reference_session.add_all(customers)
+    reference_session.commit()
+    for customer in customers:
+        reference_session.refresh(customer)
+    reference_session.add(KRAResearchRun(customer_id=customers[0].id, status="completed"))
+    reference_session.commit()
+    called_customer_ids: list[int] = []
+
+    def fake_kra_run(session, customer_id=None, **_kwargs):
+        called_customer_ids.append(customer_id)
+        run = KRAResearchRun(customer_id=customer_id, status="completed", finished_at=datetime.now(UTC))
+        session.add(run)
+        session.flush()
+        return run
+
+    monkeypatch.setattr("app.automation.run_kra_research", fake_kra_run)
+
+    run_ids = run_customer_kra_checks(reference_session, customer_limit=2)
+
+    assert len(run_ids) == 2
+    assert called_customer_ids == [customers[1].id, customers[2].id]
 
 
 def test_generate_cof_report_job_creates_report_without_full_admin_cycle(reference_session):

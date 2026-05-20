@@ -82,7 +82,7 @@ Vendorlogic live-test currently uses:
 | Public URL | https://dip.vendorlogic.io |
 | Resource group | RG_DIP_VENDORLOGIC_TEST |
 | Container App | ca-dip-vl-test |
-| Container image | acrdipvltest01.azurecr.io/dip/app:1.0.62-cof-autopilot-kra-skip |
+| Container image | acrdipvltest01.azurecr.io/dip/app:1.0.63-cof-kra-rotation |
 | Auth | Container Apps built-in Microsoft Entra auth |
 | Admin group | Data Intelligence Portal Admin Users |
 | Standard group | Data Intelligence Portal Standard Users |
@@ -93,7 +93,7 @@ Vendorlogic live-test currently uses:
 
 Current COF report polish does not require new Azure resources. The existing Container App, Azure Files snapshot/outbox path and Key Vault-backed secret references remain compatible.
 
-The current cost-controlled Autopilot profile refreshes official sources, runs deterministic classification, executes approved read-only retrieval, generates the weekly COF report, stores/emails it through the configured delivery mode and writes audit records. Live customer-source KRA research and the broad public-market sweep are opt-in workload expansions controlled by `DIP_AUTOPILOT_KRA_CUSTOMER_LIMIT` and `DIP_AUTOPILOT_MARKET_SWEEP_ENABLED`; they default to `0` and `false` to keep the existing Container App stable.
+The current cost-controlled Autopilot profile refreshes official sources, runs deterministic classification, executes approved read-only retrieval, runs a bounded rotating KRA batch, generates the weekly COF report, stores/emails it through the configured delivery mode and writes audit records. Live KRA is capped by `DIP_AUTOPILOT_KRA_CUSTOMER_LIMIT`; the current Azure Consumption profile is proven at `3` customers per cycle. The broad public-market sweep remains opt-in through `DIP_AUTOPILOT_MARKET_SWEEP_ENABLED=false`.
 
 Customer-facing COF report labels can be controlled without changing infrastructure:
 
@@ -318,7 +318,10 @@ Container environment variables include:
 | `KRA_MODEL` | AI model used for KRA summaries when enabled |
 | `KRA_MCP_MODE` | Runtime mode label shown in Admin/KRA |
 | `KRA_API_KEY` | Secret reference only; never store the raw key in code or parameter files |
-| `DIP_AUTOPILOT_KRA_CUSTOMER_LIMIT` | Number of COF customers to run live KRA source research for during Autopilot; `0` keeps the cost-controlled deterministic profile |
+| `DIP_NOTICE_PAGE_LIMIT` | Public notice results per source page; current live value is `10` |
+| `DIP_NOTICE_MAX_PAGES` | Public notice pages per source check; current live value is `1` |
+| `DIP_NOTICE_LOOKBACK_DAYS` | Current-opportunity lookback window; current live value is `45` days |
+| `DIP_AUTOPILOT_KRA_CUSTOMER_LIMIT` | Number of COF customers to run live KRA source research for during each Autopilot cycle; current live value is `3` and the app rotates to customers with no/old KRA runs first |
 | `DIP_AUTOPILOT_KRA_MAX_PAGES` | Source pages per live KRA research run when enabled |
 | `DIP_AUTOPILOT_KRA_CANDIDATES_PER_PAGE` | Candidate limit per source page when live KRA research is enabled |
 | `DIP_AUTOPILOT_MARKET_SWEEP_ENABLED` | Enables the broader public-market keyword sweep; defaults to `false` for the current same-resource deployment |

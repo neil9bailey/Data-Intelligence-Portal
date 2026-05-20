@@ -57,10 +57,12 @@ The current COF Autopilot profile keeps the expensive parts bounded:
 
 | Setting | Current default | Effect |
 | --- | --- | --- |
-| `DIP_AUTOPILOT_KRA_CUSTOMER_LIMIT` | `0` | Skips live customer-source KRA research during the one-click cycle; deterministic classification remains active |
+| `DIP_AUTOPILOT_KRA_CUSTOMER_LIMIT` | `3` | Runs live customer-source KRA for a rotating batch of three customers per one-click cycle; the next cycle prioritises customers with no or older KRA runs |
 | `DIP_AUTOPILOT_MARKET_SWEEP_ENABLED` | `false` | Skips broad market keyword sweep unless explicitly enabled |
 | `DIP_AUTOPILOT_KRA_MAX_PAGES` | `1` | Caps live KRA source pages when KRA is enabled |
-| `DIP_AUTOPILOT_KRA_CANDIDATES_PER_PAGE` | `15` | Caps candidates per source page when KRA is enabled |
+| `DIP_AUTOPILOT_KRA_CANDIDATES_PER_PAGE` | `10` | Caps candidates per source page when KRA is enabled |
+| `DIP_NOTICE_PAGE_LIMIT` | `10` | Limits official-source response size for current-opportunity cycles |
+| `DIP_NOTICE_LOOKBACK_DAYS` | `45` | Keeps source ingestion focused on current and recent opportunities |
 
 This keeps the same-resource Azure deployment viable while still producing refreshed source health, connector results, report exports, file-outbox email and audit evidence.
 

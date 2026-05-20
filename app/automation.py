@@ -349,8 +349,9 @@ def run_customer_kra_checks(
 ) -> list[int]:
     if customer_limit <= 0:
         return []
-    customers = list(session.exec(select(Customer).where(Customer.active == True).order_by(col(Customer.customer_name))))  # noqa: E712
-    customers = customers[:customer_limit]
+    customers = next_customers_for_kra(session, customer_limit)
+    if not customers:
+        return []
     source_ids = live_kra_source_ids(session)
     run_ids: list[int] = []
     for customer in customers:
@@ -378,6 +379,29 @@ def run_customer_kra_checks(
         if kra_run.id:
             run_ids.append(kra_run.id)
     return run_ids
+
+
+def next_customers_for_kra(session: Session, customer_limit: int) -> list[Customer]:
+    customers = list(session.exec(select(Customer).where(Customer.active == True).order_by(col(Customer.customer_name))))  # noqa: E712
+    if customer_limit <= 0:
+        return []
+    last_run_by_customer: dict[int, datetime] = {}
+    for run in session.exec(select(KRAResearchRun).where(KRAResearchRun.customer_id != None)):  # noqa: E711
+        if run.customer_id is None:
+            continue
+        marker = run.finished_at or run.started_at
+        existing = last_run_by_customer.get(run.customer_id)
+        if existing is None or marker > existing:
+            last_run_by_customer[run.customer_id] = marker
+    customers.sort(
+        key=lambda customer: (
+            customer.id in last_run_by_customer,
+            last_run_by_customer.get(customer.id or 0) or datetime.min.replace(tzinfo=UTC),
+            customer.customer_name.lower(),
+        )
+    )
+    customers = customers[:customer_limit]
+    return customers
 
 
 def live_kra_source_ids(session: Session) -> list[int]:
