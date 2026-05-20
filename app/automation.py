@@ -135,10 +135,17 @@ def run_admin_full_cycle(
         )
         kra_run_rows = [item for item in (session.get(KRAResearchRun, run_id) for run_id in kra_runs) if item]
         kra_warnings = [item for item in kra_run_rows if item.error_summary]
+        if settings.autopilot_kra_customer_limit <= 0:
+            kra_detail = (
+                "Live customer-source KRA research is disabled for the current low-resource Autopilot profile; "
+                f"deterministic classification remains active and {repair_count} mismatched assignments were repaired."
+            )
+        else:
+            kra_detail = f"{len(kra_runs)} KRA runs completed; {repair_count} mismatched assignments repaired; {len(kra_warnings)} AI/runtime warnings."
         step(
             "Run KRA checks",
             "warning" if kra_warnings else "completed",
-            f"{len(kra_runs)} KRA runs completed; {repair_count} mismatched assignments repaired; {len(kra_warnings)} AI/runtime warnings.",
+            kra_detail,
             warnings=[item.error_summary for item in kra_warnings[:5]],
         )
 

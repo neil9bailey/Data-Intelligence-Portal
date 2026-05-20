@@ -70,10 +70,10 @@ class Settings:
             "Human review required. Not a bid, legal, procurement or compliance decision.",
         )
         self.cof_min_customers: int = env_int("DIP_COF_MIN_CUSTOMERS", "11")
-        self.autopilot_kra_customer_limit: int = env_int("DIP_AUTOPILOT_KRA_CUSTOMER_LIMIT", "11")
+        self.autopilot_kra_customer_limit: int = env_int("DIP_AUTOPILOT_KRA_CUSTOMER_LIMIT", "0")
         self.autopilot_kra_max_pages: int = env_int("DIP_AUTOPILOT_KRA_MAX_PAGES", "1")
         self.autopilot_kra_candidates_per_page: int = env_int("DIP_AUTOPILOT_KRA_CANDIDATES_PER_PAGE", "15")
-        self.autopilot_market_sweep_enabled: bool = env_bool("DIP_AUTOPILOT_MARKET_SWEEP_ENABLED", "true")
+        self.autopilot_market_sweep_enabled: bool = env_bool("DIP_AUTOPILOT_MARKET_SWEEP_ENABLED", "false")
         self.autopilot_market_sweep_limit: int = env_int("DIP_AUTOPILOT_MARKET_SWEEP_LIMIT", "10")
         self.autopilot_market_sweep_keywords: str = os.getenv(
             "DIP_AUTOPILOT_MARKET_SWEEP_KEYWORDS",
