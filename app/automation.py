@@ -105,6 +105,8 @@ def run_admin_full_cycle(
 
     def step(name: str, status: str, detail: str, **extra) -> None:
         steps.append({"name": name, "status": status, "detail": detail, **extra})
+        logger.info("DIP automation step: %s | %s | %s", name, status, detail)
+        print(f"automation_step: {name} | {status} | {detail}", flush=True)
 
     try:
         pack_results = apply_all_preconfigured_packs(session, actor=actor)

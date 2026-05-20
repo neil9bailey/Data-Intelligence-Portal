@@ -79,6 +79,7 @@ class Settings:
             "DIP_AUTOPILOT_MARKET_SWEEP_KEYWORDS",
             "cyber security,IT services,traffic management,CCTV",
         )
+        self.autopilot_classification_enabled: bool = env_bool("DIP_AUTOPILOT_CLASSIFICATION_ENABLED", "false")
 
 
 @lru_cache
