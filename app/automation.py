@@ -7,6 +7,7 @@ import logging
 
 from sqlmodel import Session, col, select
 
+from app.archive import archive_opportunities
 from app.audit import compact_snapshot, log_event
 from app.classification import agent_classify_catalogue
 from app.database import backup_sqlite_persistent_copy, engine
@@ -178,6 +179,13 @@ def run_admin_full_cycle(
                 "completed",
                 "Broad market sweep disabled for this low-resource Autopilot profile; official source refresh and COF matching remain active.",
             )
+
+        archive_result = archive_opportunities(session, actor=actor, limit=500)
+        step(
+            "Archive closed and stale records",
+            "completed",
+            f"{archive_result['archived']} past-deadline, closed or stale opportunity record(s) moved to archive.",
+        )
 
         review_result = auto_prepare_review_queue(session)
         step(

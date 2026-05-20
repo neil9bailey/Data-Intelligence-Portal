@@ -7,6 +7,7 @@ import json
 from sqlmodel import Session
 from sqlmodel import select
 
+from app.archive import archive_opportunities
 from app.audit import log_event
 from app.automation import refresh_public_sources, run_admin_full_cycle, store_report_export
 from app.database import backup_sqlite_persistent_copy, engine, init_db
@@ -46,6 +47,15 @@ def run_job(job_name: str, session: Session) -> AutomationRun:
             runs = run_enabled_portal_connectors(session)
             failed = sum(1 for item in runs if item.status != "completed")
             return record_job_run(session, "run_connectors", "completed" if failed == 0 else "completed_with_warnings", f"Ran {len(runs)} read-only connectors; {failed} warnings.", runs)
+        if job_name == "archive-opportunities":
+            result = archive_opportunities(session, actor="job:archive-opportunities")
+            return record_job_run(
+                session,
+                "archive_opportunities",
+                "completed",
+                f"Archived {result['archived']} closed, past-deadline or stale opportunity record(s).",
+                result,
+            )
         if job_name == "send-digests":
             profiles = list(session.exec(select(DigestProfile).where(DigestProfile.enabled == True)))  # noqa: E712
             results = []
@@ -90,7 +100,18 @@ def run_job(job_name: str, session: Session) -> AutomationRun:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Data Intelligence Portal job runner")
-    parser.add_argument("job", choices=["refresh-sources", "refresh-feeds", "run-connectors", "send-digests", "admin-cycle", "generate-cof-report"])
+    parser.add_argument(
+        "job",
+        choices=[
+            "refresh-sources",
+            "refresh-feeds",
+            "run-connectors",
+            "archive-opportunities",
+            "send-digests",
+            "admin-cycle",
+            "generate-cof-report",
+        ],
+    )
     args = parser.parse_args()
     init_db()
     with Session(engine) as session:

@@ -16,6 +16,7 @@ from app.models import (
     PortalInformationConnector,
     ProcurementPlatform,
     ProcurementSource,
+    Opportunity,
 )
 from app.reports import COF_BUSINESS_UNIT_NAME, COF_CLIENT_PREFIX
 
@@ -38,6 +39,7 @@ def cof_admin_function_audit(session: Session) -> list[dict[str, str]]:
     email_config = get_email_configuration(session)
     recipients = split_recipients((digest.recipients if digest else "") or email_config.default_recipients)
     audit_event = session.exec(select(AuditEvent).order_by(col(AuditEvent.created_at).desc())).first()
+    archived_count = len(list(session.exec(select(Opportunity).where(Opportunity.archived == True))))  # noqa: E712
 
     required_sources = set(REQUIRED_SOURCE_KEYS)
     required_platforms = set(REQUIRED_PORTAL_FAMILIES)
@@ -87,6 +89,13 @@ def cof_admin_function_audit(session: Session) -> list[dict[str, str]]:
             "status": "ready" if digest_ready else "attention",
             "value": "Stores or sends the weekly PDF using file-outbox or SMTP configuration.",
             "detail": f"{len(recipients)} recipient(s); delivery mode {email_config.delivery_mode}.",
+        },
+        {
+            "function": "Opportunity archive and cleanup",
+            "mode": "Automated in Autopilot",
+            "status": "ready",
+            "value": "Moves closed, past-deadline and stale records out of live output while keeping them searchable and exportable.",
+            "detail": f"{archived_count} archived record(s); cleanup also available from Archive.",
         },
         {
             "function": "Audit and operational trace",

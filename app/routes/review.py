@@ -15,7 +15,13 @@ router = APIRouter()
 
 @router.get("/review", response_class=HTMLResponse)
 def review_queue(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
-    opportunities, pagination = paged(session, select(Opportunity).order_by(col(Opportunity.updated_at).desc()), request)
+    opportunities, pagination = paged(
+        session,
+        select(Opportunity)
+        .where(Opportunity.archived == False)  # noqa: E712
+        .order_by(col(Opportunity.updated_at).desc()),
+        request,
+    )
     opportunity_ids = [item.id for item in opportunities if item.id]
     match_evidence_by_opportunity: dict[int, list[OpportunityMatchEvidence]] = {item_id: [] for item_id in opportunity_ids}
     if opportunity_ids:

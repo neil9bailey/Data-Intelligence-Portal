@@ -57,7 +57,14 @@ def refresh_news(session: Session = Depends(get_session), _user=Depends(require_
 @router.get("/workflow", response_class=HTMLResponse)
 def workflow(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
     workflow_rules = load_rule_file("workflow.yml")
-    opportunities = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(5)))
+    opportunities = list(
+        session.exec(
+            select(Opportunity)
+            .where(Opportunity.archived == False)  # noqa: E712
+            .order_by(col(Opportunity.updated_at).desc())
+            .limit(5)
+        )
+    )
     recent_runs = list(session.exec(select(PortalRetrievalRun).order_by(col(PortalRetrievalRun.started_at).desc()).limit(5)))
     return templates.TemplateResponse(
         request,

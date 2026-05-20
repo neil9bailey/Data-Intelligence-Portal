@@ -314,7 +314,14 @@ def portal_workbench_context(session: Session) -> dict:
     connectors = list(session.exec(select(PortalInformationConnector).order_by(col(PortalInformationConnector.connector_name))))
     retrieval_runs = list(session.exec(select(PortalRetrievalRun).order_by(col(PortalRetrievalRun.started_at).desc()).limit(80)))
     tasks = list(session.exec(select(DocumentRetrievalTask).order_by(col(DocumentRetrievalTask.created_at).desc())))
-    opportunities = list(session.exec(select(Opportunity).order_by(col(Opportunity.created_at).desc()).limit(100)))
+    opportunities = list(
+        session.exec(
+            select(Opportunity)
+            .where(Opportunity.archived == False)  # noqa: E712
+            .order_by(col(Opportunity.created_at).desc())
+            .limit(100)
+        )
+    )
 
     platform_map = {item.id: item for item in platforms}
     portal_task_map: dict[int, list[DocumentRetrievalTask]] = {}
@@ -424,14 +431,23 @@ def scoped_dashboard_metrics(session: Session, user) -> dict:
             "platforms": len(list(session.exec(select(ProcurementPlatform)))),
             "portal_connectors": len(list(session.exec(select(PortalInformationConnector)))),
             "enabled_portal_connectors": len(list(session.exec(select(PortalInformationConnector).where(PortalInformationConnector.enabled == True)))),  # noqa: E712
-            "opportunities": len(list(session.exec(select(Opportunity)))),
+            "opportunities": len(list(session.exec(select(Opportunity).where(Opportunity.archived == False)))),  # noqa: E712
             "documents": len(list(session.exec(select(OpportunityDocument)))),
             "requirements": len(list(session.exec(select(ExtractedRequirement)))),
             "questions": len(list(session.exec(select(ExtractedQualityQuestion)))),
             "pending_findings": len(list(session.exec(select(KRAFinding).where(KRAFinding.human_review_status == "pending")))),
             "source_changes": len(list(session.exec(select(SourceCheckSnapshot).where(SourceCheckSnapshot.change_type == "changed")))),
             "news_items": len(list(session.exec(select(NewsFeedItem)))),
-            "review_queue": len(list(session.exec(select(Opportunity).where(col(Opportunity.status).in_(["new", "pending_review", "matched", "needs_review"]))))),
+            "review_queue": len(
+                list(
+                    session.exec(
+                        select(Opportunity).where(
+                            Opportunity.archived == False,  # noqa: E712
+                            col(Opportunity.status).in_(["new", "pending_review", "matched", "needs_review"]),
+                        )
+                    )
+                )
+            ),
             "client_interests": len(list(session.exec(select(ClientInterestSignal)))),
         }
 

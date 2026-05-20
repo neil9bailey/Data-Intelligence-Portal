@@ -206,6 +206,11 @@ class Opportunity(SQLModel, table=True):
     source_url: str = ""
     summary: str = ""
     status: str = "new"
+    archived: bool = Field(default=False, index=True)
+    archived_at: Optional[datetime] = Field(default=None, index=True)
+    archive_reason: str = ""
+    archive_previous_status: str = ""
+    archive_note: str = ""
     relevance_score: float = 0
     relevance_rationale: str = ""
     content_hash: str = Field(default="", index=True)

@@ -28,7 +28,14 @@ def requirements(request: Request, session: Session = Depends(get_session), _use
         request,
         param="questions_page",
     )
-    opportunities = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(300)))
+    opportunities = list(
+        session.exec(
+            select(Opportunity)
+            .where(Opportunity.archived == False)  # noqa: E712
+            .order_by(col(Opportunity.updated_at).desc())
+            .limit(300)
+        )
+    )
     documents = list(session.exec(select(OpportunityDocument).order_by(col(OpportunityDocument.extracted_at).desc()).limit(300)))
     opportunity_map = {item.id: item for item in opportunities}
     return templates.TemplateResponse(

@@ -56,6 +56,7 @@ def test_route_smoke_pages(seeded_session):
             "/customers",
             "/sources",
             "/opportunities",
+            "/archive",
             f"/opportunities/{opportunity.id}/documents",
             "/review",
             "/client-portal",

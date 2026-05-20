@@ -26,7 +26,7 @@ def agent_classify_catalogue(session: Session, actor: str = "classification-agen
         "requirements": 0,
         "questions": 0,
     }
-    for opportunity in session.exec(select(Opportunity)):
+    for opportunity in session.exec(select(Opportunity).where(Opportunity.archived == False)):  # noqa: E712
         outcome = agent_classify_opportunity(session, opportunity, actor=actor)
         for key, value in outcome.items():
             result[key] = result.get(key, 0) + value

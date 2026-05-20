@@ -104,7 +104,7 @@ def scoped_business_unit_statement(user: CurrentUser):
 
 
 def scoped_opportunity_statement(user: CurrentUser):
-    statement = select(Opportunity)
+    statement = select(Opportunity).where(Opportunity.archived == False)  # noqa: E712
     scope_filter = _scope_filter_for_customer_linked_model(Opportunity, scope_for_user(user))
     return statement.where(scope_filter) if scope_filter is not None else statement
 

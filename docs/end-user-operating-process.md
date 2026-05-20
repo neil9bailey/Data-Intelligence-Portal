@@ -33,15 +33,18 @@ Use **Run full cycle** to automate the normal operating rhythm:
 1. Apply or update preconfigured customer packs.
 2. Refresh active public sources and official feeds.
 3. Run KRA checks.
-4. Prepare opportunities and requirements for review.
-5. Run approved read-only portal/source retrieval connectors.
-6. Confirm only automated retrieval tasks where a completed run exists.
-7. Generate a report.
-8. Store the report export in the configured outbox/report folder.
-9. Email or locally store the report email using the Admin email configuration.
-10. Record the audit trail.
+4. Archive closed, past-deadline and stale opportunity records.
+5. Prepare opportunities and requirements for review.
+6. Run approved read-only portal/source retrieval connectors.
+7. Confirm only automated retrieval tasks where a completed run exists.
+8. Generate a report.
+9. Store the report export in the configured outbox/report folder.
+10. Email or locally store the report email using the Admin email configuration.
+11. Record the audit trail.
 
 In Azure live-test, **Run full cycle** queues the work and returns to Admin immediately. Refresh Admin after a short pause to see whether the latest run is queued, running, completed or failed. This avoids the browser appearing frozen while source checks, KRA calls and report generation continue in the background worker.
+
+Archived records are removed from live inbox/report output but remain available to Admin users under **Archive** for search, restore, CSV/JSON export or controlled purge.
 
 The automation uses the broad official Find a Tender and Contracts Finder OCDS APIs for live matching, then filters by customer aliases and watch terms inside DIP. Customer-specific web search URLs are stored as reference links for human drill-through, but they are not used as high-frequency automation targets because public search pages can rate-limit automated bursts.
 

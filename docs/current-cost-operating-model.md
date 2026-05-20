@@ -47,11 +47,14 @@ The current app supports manual/CLI-friendly jobs:
 python -m app.jobs refresh-sources
 python -m app.jobs refresh-feeds
 python -m app.jobs run-connectors
+python -m app.jobs archive-opportunities
 python -m app.jobs send-digests
 python -m app.jobs admin-cycle
 ```
 
 These jobs write `AutomationRun` records and audit events. They are intentionally not tied to new cloud scheduling infrastructure in the current-cost phase.
+
+`archive-opportunities` moves records out of the live pipeline when they are past deadline, terminal/closed, old award evidence or stale. It does not permanently delete records. Admin users can search, export, restore or purge archived records from `/archive`.
 
 The current COF Autopilot profile keeps the expensive parts bounded:
 

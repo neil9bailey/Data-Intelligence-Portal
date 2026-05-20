@@ -202,6 +202,13 @@ def apply_sqlite_schema_updates() -> None:
             "reviewed_by": "reviewed_by VARCHAR DEFAULT ''",
             "reviewed_at": "reviewed_at DATETIME",
         },
+        "opportunity": {
+            "archived": "archived BOOLEAN DEFAULT 0",
+            "archived_at": "archived_at DATETIME",
+            "archive_reason": "archive_reason VARCHAR DEFAULT ''",
+            "archive_previous_status": "archive_previous_status VARCHAR DEFAULT ''",
+            "archive_note": "archive_note VARCHAR DEFAULT ''",
+        },
     }
     with engine.begin() as connection:
         for table_name, columns in updates.items():

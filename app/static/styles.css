@@ -245,6 +245,7 @@ p { margin: 0 0 12px; }
 .metrics { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 18px; }
 .two { grid-template-columns: minmax(0, 1.2fr) minmax(330px, 0.8fr); }
 .three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.four { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 18px; }
 .workflow-map { display: grid; grid-template-columns: repeat(6, minmax(170px, 1fr)); gap: 12px; }
 .workflow-card { min-height: 220px; padding: 16px; border: 1px solid var(--line); border-top: 5px solid var(--plum); border-radius: 8px; background: var(--panel); box-shadow: var(--soft); }
 .workflow-card:nth-child(2) { border-top-color: var(--cyan); }
@@ -587,7 +588,7 @@ textarea { min-height: 92px; resize: vertical; }
 .report-body { white-space: pre-wrap; padding: 18px; border-radius: 8px; background: #101827; color: #f5f7fb; overflow-x: auto; }
 .footer { padding: 18px 22px; color: var(--muted); background: #fff; border-top: 1px solid var(--line); }
 @media (max-width: 1050px) {
-  .topbar-inner, .hero, .cof-hero, .source-strip, .cof-flow, .automation-grid, .admin-link-grid, .two, .three, .form-grid, .workflow-map, .inline-form, .portal-command, .portal-grid { grid-template-columns: 1fr; }
+  .topbar-inner, .hero, .cof-hero, .source-strip, .cof-flow, .automation-grid, .admin-link-grid, .two, .three, .four, .form-grid, .workflow-map, .inline-form, .portal-command, .portal-grid { grid-template-columns: 1fr; }
   .topbar-inner { height: auto; padding: 14px 18px; }
   .chips { justify-content: flex-start; flex-wrap: wrap; }
   .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }

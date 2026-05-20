@@ -21,7 +21,7 @@
         </div>
         <div class="actions">
           <a class="button secondary" href="/reports">Reports</a>
-          {% if current_user.is_admin %}<a class="button admin-entry {{ 'active' if request.url.path.startswith('/admin') or request.url.path.startswith('/workflow') or request.url.path.startswith('/intelligence-packs') or request.url.path.startswith('/business-units') or request.url.path.startswith('/customers') or request.url.path.startswith('/sources') or request.url.path.startswith('/portals') or request.url.path.startswith('/opportunities') or request.url.path.startswith('/review') or request.url.path.startswith('/requirements') or request.url.path.startswith('/kra') or request.url.path.startswith('/audit') else '' }}" href="/admin">Admin</a>{% endif %}
+          {% if current_user.is_admin %}<a class="button admin-entry {{ 'active' if request.url.path.startswith('/admin') or request.url.path.startswith('/workflow') or request.url.path.startswith('/intelligence-packs') or request.url.path.startswith('/business-units') or request.url.path.startswith('/customers') or request.url.path.startswith('/sources') or request.url.path.startswith('/portals') or request.url.path.startswith('/opportunities') or request.url.path.startswith('/archive') or request.url.path.startswith('/review') or request.url.path.startswith('/requirements') or request.url.path.startswith('/kra') or request.url.path.startswith('/audit') else '' }}" href="/admin">Admin</a>{% endif %}
         </div>
       </div>
       <nav class="nav">

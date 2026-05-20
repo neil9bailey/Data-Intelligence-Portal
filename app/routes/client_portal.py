@@ -18,8 +18,12 @@ router = APIRouter()
 
 @router.get("/client-portal", response_class=HTMLResponse)
 def client_portal(request: Request, session: Session = Depends(get_session), user=Depends(require_standard_or_admin)):
-    approved_statement = select(Opportunity).where(col(Opportunity.status).in_(CLIENT_VISIBLE_STATUSES)).order_by(col(Opportunity.updated_at).desc())
-    all_statement = select(Opportunity).order_by(col(Opportunity.updated_at).desc())
+    approved_statement = (
+        select(Opportunity)
+        .where(col(Opportunity.status).in_(CLIENT_VISIBLE_STATUSES), Opportunity.archived == False)  # noqa: E712
+        .order_by(col(Opportunity.updated_at).desc())
+    )
+    all_statement = select(Opportunity).where(Opportunity.archived == False).order_by(col(Opportunity.updated_at).desc())  # noqa: E712
     scope = scope_for_user(user)
     if scope.restricted:
         conditions = []

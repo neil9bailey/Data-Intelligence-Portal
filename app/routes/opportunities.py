@@ -2,28 +2,22 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from sqlmodel import Session, col, select
 
+from app.archive import delete_opportunity_graph
 from app.audit import compact_snapshot, log_event
 from app.auth import get_current_user, require_admin
 from app.database import get_session
 from app.form_utils import parse_float, parse_optional_date, parse_optional_int, validation_error_response
 from app.intelligence import extract_document_intelligence
 from app.models import (
-    ClientInterestSignal,
     DocumentRetrievalTask,
     ExtractedQualityQuestion,
-    ExtractedRequirement,
-    KRAFinding,
-    KRAResearchRun,
     Opportunity,
     OpportunityDocument,
     OpportunityFeedback,
     OpportunityMatchEvidence,
-    PortalInformationConnector,
-    PortalRetrievalRun,
     utc_now,
 )
 from app.route_utils import (
-    clear_links,
     context,
     delete_children,
     delete_with_audit,
@@ -41,7 +35,11 @@ router = APIRouter()
 
 @router.get("/opportunities", response_class=HTMLResponse)
 def opportunities(request: Request, session: Session = Depends(get_session), _user=Depends(require_admin)):
-    items, pagination = paged(session, select(Opportunity).order_by(col(Opportunity.updated_at).desc()), request)
+    include_archived = str(request.query_params.get("include_archived") or "").lower() in {"1", "true", "yes"}
+    statement = select(Opportunity).order_by(col(Opportunity.updated_at).desc())
+    if not include_archived:
+        statement = statement.where(Opportunity.archived == False)  # noqa: E712
+    items, pagination = paged(session, statement, request)
     documents = list(session.exec(select(OpportunityDocument)))
     evidence = list(session.exec(select(OpportunityMatchEvidence)))
     feedback_rows = list(session.exec(select(OpportunityFeedback).order_by(col(OpportunityFeedback.created_at).desc())))
@@ -66,6 +64,7 @@ def opportunities(request: Request, session: Session = Depends(get_session), _us
             doc_counts=doc_counts,
             evidence_map=evidence_map,
             feedback_map=feedback_map,
+            include_archived=include_archived,
             **reference_context(session),
         ),
     )
@@ -155,18 +154,7 @@ def delete_opportunity(opportunity_id: int, session: Session = Depends(get_sessi
     opportunity = session.get(Opportunity, opportunity_id)
     if not opportunity:
         return redirect("/opportunities")
-    delete_children(session, ExtractedQualityQuestion, "opportunity_id", opportunity.id)
-    delete_children(session, OpportunityDocument, "opportunity_id", opportunity.id)
-    delete_children(session, DocumentRetrievalTask, "opportunity_id", opportunity.id)
-    clear_links(session, PortalInformationConnector, "default_opportunity_id", opportunity.id)
-    clear_links(session, PortalRetrievalRun, "opportunity_id", opportunity.id)
-    clear_links(session, ClientInterestSignal, "opportunity_id", opportunity.id)
-    clear_links(session, ExtractedRequirement, "opportunity_id", opportunity.id)
-    clear_links(session, KRAFinding, "opportunity_id", opportunity.id)
-    clear_links(session, KRAResearchRun, "opportunity_id", opportunity.id)
-    delete_children(session, OpportunityMatchEvidence, "opportunity_id", opportunity.id)
-    delete_children(session, OpportunityFeedback, "opportunity_id", opportunity.id)
-    delete_with_audit(session, opportunity, f"Deleted opportunity {opportunity.title}")
+    delete_opportunity_graph(session, opportunity, f"Deleted opportunity {opportunity.title}")
     return redirect("/opportunities")
 
 

@@ -729,7 +729,14 @@ def _cof_report_opportunities(session: Session, customer_id: int | None, busines
     cof_unit_id = unit.id if unit and unit.id else None
     cof_customer_ids = _cof_customer_ids(session)
     trusted_source_ids = trusted_cof_source_ids(session)
-    candidates = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(300)))
+    candidates = list(
+        session.exec(
+            select(Opportunity)
+            .where(Opportunity.archived == False)  # noqa: E712
+            .order_by(col(Opportunity.updated_at).desc())
+            .limit(300)
+        )
+    )
     opportunities = [
         item
         for item in candidates
@@ -1074,7 +1081,7 @@ def _is_cof_retrieved_document(item: OpportunityDocument) -> bool:
 
 
 def _report_context(session: Session, customer_id: int | None, business_unit_id: int | None) -> dict:
-    opportunity_query = select(Opportunity).order_by(col(Opportunity.updated_at).desc())
+    opportunity_query = select(Opportunity).where(Opportunity.archived == False).order_by(col(Opportunity.updated_at).desc())  # noqa: E712
     if customer_id:
         opportunity_query = opportunity_query.where(Opportunity.customer_id == customer_id)
     if business_unit_id:

@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Archive | {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Opportunity Archive</h1>
+    <p>Closed, past-deadline and stale records removed from live pipeline output while retaining traceability.</p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/opportunities">Live opportunities</a>
+    <a class="button secondary" href="/archive/export?format=csv&q={{ filters.q }}&reason={{ filters.reason }}">Export CSV</a>
+    <a class="button secondary" href="/archive/export?format=json&q={{ filters.q }}&reason={{ filters.reason }}">Export JSON</a>
+  </div>
+</div>
+
+<section class="grid four">
+  <article class="metric"><span>Live records</span><strong>{{ archive_summary.live_count }}</strong></article>
+  <article class="metric"><span>Archived records</span><strong>{{ archive_summary.archived_count }}</strong></article>
+  <article class="metric"><span>Cleanup candidates</span><strong>{{ archive_preview | length }}</strong></article>
+  <article class="metric"><span>Latest archive</span><strong>{{ archive_summary.latest_archived_at.strftime('%Y-%m-%d') if archive_summary.latest_archived_at else 'None' }}</strong></article>
+</section>
+
+<section class="panel">
+  <h2>Cleanup Task</h2>
+  <p class="hint">Archives records that are past deadline, terminal, old award evidence or stale. It does not permanently delete anything.</p>
+  <form method="post" action="/archive/run" class="inline-form">
+    <label>Stale days <input type="number" name="stale_days" value="90" min="1"></label>
+    <label>Deadline grace <input type="number" name="past_deadline_grace_days" value="1" min="0"></label>
+    <label>Award retention <input type="number" name="award_retention_days" value="90" min="1"></label>
+    <label>Limit <input type="number" name="limit" value="500" min="1"></label>
+    <button class="button" type="submit">Archive eligible records</button>
+  </form>
+  {% if archive_preview %}
+  <details>
+    <summary>Preview {{ archive_preview | length }} candidate(s)</summary>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Opportunity</th><th>Reason</th><th>Detail</th></tr></thead>
+        <tbody>
+        {% for candidate in archive_preview %}
+          <tr><td>{{ candidate.opportunity.title }}</td><td><span class="badge amber">{{ candidate.reason | replace('_', ' ') }}</span></td><td>{{ candidate.detail }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  {% else %}
+  <p class="success">No cleanup candidates detected with the default policy.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h2>Archive Search</h2>
+  <form method="get" action="/archive" class="form-grid">
+    <div class="field"><label>Search</label><input name="q" value="{{ filters.q }}" placeholder="Title, buyer, reference or summary"></div>
+    <div class="field"><label>Reason</label><select name="reason"><option value="">All reasons</option>{% for reason in archive_reasons %}<option value="{{ reason }}" {% if filters.reason == reason %}selected{% endif %}>{{ reason | replace('_', ' ') | title }}</option>{% endfor %}</select></div>
+    <div class="field"><label>Customer</label><select name="customer_id"><option value="">All customers</option>{% for customer in customers %}<option value="{{ customer.id }}" {% if filters.customer_id == customer.id %}selected{% endif %}>{{ customer.customer_name }}</option>{% endfor %}</select></div>
+    <div class="field"><label>Source</label><select name="source_id"><option value="">All sources</option>{% for source in sources %}<option value="{{ source.id }}" {% if filters.source_id == source.id %}selected{% endif %}>{{ source.name }}</option>{% endfor %}</select></div>
+    <button class="button" type="submit">Filter archive</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>Archived Records</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Opportunity</th><th>Buyer / deadline</th><th>Reason</th><th>Previous status</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+      {% for item in archived_opportunities %}
+        <tr>
+          <td><strong>{{ item.title }}</strong><p class="hint">{{ item.notice_identifier or item.ocid or 'No reference' }}</p></td>
+          <td>{{ item.buyer_name or 'Buyer not detected' }}<p class="hint">Deadline {{ item.deadline_date or 'not captured' }}</p></td>
+          <td><span class="badge amber">{{ item.archive_reason | replace('_', ' ') }}</span><p class="hint">{{ item.archive_note }}</p></td>
+          <td>{{ item.archive_previous_status or 'unknown' }}<p class="hint">Archived {{ item.archived_at.strftime('%Y-%m-%d %H:%M') if item.archived_at else '' }}</p></td>
+          <td class="actions">
+            <form method="post" action="/archive/{{ item.id }}/restore"><button class="button secondary" type="submit">Restore</button></form>
+            <form method="post" action="/archive/{{ item.id }}/delete" onsubmit="return confirm('Permanently delete this archived opportunity and linked operational records?')"><button class="button danger" type="submit">Delete</button></form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5">No archived records match the current filters.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% with pagination=archive_pagination %}{% include "_pagination.html" %}{% endwith %}
+</section>
+
+<section class="panel danger-zone">
+  <h2>Archive Purge</h2>
+  <p class="hint">Permanent deletion is for operational cleanup only. It removes archived opportunities and linked archive-side operational records.</p>
+  <form method="post" action="/archive/purge" class="inline-form" onsubmit="return confirm('This permanently deletes matching archived records. Continue?')">
+    <input type="hidden" name="q" value="{{ filters.q }}">
+    <input type="hidden" name="reason" value="{{ filters.reason }}">
+    <label>Confirm <input name="confirm" placeholder="DELETE ARCHIVE"></label>
+    <button class="button danger" type="submit">Purge filtered archive</button>
+  </form>
+</section>
+{% endblock %}

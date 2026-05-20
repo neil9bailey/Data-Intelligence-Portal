@@ -225,7 +225,14 @@ def cof_opportunities(session: Session, customer_id: int | None = None, business
     unit = cof_business_unit(session)
     unit_id = unit.id if unit and unit.id else None
     customer_ids = cof_customer_ids(session)
-    candidates = list(session.exec(select(Opportunity).order_by(col(Opportunity.updated_at).desc()).limit(500)))
+    candidates = list(
+        session.exec(
+            select(Opportunity)
+            .where(Opportunity.archived == False)  # noqa: E712
+            .order_by(col(Opportunity.updated_at).desc())
+            .limit(500)
+        )
+    )
     opportunities = [
         item
         for item in candidates

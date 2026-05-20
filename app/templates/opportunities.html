@@ -1,7 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Opportunities - {{ app_name }}{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Opportunity Catalogue</h1><p>Matched public-sector opportunities, source references, relevance and document status.</p></div></div>
+<div class="page-head">
+  <div><h1>Opportunity Catalogue</h1><p>Matched public-sector opportunities, source references, relevance and document status.</p></div>
+  <div class="actions">
+    <a class="button secondary" href="/archive">Archive</a>
+    {% if include_archived %}<a class="button secondary" href="/opportunities">Hide archived</a>{% else %}<a class="button secondary" href="/opportunities?include_archived=1">Include archived</a>{% endif %}
+  </div>
+</div>
 <section class="panel">
   <div class="table-wrap">
     <table>
@@ -34,7 +40,7 @@
           <td>{{ item.deadline_date or "Not detected" }}</td>
           <td>{{ source.name if source else "Manual" }}</td>
           <td><a href="/opportunities/{{ item.id }}/documents">{{ doc_counts.get(item.id, 0) }} docs</a></td>
-          <td><span class="badge {{ 'green' if item.status in ['watching', 'approved'] else 'red' if item.status in ['rejected', 'needs_review'] else 'amber' }}">{{ item.status }}</span></td>
+          <td><span class="badge {{ 'weak' if item.archived else 'green' if item.status in ['watching', 'approved'] else 'red' if item.status in ['rejected', 'needs_review'] else 'amber' }}">{{ item.status }}</span>{% if item.archived %}<p class="hint">{{ item.archive_reason | replace('_', ' ') }}</p>{% endif %}</td>
           <td>
             <div class="record-actions">
               <form method="post" action="/opportunities/{{ item.id }}/delete" onsubmit="return confirm('Delete this opportunity and its linked documents/tasks? Interest and requirement records will be unassigned.');">

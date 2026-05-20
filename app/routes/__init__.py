@@ -1,4 +1,5 @@
 from app.routes import admin
+from app.routes import archive
 from app.routes import audit
 from app.routes import business_units
 from app.routes import client_portal
@@ -22,6 +23,7 @@ ROUTERS = [
     review.router,
     client_portal.router,
     admin.router,
+    archive.router,
     business_units.router,
     customers.router,
     sources.router,

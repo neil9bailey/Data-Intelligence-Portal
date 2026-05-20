@@ -8,6 +8,7 @@
   </div>
   <div class="actions">
     <a class="button secondary" href="/audit">Audit</a>
+    <a class="button secondary" href="/archive">Archive</a>
     <a class="button secondary" href="/kra">KRA status</a>
   </div>
 </div>
@@ -71,7 +72,7 @@
   </div>
   {% endif %}
   <div class="automation-grid">
-    {% set labels = ['Apply or update customer packs', 'Refresh official news feeds', 'Refresh public sources', 'Run KRA checks', 'Run public opportunity keyword sweep', 'Classify opportunities and requirements', 'Run approved portal retrieval', 'Classify retrieved intelligence', 'Confirm portal tasks are complete', 'Generate a report', 'Generate branded report export', 'Email the report', 'Check the audit log'] %}
+    {% set labels = ['Apply or update customer packs', 'Refresh official news feeds', 'Refresh public sources', 'Run KRA checks', 'Run public opportunity keyword sweep', 'Archive closed and stale records', 'Classify opportunities and requirements', 'Run approved portal retrieval', 'Classify retrieved intelligence', 'Confirm portal tasks are complete', 'Generate a report', 'Generate branded report export', 'Email the report', 'Check the audit log'] %}
     {% for label in labels %}
     {% set current = namespace(step=None) %}
     {% for step in automation.latest_steps %}
@@ -211,6 +212,7 @@
     <a class="admin-tile" href="/sources"><strong>Sources</strong><span>Manage approved public sources and source-check snapshots.</span></a>
     <a class="admin-tile" href="/portals"><strong>Portals / connectors</strong><span>Configure portal assumptions, read-only connectors and retrieval tasks.</span></a>
     <a class="admin-tile" href="/opportunities"><strong>Opportunities</strong><span>Review, edit and maintain captured opportunity records and documents.</span></a>
+    <a class="admin-tile" href="/archive"><strong>Archive</strong><span>Search, export, restore or purge closed and stale opportunity records.</span></a>
     <a class="admin-tile" href="/review"><strong>Review queue</strong><span>Approve, reject or reassign opportunity and requirement intelligence.</span></a>
     <a class="admin-tile" href="/requirements"><strong>Requirements</strong><span>Manage extracted requirements and quality-question indicators.</span></a>
     <a class="admin-tile" href="/kra"><strong>KRA agents</strong><span>Run and inspect Knowledge Research Agent activity.</span></a>

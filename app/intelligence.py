@@ -1018,7 +1018,14 @@ def record_match_evidence(session: Session, opportunity: Opportunity, rationale:
 
 def repair_mismatched_customer_assignments(session: Session) -> int:
     repaired = 0
-    opportunities = list(session.exec(select(Opportunity).where(Opportunity.customer_id != None)))  # noqa: E711
+    opportunities = list(
+        session.exec(
+            select(Opportunity).where(
+                Opportunity.customer_id != None,  # noqa: E711
+                Opportunity.archived == False,  # noqa: E712
+            )
+        )
+    )
     for opportunity in opportunities:
         customer = session.get(Customer, opportunity.customer_id) if opportunity.customer_id else None
         if not customer:
@@ -1076,7 +1083,14 @@ def _is_cof_live_pilot_assignment(opportunity: Opportunity, customer: Customer) 
 
 def repair_low_quality_market_opportunities(session: Session) -> int:
     repaired = 0
-    opportunities = list(session.exec(select(Opportunity).where(Opportunity.customer_id == None)))  # noqa: E711
+    opportunities = list(
+        session.exec(
+            select(Opportunity).where(
+                Opportunity.customer_id == None,  # noqa: E711
+                Opportunity.archived == False,  # noqa: E712
+            )
+        )
+    )
     for opportunity in opportunities:
         candidate = CandidateOpportunity(
             title=opportunity.title,

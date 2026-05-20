@@ -226,7 +226,14 @@ def cof_friday_readiness(session: Session) -> dict[str, int | bool]:
             "interested_missing_retrieval_task": 0,
             "reports_ready_to_send": 0,
         }
-    opportunities = list(session.exec(select(Opportunity).where(Opportunity.business_unit_id == unit.id)))
+    opportunities = list(
+        session.exec(
+            select(Opportunity).where(
+                Opportunity.business_unit_id == unit.id,
+                Opportunity.archived == False,  # noqa: E712
+            )
+        )
+    )
     clients = list(session.exec(select(Customer).where(Customer.business_unit_id == unit.id)))
     tasks = list(session.exec(select(DocumentRetrievalTask)))
     task_opportunity_ids = {task.opportunity_id for task in tasks if task.opportunity_id}
@@ -284,6 +291,11 @@ def _ensure_cof_opportunity(
     opportunity.source_url = f"https://www.find-tender.service.gov.uk/Search/Results?Keywords={quote_plus(title)}"
     opportunity.summary = summary
     opportunity.status = status
+    opportunity.archived = False
+    opportunity.archived_at = None
+    opportunity.archive_reason = ""
+    opportunity.archive_previous_status = ""
+    opportunity.archive_note = ""
     opportunity.relevance_score = 86 if status not in {"needs_review", "review_required"} else 58
     opportunity.relevance_rationale = f"Matched COF client keywords: {theme}. Review Lead approval required before client action."
     opportunity.content_hash = notice_id
