@@ -1280,6 +1280,8 @@ def run_kra_research(
     customer_id: int | None = None,
     query: str = "",
     fetcher=fetch_source_url,
+    max_pages: int | None = None,
+    max_candidates_per_page: int = 80,
 ) -> KRAResearchRun:
     agent = session.get(KRAAgentProfile, agent_profile_id) if agent_profile_id else session.exec(select(KRAAgentProfile)).first()
     customer = session.get(Customer, customer_id) if customer_id else None
@@ -1306,12 +1308,14 @@ def run_kra_research(
     terms = split_terms(query) + watch_profile_terms(session, customer=customer) + GLOBAL_CAPABILITY_TERMS
     findings_created = 0
     candidate_brief_items: list[str] = []
+    page_limit = max(1, max_pages if max_pages is not None else DEFAULT_NOTICE_MAX_PAGES)
+    candidate_limit = max(1, max_candidates_per_page)
     for source in sources:
         from app.source_connectors import connector_for_source
 
         connector = connector_for_source(source)
         url = connector.build_query(terms)
-        for page_number in range(DEFAULT_NOTICE_MAX_PAGES):
+        for page_number in range(page_limit):
             if not url:
                 break
             run.sources_checked += 1
@@ -1341,7 +1345,7 @@ def run_kra_research(
             if not fetch.ok:
                 break
             candidates = connector.parse_candidates(fetch, terms)
-            for candidate in candidates[:80]:
+            for candidate in candidates[:candidate_limit]:
                 direct_customer_match = bool(customer and candidate_matches_customer(candidate, customer))
                 relevance, rationale = relevance_for_candidate(candidate, terms)
                 if direct_customer_match and relevance < 70:
@@ -1373,7 +1377,7 @@ def run_kra_research(
                 )
                 create_requirements_for_opportunity(session, opportunity, textish(f"{candidate.title}. {candidate.summary}. {candidate.cpv_codes}"))
             next_url = connector.next_page(fetch)
-            url = next_url if next_url and page_number + 1 < DEFAULT_NOTICE_MAX_PAGES else ""
+            url = next_url if next_url and page_number + 1 < page_limit else ""
     if llm_enabled():
         try:
             settings = get_settings()

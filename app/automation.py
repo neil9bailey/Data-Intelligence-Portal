@@ -125,7 +125,14 @@ def run_admin_full_cycle(
         )
 
         repair_count = repair_mismatched_customer_assignments(session)
-        kra_runs = run_customer_kra_checks(session, fetcher=live_source_fetcher)
+        settings = get_settings()
+        kra_runs = run_customer_kra_checks(
+            session,
+            fetcher=live_source_fetcher,
+            customer_limit=settings.autopilot_kra_customer_limit,
+            max_pages=settings.autopilot_kra_max_pages,
+            max_candidates_per_page=settings.autopilot_kra_candidates_per_page,
+        )
         kra_run_rows = [item for item in (session.get(KRAResearchRun, run_id) for run_id in kra_runs) if item]
         kra_warnings = [item for item in kra_run_rows if item.error_summary]
         step(
@@ -135,21 +142,33 @@ def run_admin_full_cycle(
             warnings=[item.error_summary for item in kra_warnings[:5]],
         )
 
-        market_result = run_public_market_keyword_sweep(session)
-        market_repair_count = repair_low_quality_market_opportunities(session)
-        market_errors = list(market_result.get("errors") or [])
-        step(
-            "Run public opportunity keyword sweep",
-            "warning" if market_errors else "completed",
-            (
-                f"{market_result.get('keywords', 0)} keyword families searched; "
-                f"{market_result.get('created', 0)} opportunities created; "
-                f"{market_result.get('updated', 0)} updated; "
-                f"{market_result.get('skipped', 0)} filtered out; "
-                f"{market_repair_count} existing market record(s) quality-gated."
-            ),
-            warnings=market_errors,
-        )
+        if settings.autopilot_market_sweep_enabled:
+            sweep_keywords = [item.strip() for item in settings.autopilot_market_sweep_keywords.split(",") if item.strip()]
+            market_result = run_public_market_keyword_sweep(
+                session,
+                keywords=sweep_keywords,
+                limit_per_keyword=settings.autopilot_market_sweep_limit,
+            )
+            market_repair_count = repair_low_quality_market_opportunities(session)
+            market_errors = list(market_result.get("errors") or [])
+            step(
+                "Run public opportunity keyword sweep",
+                "warning" if market_errors else "completed",
+                (
+                    f"{market_result.get('keywords', 0)} keyword families searched; "
+                    f"{market_result.get('created', 0)} opportunities created; "
+                    f"{market_result.get('updated', 0)} updated; "
+                    f"{market_result.get('skipped', 0)} filtered out; "
+                    f"{market_repair_count} existing market record(s) quality-gated."
+                ),
+                warnings=market_errors,
+            )
+        else:
+            step(
+                "Run public opportunity keyword sweep",
+                "completed",
+                "Broad market sweep disabled for this low-resource Autopilot profile; official source refresh and COF matching remain active.",
+            )
 
         review_result = auto_prepare_review_queue(session)
         step(
@@ -312,16 +331,39 @@ def refresh_public_sources(session: Session, fetcher=None) -> list[dict]:
     return results
 
 
-def run_customer_kra_checks(session: Session, fetcher=None) -> list[int]:
+def run_customer_kra_checks(
+    session: Session,
+    fetcher=None,
+    customer_limit: int = 11,
+    max_pages: int = 1,
+    max_candidates_per_page: int = 15,
+) -> list[int]:
     customers = list(session.exec(select(Customer).where(Customer.active == True).order_by(col(Customer.customer_name))))  # noqa: E712
+    if customer_limit > 0:
+        customers = customers[:customer_limit]
     source_ids = live_kra_source_ids(session)
     run_ids: list[int] = []
     for customer in customers:
         query = f"{customer.customer_name} {customer.domain} {customer.strategic_notes[:160]}"
         kra_run = (
-            run_kra_research(session, customer_id=customer.id, source_ids=source_ids, query=query, fetcher=fetcher)
+            run_kra_research(
+                session,
+                customer_id=customer.id,
+                source_ids=source_ids,
+                query=query,
+                fetcher=fetcher,
+                max_pages=max_pages,
+                max_candidates_per_page=max_candidates_per_page,
+            )
             if fetcher
-            else run_kra_research(session, customer_id=customer.id, source_ids=source_ids, query=query)
+            else run_kra_research(
+                session,
+                customer_id=customer.id,
+                source_ids=source_ids,
+                query=query,
+                max_pages=max_pages,
+                max_candidates_per_page=max_candidates_per_page,
+            )
         )
         if kra_run.id:
             run_ids.append(kra_run.id)

@@ -342,7 +342,7 @@ def test_admin_full_cycle_automation_preconfigures_and_exports(reference_session
     monkeypatch.setattr("app.automation.refresh_news_feeds", lambda session: 0)
     monkeypatch.setattr(
         "app.automation.run_public_market_keyword_sweep",
-        lambda session: {"keywords": 1, "created": 0, "updated": 0, "skipped": 0, "errors": []},
+        lambda session, **_kwargs: {"keywords": 1, "created": 0, "updated": 0, "skipped": 0, "errors": []},
     )
 
     def fake_source_fetcher(url):
