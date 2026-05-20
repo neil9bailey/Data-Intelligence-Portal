@@ -3,12 +3,12 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <h1>Admin Control Centre</h1>
-    <p>Operational health, source checks, connector status, email configuration, audit and controlled setup tasks.</p>
+    <h1>COF Autopilot Control Centre</h1>
+    <p>One operational workspace for source-to-inbox automation, weekly pack generation, delivery and audit traceability.</p>
   </div>
   <div class="actions">
     <a class="button secondary" href="/audit">Audit</a>
-    <a class="button" href="/kra">Run KRA</a>
+    <a class="button secondary" href="/kra">KRA status</a>
   </div>
 </div>
 
@@ -23,15 +23,15 @@
 <section class="panel automation-panel" style="margin-top:18px;">
   <div class="panel-title">
     <div>
-      <h2>Autonomous COF Workflow</h2>
-      <p class="hint">Queues the full admin-side cycle in the live worker: customer packs, public sources, KRA, review preparation, approved read-only retrieval, report export, email and audit check.</p>
+      <h2>COF Autopilot</h2>
+      <p class="hint">Runs the complete source-to-inbox cycle: maintain the COF pack, refresh trusted public sources, run guarded KRA matching, classify opportunities, run approved read-only retrieval, generate the weekly PDF, store or email it, and record the audit trail.</p>
     </div>
     <div class="actions">
       <a class="button secondary" href="/admin">Refresh status</a>
       <form method="post" action="/admin/automation/run">
         <input type="hidden" name="export_format" value="pdf">
         <input type="hidden" name="email_recipients" value="{{ email_config.default_recipients }}">
-        <button type="submit">Run full cycle</button>
+        <button type="submit">Run COF Autopilot</button>
       </form>
     </div>
   </div>
@@ -93,8 +93,29 @@
 <section class="panel" style="margin-top:18px;">
   <div class="panel-title">
     <div>
-      <h2>Friday Review Readiness</h2>
-      <p class="hint">COF checks for the Friday review and Monday report send rhythm.</p>
+      <h2>Autopilot Configuration Audit</h2>
+      <p class="hint">This is the useful part of Admin: it shows whether each configuration function is automated, currently adding value, and ready for the weekly pack outcome.</p>
+    </div>
+    <span class="badge {{ 'green' if cof_production_readiness.status == 'Ready for weekly send' else 'red' if cof_production_readiness.status == 'Needs source attention' else 'amber' }}">{{ cof_production_readiness.status }}</span>
+  </div>
+  <div class="table-wrap"><table><thead><tr><th>Function</th><th>Automation mode</th><th>Status</th><th>Value to output</th><th>Current detail</th></tr></thead><tbody>
+    {% for item in cof_admin_functions %}
+    <tr>
+      <td><strong>{{ item.function }}</strong></td>
+      <td>{{ item.mode }}</td>
+      <td><span class="badge {{ 'green' if item.status == 'ready' else 'amber' }}">{{ item.status }}</span></td>
+      <td>{{ item.value }}</td>
+      <td class="muted small">{{ item.detail }}</td>
+    </tr>
+    {% endfor %}
+  </tbody></table></div>
+</section>
+
+<section class="panel" style="margin-top:18px;">
+  <div class="panel-title">
+    <div>
+      <h2>Weekly Delivery Readiness</h2>
+      <p class="hint">Automated checks for the weekly opportunity pack and delivery rhythm. These are operating signals, not manual setup steps.</p>
     </div>
     <span class="badge {{ 'green' if cof_readiness.configured and cof_readiness.reports_ready_to_send else 'amber' }}">{{ 'configured' if cof_readiness.configured else 'pack not applied' }}</span>
   </div>
@@ -173,13 +194,15 @@
 <section class="panel admin-hub" style="margin-top:18px;">
   <div class="panel-title">
     <div>
-      <h2>Admin Configuration Workspace</h2>
-      <p class="hint">All detailed configuration and the previous management UI live here. Standard users only see Opportunity Inbox, Client Feed and report downloads.</p>
+      <h2>Advanced Admin Configuration Workspace</h2>
+      <p class="hint">Normal COF operation should not need these screens. They are retained for exception handling, governance, onboarding changes and support.</p>
     </div>
     <form method="post" action="/news/refresh">
       <button class="secondary" type="submit">Refresh news feeds</button>
     </form>
   </div>
+  <details class="edit-drawer">
+    <summary>Show advanced configuration links</summary>
   <div class="admin-link-grid">
     <a class="admin-tile" href="/workflow"><strong>Workflow</strong><span>COF source-to-inbox process, retrieval rules and operating model.</span></a>
     <a class="admin-tile" href="/intelligence-packs"><strong>Customer packs</strong><span>Apply built-in or discovery packs for public-sector organisations.</span></a>
@@ -194,6 +217,7 @@
     <a class="admin-tile" href="/reports"><strong>Reports / exports</strong><span>Create, update, download and email intelligence reports.</span></a>
     <a class="admin-tile" href="/audit"><strong>Audit</strong><span>Inspect configuration, automation and data-change events.</span></a>
   </div>
+  </details>
 </section>
 
 <section class="grid three" style="margin-top:18px;">
@@ -269,7 +293,9 @@
   </div>
 </section>
 
-<section id="email-settings" class="grid two">
+<details id="email-settings" class="edit-drawer" style="margin-top:18px;">
+  <summary>Advanced email and digest configuration</summary>
+<section class="grid two">
   <div class="panel">
     <h2>Email Configuration</h2>
     <form method="post" action="/admin/email">
@@ -351,4 +377,5 @@
     {% else %}<tr><td colspan="5">No email events yet.</td></tr>{% endfor %}
   </tbody></table></div>
 </section>
+</details>
 {% endblock %}

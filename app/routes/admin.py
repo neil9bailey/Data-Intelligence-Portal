@@ -6,6 +6,7 @@ from app.audit import compact_snapshot, log_event
 from app.auth import require_admin
 from app.automation import automation_summary, create_queued_automation_run, run_admin_full_cycle_background
 from app.cof import cof_friday_readiness, reset_cof_workspace_records
+from app.cof_admin import cof_admin_function_audit
 from app.cof_readiness import cof_operating_status
 from app.database import get_session
 from app.digests import send_digest
@@ -35,6 +36,7 @@ def admin(request: Request, session: Session = Depends(get_session), _user=Depen
             email_logs=email_logs,
             health=health_dashboard_context(session, request),
             automation=automation,
+            cof_admin_functions=cof_admin_function_audit(session),
             digest_profiles=digest_profiles,
             cof_readiness=cof_friday_readiness(session),
             cof_production_readiness=cof_operating_status(session),
