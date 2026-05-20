@@ -300,6 +300,7 @@ def test_cof_weekly_report_content_and_exports(reference_session):
     assert "Matched client: Client B - Estates" in markdown
     assert "Portal route: In-Tend" in markdown
     assert "Review Lead approved for report inclusion" in markdown
+    assert "Awaiting Review Lead review" not in markdown
     assert "Awards / Market Evidence" in markdown
     assert "Client Action Queue" in markdown
     assert "account action status: account lead action required" in markdown

@@ -623,27 +623,27 @@ Review Lead approval means approved for COF report inclusion, not bid, legal, pr
 
 ## PINs / Early Market
 
-{_cof_opportunity_lines(pins, stages, customer_map, portal_routes, review_states, report_mode) if pins else "- No PINs are currently visible for this scope."}
+{_cof_opportunity_lines(pins, stages, customer_map, portal_routes, section_review_states, report_mode) if pins else "- No PINs are currently visible for this scope."}
 
 ## Watchlist
 
-{_cof_opportunity_lines(watch, stages, customer_map, portal_routes, review_states, report_mode) if watch else "- No watchlist items are currently visible for this scope."}
+{_cof_opportunity_lines(watch, stages, customer_map, portal_routes, section_review_states, report_mode) if watch else "- No watchlist items are currently visible for this scope."}
 
 ## Live Tenders
 
-{_cof_opportunity_lines(live, stages, customer_map, portal_routes, review_states, report_mode) if live else "- No live tenders are currently visible for this scope."}
+{_cof_opportunity_lines(live, stages, customer_map, portal_routes, section_review_states, report_mode) if live else "- No live tenders are currently visible for this scope."}
 
 ## Closing Soon
 
-{_cof_opportunity_lines(closing, stages, customer_map, portal_routes, review_states, report_mode) if closing else "- No closing-soon tenders are currently visible for this scope."}
+{_cof_opportunity_lines(closing, stages, customer_map, portal_routes, section_review_states, report_mode) if closing else "- No closing-soon tenders are currently visible for this scope."}
 
 ## Awards / Market Evidence
 
-{_cof_opportunity_lines(awards, stages, customer_map, portal_routes, review_states, report_mode) if awards else "- No awards or market evidence are currently visible for this scope."}
+{_cof_opportunity_lines(awards, stages, customer_map, portal_routes, section_review_states, report_mode) if awards else "- No awards or market evidence are currently visible for this scope."}
 
 ## Client Action Queue
 
-{_cof_interest_lines(section_interests, section_opportunities, customer_map, portal_routes, review_states) if section_interests else "- No approved client action signals are visible for this scope."}
+{_cof_interest_lines(section_interests, section_opportunities, customer_map, portal_routes, section_review_states) if section_interests else "- No approved client action signals are visible for this scope."}
 
 ## Documents Retrieved
 
