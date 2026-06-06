@@ -205,6 +205,34 @@ p { margin: 0 0 12px; }
 .source-tile:nth-child(6) { border-left-color: var(--magenta); }
 .source-tile strong, .source-tile span { display: block; }
 .source-tile span { margin-top: 6px; color: var(--muted); font-size: 12px; }
+.value-strip {
+  margin: 18px 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+.value-tile {
+  min-height: 96px;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--cyan);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fff;
+  box-shadow: var(--soft);
+}
+.value-tile.green { border-left-color: var(--green); }
+.value-tile.amber { border-left-color: #bf8018; }
+.value-tile.red { border-left-color: var(--red); }
+.value-tile.weak { border-left-color: var(--muted); }
+.value-tile span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 1000;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.value-tile strong { display: block; margin-top: 6px; line-height: 1.3; }
 .cof-flow {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -545,6 +573,12 @@ p { margin: 0 0 12px; }
 .weak { color: var(--plum); background: var(--weak-bg); }
 .cyan { color: #006070; background: #d8f5f8; }
 .badges { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+.next-action {
+  margin: 8px 0 10px;
+  color: var(--plum);
+  font-size: 13px;
+  font-weight: 900;
+}
 .pagination {
   margin-top: 14px;
   display: flex;
@@ -588,7 +622,7 @@ textarea { min-height: 92px; resize: vertical; }
 .report-body { white-space: pre-wrap; padding: 18px; border-radius: 8px; background: #101827; color: #f5f7fb; overflow-x: auto; }
 .footer { padding: 18px 22px; color: var(--muted); background: #fff; border-top: 1px solid var(--line); }
 @media (max-width: 1050px) {
-  .topbar-inner, .hero, .cof-hero, .source-strip, .cof-flow, .automation-grid, .admin-link-grid, .two, .three, .four, .form-grid, .workflow-map, .inline-form, .portal-command, .portal-grid { grid-template-columns: 1fr; }
+  .topbar-inner, .hero, .cof-hero, .source-strip, .value-strip, .cof-flow, .automation-grid, .admin-link-grid, .two, .three, .four, .form-grid, .workflow-map, .inline-form, .portal-command, .portal-grid { grid-template-columns: 1fr; }
   .topbar-inner { height: auto; padding: 14px 18px; }
   .chips { justify-content: flex-start; flex-wrap: wrap; }
   .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }

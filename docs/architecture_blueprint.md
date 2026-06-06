@@ -64,6 +64,7 @@ flowchart LR
 | `app/route_utils.py` | Shared template context, pagination, audit CRUD helpers, dashboard metrics, portal workbench helpers and admin health context. |
 | `app/models.py` | Data model for customers, sources, portals, opportunities, documents, reports and audit. |
 | `app/intelligence.py` | Source checks, KRA runs, deterministic parsing, extraction and optional AI-assisted summaries. |
+| `app/intelligence_value.py` | Reusable opportunity confidence, source traceability, deadline urgency, next-action and portfolio insight signals for UI and reports. |
 | `app/source_connectors/` | Provider-specific official-source connectors for Contracts Finder, Find a Tender and generic approved sources. |
 | `app/jobs.py` | CLI job runner for controlled source, feed, connector and admin-cycle execution. |
 | `app/evaluation.py` | Offline matching evaluation harness and metrics. |

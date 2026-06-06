@@ -9,7 +9,8 @@ from app.auth import require_standard_or_admin
 from app.cof import CLIENT_VISIBLE_STATUSES
 from app.database import get_session
 from app.form_utils import parse_optional_int, validation_error_response
-from app.models import ClientInterestSignal, DocumentRetrievalTask, ExtractedQualityQuestion, Opportunity
+from app.intelligence_value import value_signal_map
+from app.models import ClientInterestSignal, DocumentRetrievalTask, ExtractedQualityQuestion, Opportunity, OpportunityDocument
 from app.route_utils import context, delete_with_audit, redirect, save_with_audit, scoped_reference_context, templates, update_with_audit
 
 
@@ -44,6 +45,18 @@ def client_portal(request: Request, session: Session = Depends(get_session), use
     if opportunity_ids:
         for question in session.exec(select(ExtractedQualityQuestion).where(col(ExtractedQualityQuestion.opportunity_id).in_(opportunity_ids))):
             questions_by_opportunity.setdefault(question.opportunity_id, []).append(question)
+    value_documents = list(session.exec(select(OpportunityDocument).where(col(OpportunityDocument.opportunity_id).in_(opportunity_ids)))) if opportunity_ids else []
+    value_tasks = list(session.exec(select(DocumentRetrievalTask).where(col(DocumentRetrievalTask.opportunity_id).in_(opportunity_ids)))) if opportunity_ids else []
+    value_interests = [item for item in raw_interests if item.opportunity_id in opportunity_ids]
+    reference = scoped_reference_context(session, user)
+    opportunity_signals = value_signal_map(
+        opportunities,
+        sources_by_id=reference["source_map"],
+        interests=value_interests,
+        retrieval_tasks=value_tasks,
+        documents=value_documents,
+        questions=[question for rows in questions_by_opportunity.values() for question in rows],
+    )
     metrics = {
         "pins": sum(1 for item in opportunities if item.status == "pin" or item.notice_type == "planning"),
         "live_tenders": sum(1 for item in opportunities if item.status in {"live", "closing_soon", "document_retrieval_required", "questions_extracted"}),
@@ -60,7 +73,8 @@ def client_portal(request: Request, session: Session = Depends(get_session), use
             interests=interests,
             client_metrics=metrics,
             questions_by_opportunity=questions_by_opportunity,
-            **scoped_reference_context(session, user),
+            opportunity_signals=opportunity_signals,
+            **reference,
         ),
     )
 

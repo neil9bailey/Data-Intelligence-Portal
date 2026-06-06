@@ -23,6 +23,15 @@
   </aside>
 </section>
 
+<section class="value-strip">
+  {% for insight in portfolio_insights %}
+  <article class="value-tile {{ insight.status }}">
+    <span>{{ insight.headline }}</span>
+    <strong>{{ insight.detail }}</strong>
+  </article>
+  {% endfor %}
+</section>
+
 <section class="source-strip">
   <div class="source-label">Five public sources</div>
   {% set shown_sources = 0 %}
@@ -79,11 +88,20 @@
     <div class="stack">
       {% for item in opportunities %}
       <article class="list-item">
+        {% set signal = opportunity_signals.get(item.id) %}
         <div class="list-heading">
           <h3>{{ item.title }}</h3>
           <span class="badge {{ 'green' if item.status in ['approved','review_required'] else 'amber' if item.status not in ['rejected'] else 'red' }}">{{ item.status }}</span>
         </div>
-        <p class="hint">{{ item.buyer_name or "Buyer not detected" }} | relevance {{ item.relevance_score|round(0) }}</p>
+        <p class="hint">{{ item.buyer_name or "Buyer not detected" }} | {{ signal.stage_label if signal else item.status }} | {{ signal.value_label if signal else 'value not detected' }}</p>
+        {% if signal %}
+        <div class="badges">
+          <span class="badge {{ signal.confidence_class }}">{{ signal.confidence_label }}</span>
+          <span class="badge {{ signal.source_class }}">{{ signal.source_label }}</span>
+          <span class="badge {{ signal.urgency_class }}">{{ signal.urgency_label }}</span>
+        </div>
+        <p class="next-action">Next action: {{ signal.next_action }}</p>
+        {% endif %}
         <p>{{ item.summary[:220] }}</p>
       </article>
       {% else %}

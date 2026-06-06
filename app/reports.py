@@ -20,6 +20,7 @@ from app.cof_readiness import (
     trusted_cof_source_ids,
 )
 from app.intelligence import kra_runtime_status, requirement_themes_for_text
+from app.intelligence_value import opportunity_value_signal, portfolio_insights
 from app.llm import LLMError, generate_llm_text, kra_system_prompt, llm_enabled
 from app.models import (
     BusinessUnit,
@@ -565,6 +566,7 @@ def generate_cof_weekly_report_markdown(
     portal_status_lines = _cof_portal_status_lines(session, clients)
     kra_status_lines = _cof_kra_status_lines(session, readiness)
     retrieval_task_lines = _cof_retrieval_task_lines(tasks, section_opportunities if report_mode == "final" else opportunities)
+    operating_insight_lines = _cof_operating_insight_lines(section_opportunities)
     redaction_note = _cof_redaction_note()
     if report_mode == "final":
         source_attention = any(item.status in {"failed", "stale"} and item.role == "primary" for item in readiness.source_health)
@@ -610,6 +612,10 @@ Review Lead approval means approved for COF report inclusion, not bid, legal, pr
 - Opportunity Coverage: {len(section_opportunities)} customer-safe opportunity signal(s), filtered to matched clients and the Contracted Opportunity Finder workspace.
 - Pipeline: {len(pins)} PIN / early-market signal(s), {len(watch)} watch item(s), {len(live)} live tender signal(s), {len(closing)} closing-soon tender(s), {len(section_interests)} interested item(s) and {len(awards)} award / market evidence record(s).
 - Evidence: {len(section_requirements)} requirement theme(s), {len(section_questions)} quality question(s), {len(retrieved_documents)} retrieved/permitted document extract(s) and {len(public_notice_documents)} public notice evidence record(s).
+
+## Operating Intelligence Summary
+
+{chr(10).join(operating_insight_lines)}
 
 ## Client Coverage
 
@@ -1491,11 +1497,13 @@ def _cof_opportunity_lines(
         if report_mode == "final" and not source_status.valid:
             source_label = "source withheld pending validation"
         title = concise_opportunity_title(item)
-        next_action = _cof_next_action_for_opportunity(review, stage)
+        signal = opportunity_value_signal(item)
+        next_action = signal.next_action if review == REVIEW_APPROVED_FOR_REPORT else _cof_next_action_for_opportunity(review, stage)
         lines.append(
             f"- **{title}**\n"
             f"  Matched client: {client}; buyer: {item.buyer_name or 'buyer not detected'}.\n"
             f"  Stage: {stage}; review gate: {review}; deadline: {deadline}; value: {value}; confidence: {item.relevance_score:g}.\n"
+            f"  Value signal: {signal.confidence_label}; source: {signal.source_label}; urgency: {signal.urgency_label}.\n"
             f"  Portal route: {portal}; source status: {source_label}; next action: {next_action}.\n"
             f"  Summary: {summary}"
         )
@@ -1512,6 +1520,13 @@ def _cof_next_action_for_opportunity(review_status: str, stage: str) -> str:
     if review_status == REVIEW_NEEDS_EVIDENCE:
         return "Add source evidence"
     return "Human Review Gate"
+
+
+def _cof_operating_insight_lines(opportunities: list[Opportunity]) -> list[str]:
+    insights = portfolio_insights(opportunities)
+    if not insights:
+        return ["- No operating insight is available for this report scope."]
+    return [f"- **{item.headline}:** {item.detail}" for item in insights]
 
 
 def _cof_interest_lines(

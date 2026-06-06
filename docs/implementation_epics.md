@@ -35,6 +35,7 @@ This page records the current MVP delivery state and the next sensible epics.
 | Digest notifications | Delivered MVP | Admin digest profiles can create and send/store scoped report exports through the existing email channel. |
 | Audit export | Delivered MVP | Audit events can be exported as JSON or CSV with existing snapshot redaction. |
 | Scoped standard-user access | Delivered MVP | `DIP_ACCESS_SCOPES_JSON` can restrict standard users to configured customer or business-unit report/client-feed records. |
+| COF intelligence value layer | Delivered Increment 1 | Opportunity Inbox, Client Feed and COF reports now share confidence, source traceability, urgency, next-action and portfolio insight signals. |
 
 ## Next Delivery Epics
 

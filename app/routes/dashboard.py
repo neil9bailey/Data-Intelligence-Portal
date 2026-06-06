@@ -5,7 +5,19 @@ from sqlmodel import Session, col, select
 from app.auth import require_admin, require_standard_or_admin
 from app.database import get_session
 from app.intelligence import refresh_news_feeds
-from app.models import DocumentRetrievalTask, IntelligenceReport, KRAFinding, NewsFeedItem, Opportunity, PortalRetrievalRun, SourceCheckSnapshot
+from app.intelligence_value import portfolio_insights, value_signal_map
+from app.models import (
+    ClientInterestSignal,
+    DocumentRetrievalTask,
+    ExtractedQualityQuestion,
+    IntelligenceReport,
+    KRAFinding,
+    NewsFeedItem,
+    Opportunity,
+    OpportunityDocument,
+    PortalRetrievalRun,
+    SourceCheckSnapshot,
+)
 from app.route_utils import context, portal_workbench_context, redirect, scoped_dashboard_metrics, scoped_reference_context, templates
 from app.rule_loader import load_rule_file
 from app.automation import automation_steps
@@ -27,8 +39,21 @@ def dashboard(request: Request, session: Session = Depends(get_session), user=De
     news_items = [] if scope.restricted else list(session.exec(select(NewsFeedItem).order_by(col(NewsFeedItem.published_at).desc()).limit(6)))
     reports = list(session.exec(scoped_report_statement(user).order_by(col(IntelligenceReport.generated_at).desc()).limit(4)))
     opportunity_ids = [item.id for item in list(session.exec(scoped_opportunity_statement(user))) if item.id]
+    visible_opportunity_ids = [item.id for item in opportunities if item.id]
     tasks_statement = select(DocumentRetrievalTask).order_by(col(DocumentRetrievalTask.created_at).desc())
     tasks = list(session.exec(tasks_statement.where(col(DocumentRetrievalTask.opportunity_id).in_(opportunity_ids)).limit(5))) if scope.restricted else list(session.exec(tasks_statement.limit(5)))
+    value_tasks = list(session.exec(select(DocumentRetrievalTask).where(col(DocumentRetrievalTask.opportunity_id).in_(visible_opportunity_ids)))) if visible_opportunity_ids else []
+    value_interests = list(session.exec(select(ClientInterestSignal).where(col(ClientInterestSignal.opportunity_id).in_(visible_opportunity_ids)))) if visible_opportunity_ids else []
+    value_documents = list(session.exec(select(OpportunityDocument).where(col(OpportunityDocument.opportunity_id).in_(visible_opportunity_ids)))) if visible_opportunity_ids else []
+    value_questions = list(session.exec(select(ExtractedQualityQuestion).where(col(ExtractedQualityQuestion.opportunity_id).in_(visible_opportunity_ids)))) if visible_opportunity_ids else []
+    opportunity_signals = value_signal_map(
+        opportunities,
+        sources_by_id=reference["source_map"],
+        interests=value_interests,
+        retrieval_tasks=value_tasks,
+        documents=value_documents,
+        questions=value_questions,
+    )
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -36,6 +61,8 @@ def dashboard(request: Request, session: Session = Depends(get_session), user=De
             request,
             metrics=scoped_dashboard_metrics(session, user),
             opportunities=opportunities,
+            opportunity_signals=opportunity_signals,
+            portfolio_insights=portfolio_insights(opportunities),
             findings=findings,
             snapshots=snapshots,
             news_items=news_items,

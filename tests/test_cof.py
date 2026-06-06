@@ -282,6 +282,9 @@ def test_cof_weekly_report_content_and_exports(reference_session):
     assert "**Scope:** Contracted Opportunity Finder" in markdown
     assert "All customers and business units" not in markdown
     assert "Client Coverage: 11 clients monitored" in markdown
+    assert "Operating Intelligence Summary" in markdown
+    assert "Live opportunity volume" in markdown
+    assert "Value signal:" in markdown
     assert "| Client | Sector | PINs | Watch | Live | Interested | Awarded | Review gate |" in markdown
     assert markdown.count("| Client ") >= 11
     assert "COF Client 01" not in markdown
@@ -433,6 +436,26 @@ def test_customer_visible_pages_do_not_use_mvp_demo_or_concept_language(referenc
         app.dependency_overrides.clear()
 
 
+def test_user_facing_pages_show_value_layer_signals(reference_session):
+    apply_cof_pack(reference_session)
+    client = client_for(reference_session)
+    try:
+        inbox = client.get("/")
+        feed = client.get("/client-portal")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert inbox.status_code == 200
+    assert feed.status_code == 200
+    assert "Source traceability" in inbox.text
+    assert "High-confidence matches" in inbox.text
+    assert "Next action:" in inbox.text
+    assert "strong match" in inbox.text
+    assert "official source traced" in inbox.text
+    assert "Next action:" in feed.text
+    assert "client signal" in feed.text
+
+
 def test_cof_monday_digest_profile_is_created(reference_session):
     apply_cof_pack(reference_session)
     profile = reference_session.exec(select(DigestProfile).where(DigestProfile.name == "COF Monday report send")).first()
@@ -528,6 +551,8 @@ def test_final_customer_pack_ready_path(reference_session):
     assert report.report_type == "cof_final_customer_pack"
     assert "Final Customer Pack" in markdown
     assert "Ready for weekly send" in markdown
+    assert "Operating Intelligence Summary" in markdown
+    assert "High-confidence matches" in markdown
     assert "Client Coverage: 11 clients monitored" in markdown
     assert "Recipients: 2 configured" in markdown
     assert "Source Health" in markdown

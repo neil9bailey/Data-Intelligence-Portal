@@ -14,6 +14,7 @@ This folder is the single home for Data Intelligence Portal guides, operating no
 | [Benefits case](benefits_case.md) | Business value and user benefits. |
 | [Implementation epics](implementation_epics.md) | Delivery status and future roadmap epics. |
 | [Intelligence pack engine](intelligence-pack-engine.md) | How DIP preconfigures public-sector customers, watch profiles and source monitors. |
+| [Intelligence value layer](intelligence-value-layer.md) | Confidence, source traceability, urgency, next-action and portfolio insight signals used across UI and reports. |
 
 ## Operating Guides
 

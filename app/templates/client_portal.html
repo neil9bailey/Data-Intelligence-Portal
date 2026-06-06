@@ -24,13 +24,22 @@
     <div class="stack">
       {% for item in opportunities %}
       <article class="list-item opportunity-card">
+        {% set signal = opportunity_signals.get(item.id) %}
         <div class="list-heading">
           <div>
             <h3>{{ item.title }}</h3>
-            <p class="hint">{{ item.buyer_name or "Buyer not detected" }} | deadline {{ item.deadline_date or "not detected" }} | GBP {{ '{:,.0f}'.format(item.value_high or 0) }}</p>
+            <p class="hint">{{ item.buyer_name or "Buyer not detected" }} | {{ signal.stage_label if signal else item.status }} | {{ signal.value_label if signal else 'value not detected' }}</p>
           </div>
           <span class="badge {{ 'green' if item.status in ['live','interested','questions_extracted','approved'] else 'amber' if item.status in ['pin','closing_soon','watch','document_retrieval_required'] else 'weak' }}">{{ item.status | replace('_', ' ') }}</span>
         </div>
+        {% if signal %}
+        <div class="badges">
+          <span class="badge {{ signal.confidence_class }}">{{ signal.confidence_label }}</span>
+          <span class="badge {{ signal.source_class }}">{{ signal.source_label }}</span>
+          <span class="badge {{ signal.urgency_class }}">{{ signal.urgency_label }}</span>
+        </div>
+        <p class="next-action">Next action: {{ signal.next_action }} | {{ signal.evidence_summary }}</p>
+        {% endif %}
         <p>{{ item.summary[:260] }}</p>
         <div class="record-actions">
           <form method="post" action="/client-portal/interests">
