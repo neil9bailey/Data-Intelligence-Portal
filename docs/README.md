@@ -31,6 +31,7 @@ This folder is the single home for Data Intelligence Portal guides, operating no
 | --- | --- |
 | [Azure deployment guide](azure-deployment-guide.md) | Full local-to-Azure deployment guide for live-test and customer environments. |
 | [Azure live-test hosting notes](azure-live-test-hosting.md) | Current Vendorlogic live-test architecture and operational notes. |
+| [DIIAC migration runbook](diiac-migration-runbook.md) | Vendorlogic validation, Azure Files backup, DIIAC deployment staging, DNS cutover and rollback steps. |
 | [Current-cost operating model](current-cost-operating-model.md) | Current same-resource operating boundary, route permissions and deferred production-infrastructure items. |
 
 ## Visual Reference

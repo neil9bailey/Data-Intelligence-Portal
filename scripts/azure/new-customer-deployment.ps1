@@ -70,7 +70,7 @@ $suffix = "$customer-$environment"
 $compact = Convert-ToToken -Value "$customer$environment" -MaxLength 13 -LettersOnlyPrefix
 
 if ([string]::IsNullOrWhiteSpace($ImageTag)) {
-    $ImageTag = "1.0.18-$environment"
+    $ImageTag = "1.0.65-cof-value-layer"
 }
 if ([string]::IsNullOrWhiteSpace($ContainerRegistryName)) {
     $ContainerRegistryName = "acrdip$compact"

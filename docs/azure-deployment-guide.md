@@ -232,14 +232,20 @@ Once the certificate is issued, record the managed certificate name in the custo
 .\scripts\azure\test-azure-dip.ps1 `
   -SubscriptionId "<subscription-id>" `
   -ResourceGroupName "<resource-group>" `
-  -ContainerAppName "<container-app-name>"
+  -ContainerAppName "<container-app-name>" `
+  -ExpectedImageTag "<image-tag>" `
+  -PublicUrl "https://dip.customer.example"
 ```
 
 Expected:
 
 - `/healthz` returns `200`.
-- `/` redirects to Entra or returns an unauthenticated protected response.
+- the active Container App template uses the expected image tag.
+- the latest active revision is running and healthy when Azure reports those states.
+- `/` and `/readyz` redirect to Entra or return an unauthenticated protected response.
 - The Container App latest revision is healthy.
+
+To run the full live operational cycle after the revision is healthy, add `-RunAdminCycle`. This refreshes live source health, reports, outbox files and audit records, so use it only in an approved test window.
 
 ## One-Command Customer Bootstrap
 

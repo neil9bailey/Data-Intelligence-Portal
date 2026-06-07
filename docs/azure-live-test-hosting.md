@@ -81,13 +81,15 @@ Azure:
 ```powershell
 .\scripts\azure\deploy-dip.ps1 -Mode plan -InfraOnly
 .\scripts\azure\deploy-dip.ps1 -Mode plan
-.\scripts\azure\test-azure-dip.ps1
+.\scripts\azure\test-azure-dip.ps1 -ExpectedImageTag "1.0.65-cof-value-layer" -PublicUrl "https://dip.vendorlogic.io"
 ```
 
 Expected smoke result:
 
 - `/healthz` returns `200`.
-- `/` is protected and returns a redirect/401/403 when not signed in.
+- the active Container App image tag matches the expected release.
+- the active revision is running and healthy when Azure reports those states.
+- `/` and `/readyz` are protected and return a redirect/401/403 when not signed in.
 - `/admin` shows local/remote health, source health, portal connector health, Entra status, email status, KRA runtime and the autonomous COF workflow runner for Admin users. The full cycle queues a background run, produces a PDF report export, stores/emails it through the configured delivery mode and shows queued/running/completed/failed status after refresh.
 - For live operations, the image includes `/app/scripts/run-admin-cycle.sh`, a no-argument maintenance script that runs the same full-cycle workflow inside the active container and persists the SQLite snapshot. This is useful for validating a customer presentation cycle from Azure CLI when browser auth is not convenient.
 
