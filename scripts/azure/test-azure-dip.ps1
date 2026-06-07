@@ -58,8 +58,8 @@ $healthState = $activeRevision.properties.healthState
 Write-Host "Active revision: $revisionName"
 if (-not [string]::IsNullOrWhiteSpace($runningState)) {
     Write-Host "Revision running state: $runningState"
-    if ($runningState -ne "Running") {
-        throw "Expected active revision running state to be Running."
+    if ($runningState -notin @("Running", "RunningAtMaxScale")) {
+        throw "Expected active revision running state to be Running or RunningAtMaxScale."
     }
 }
 
