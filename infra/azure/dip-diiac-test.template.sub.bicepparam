@@ -19,8 +19,8 @@ param containerAppName = 'ca-dip-diiac-test'
 param sharedKeyVaultName = 'REPLACE_WITH_EXISTING_DIIAC_KEY_VAULT'
 param sharedKeyVaultResourceGroupName = 'REPLACE_WITH_KEY_VAULT_RESOURCE_GROUP'
 param sharedKeyVaultSubscriptionId = '9ae9da49-de67-443b-af55-ce9db33ed8f4'
-param publicDomain = 'dip.diiac.io'
-param dnsSubdomain = 'dip'
+param publicDomain = 'cof.diiac.io'
+param dnsSubdomain = 'cof'
 param customDomainBindingEnabled = false
 param managedCertificateName = ''
 

@@ -16,7 +16,7 @@ Checked date: 7 June 2026.
 | Vendorlogic subscription | `3ed9fa77-6bf2-4ffc-bd67-f5a442d3e5e7` |
 | DIIAC tenant | `67f8be6c-07da-4a7c-bb0a-d6bcb38cd6da` |
 | DIIAC subscription | `9ae9da49-de67-443b-af55-ce9db33ed8f4` |
-| Proposed DIIAC URL | `https://dip.diiac.io` |
+| Proposed DIIAC URL | `https://cof.diiac.io` |
 
 ## Phase 1: Prove Vendorlogic Is Current
 
@@ -92,7 +92,7 @@ Generate DIIAC parameters with the customer bootstrap script:
   -EnvironmentCode "test" `
   -SubscriptionId "9ae9da49-de67-443b-af55-ce9db33ed8f4" `
   -TenantId "67f8be6c-07da-4a7c-bb0a-d6bcb38cd6da" `
-  -PublicDomain "dip.diiac.io" `
+  -PublicDomain "cof.diiac.io" `
   -SharedKeyVaultName "<approved-existing-diiac-key-vault>" `
   -SharedKeyVaultResourceGroupName "<key-vault-resource-group>" `
   -ImageTag "1.0.65-cof-value-layer" `
@@ -112,7 +112,7 @@ Deploy DIIAC in the standard order:
 .\scripts\azure\show-dns-and-bind-domain.ps1 <generated command arguments>
 ```
 
-Do not bind `dip.diiac.io` until DNS validation records are live.
+Do not bind `cof.diiac.io` until DNS validation records are live.
 
 ## Phase 3: Data Choice
 
@@ -142,14 +142,14 @@ If OAuth file-share access is not configured, rerun with `-AuthMode key`.
 
 ## Phase 4: DNS Cutover And Rollback
 
-`dip.diiac.io` currently must be changed from its existing DNS target to the new Azure Container App CNAME target printed by `show-dns-and-bind-domain.ps1`.
+`cof.diiac.io` must be pointed to the new Azure Container App CNAME target printed by `show-dns-and-bind-domain.ps1`.
 
 Cutover:
 
-1. Add the `TXT asuid.dip` validation record.
-2. Change `CNAME dip` to the new Container App FQDN.
+1. Add the `TXT asuid.cof` validation record.
+2. Add or change `CNAME cof` to the new Container App FQDN.
 3. Run `show-dns-and-bind-domain.ps1 -Bind`.
-4. Run `test-azure-dip.ps1 -PublicUrl "https://dip.diiac.io"`.
+4. Run `test-azure-dip.ps1 -PublicUrl "https://cof.diiac.io"`.
 5. Complete real signed-in end-user testing before declaring migration complete.
 
 Rollback:

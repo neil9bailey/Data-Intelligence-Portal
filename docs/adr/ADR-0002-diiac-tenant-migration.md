@@ -9,7 +9,7 @@
 
 ## Context
 
-The Contracted Opportunity Finder live pilot is currently running in the Vendorlogic tenant at `https://dip.vendorlogic.io`. The requested next step is to migrate the same DIP/COF capability into the DIIAC tenant and serve it from `https://dip.diiac.io`.
+The Contracted Opportunity Finder live pilot is currently running in the Vendorlogic tenant at `https://dip.vendorlogic.io`. The requested next step is to migrate the same DIP/COF capability into the DIIAC tenant and serve it from `https://cof.diiac.io`.
 
 This is design-altering because it changes the Azure tenant, Entra app registration, security groups, Key Vault boundary, Container Apps runtime resources, ACR, storage account, DNS target and operational rollback model.
 
@@ -23,9 +23,9 @@ The DIIAC deployment will:
 - create/use dedicated DIP resources under `RG_DIP_DIIAC_TEST`
 - use a dedicated DIIAC DIP Key Vault, not unrelated existing product vaults
 - create DIIAC Entra app registration and DIP Admin/Standard/Auditor groups
-- deploy the current image tag `1.0.65-cof-value-layer`
+- deploy the current image tag `1.0.66-diiac-migration`
 - keep Vendorlogic live and untouched as rollback until DIIAC UAT is complete
-- bind `dip.diiac.io` only after DNS validation records are confirmed
+- bind `cof.diiac.io` only after DNS validation records are confirmed
 
 No portal password storage, portal login automation, customer contact automation, expression-of-interest automation, bid submission automation, or automated bid/no-bid/legal/procurement/compliance decisions are approved by this ADR.
 
@@ -56,7 +56,7 @@ The DIIAC tenant becomes the forward path for DIP/COF after signed-in UAT. Vendo
 - Deploy DIIAC infrastructure and app through Bicep with what-if before apply.
 - Build and push current container image to the DIIAC ACR.
 - Smoke test generated Container App FQDN: active image tag, revision health, `/healthz`, protected `/readyz`, protected `/`.
-- Configure DNS validation records for `dip.diiac.io`, bind managed certificate, then smoke test public URL.
+- Configure DNS validation records for `cof.diiac.io`, bind managed certificate, then smoke test public URL.
 - Complete real signed-in DIIAC end-user UAT before release approval.
 
 ## ARB Checkpoint

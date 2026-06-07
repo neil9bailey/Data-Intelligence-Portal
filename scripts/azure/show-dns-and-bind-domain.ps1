@@ -15,11 +15,13 @@ az account set --subscription $SubscriptionId | Out-Null
 $fqdn = az containerapp show -g $ResourceGroupName -n $ContainerAppName --query "properties.configuration.ingress.fqdn" -o tsv
 $verificationId = az containerapp show -g $ResourceGroupName -n $ContainerAppName --query "properties.customDomainVerificationId" -o tsv
 $staticIp = az containerapp env show -g $ResourceGroupName -n $EnvironmentName --query "properties.staticIp" -o tsv
+$dnsLabel = ($Hostname -split "\.")[0]
+$txtHost = "asuid.$dnsLabel"
 
 Write-Host "DNS records for $Hostname"
-Write-Host "CNAME host: dip"
+Write-Host "CNAME host: $dnsLabel"
 Write-Host "CNAME value: $fqdn"
-Write-Host "TXT host: asuid.dip"
+Write-Host "TXT host: $txtHost"
 Write-Host "TXT value: $verificationId"
 Write-Host "Container Apps environment static IP: $staticIp"
 Write-Host "For this subdomain use the CNAME + TXT records before binding. A record is only needed for an apex/root domain."
